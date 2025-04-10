@@ -40,6 +40,18 @@ const seed = async () => {
         payment_status VARCHAR(20),
         enrolled_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+
+      CREATE TABLE payments (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER REFERENCES users(id),
+      class_id INTEGER REFERENCES classes(id),
+      stripe_payment_id VARCHAR(255) NOT NULL,
+      amount DECIMAL(10, 2),
+      currency VARCHAR(10),
+      status VARCHAR(50),
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
     `);
 
     // Insert seed users
