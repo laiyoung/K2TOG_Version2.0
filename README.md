@@ -175,3 +175,15 @@ Save payment records
 Lookup payment by user/class
 
 🔹 index.js
+
+
+
+
+🔍 What Each Controller Handles
+
+authController.js :	Register, login, hash passwords, generate JWTs
+userController.js :	View/update user profile, get all users (admin)
+classController.js :	Get all classes, get one by ID, create/edit classes
+enrollmentController.js :	Enroll user, cancel enrollment, get user’s enrolled classes
+paymentController.js :	(Later) Create Stripe Checkout sessions
+dashboardController.js :	Admin metrics, stats, user-class summaries
