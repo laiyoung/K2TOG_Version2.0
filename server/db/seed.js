@@ -1,14 +1,16 @@
 // server/db/seed.js
 
 const pool = require('../config/db');
+const bcrypt = require('bcrypt');
 
 const seed = async () => {
   try {
     // Drop existing tables
     await pool.query(`
-      DROP TABLE IF EXISTS enrollments;
-      DROP TABLE IF EXISTS users;
-      DROP TABLE IF EXISTS classes;
+      DROP TABLE IF EXISTS payments CASCADE;
+      DROP TABLE IF EXISTS enrollments CASCADE;
+      DROP TABLE IF EXISTS classes CASCADE;
+      DROP TABLE IF EXISTS users CASCADE;
     `);
 
     // Create tables
@@ -42,25 +44,28 @@ const seed = async () => {
       );
 
       CREATE TABLE payments (
-      id SERIAL PRIMARY KEY,
-      user_id INTEGER REFERENCES users(id),
-      class_id INTEGER REFERENCES classes(id),
-      stripe_payment_id VARCHAR(255) NOT NULL,
-      amount DECIMAL(10, 2),
-      currency VARCHAR(10),
-      status VARCHAR(50),
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id),
+        class_id INTEGER REFERENCES classes(id),
+        stripe_payment_id VARCHAR(255) NOT NULL,
+        amount DECIMAL(10, 2),
+        currency VARCHAR(10),
+        status VARCHAR(50),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
     `);
+
+    // Hash passwords
+    const userPassword = await bcrypt.hash('user123', 10);
+    const adminPassword = await bcrypt.hash('admin123', 10);
 
     // Insert seed users
     await pool.query(`
       INSERT INTO users (name, email, password, role) VALUES
-        ('Jane Doe', 'jane@example.com', 'hashedpassword1', 'user'),
-        ('John Smith', 'john@example.com', 'hashedpassword2', 'user'),
-        ('Admin User', 'admin@example.com', 'hashedpassword', 'admin');
-    `);
+        ('Jane Doe', 'jane@example.com', $1, 'user'),
+        ('John Smith', 'john@example.com', $1, 'user'),
+        ('Admin User', 'admin@example.com', $2, 'admin')
+    `, [userPassword, adminPassword]);
 
     // Insert seed classes
     await pool.query(`
@@ -85,6 +90,8 @@ const seed = async () => {
   } catch (err) {
     console.error('Error seeding database:', err);
     pool.end();
+  } finally {
+    process.exit();
   }
 };
 

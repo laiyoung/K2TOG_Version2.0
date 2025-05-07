@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 
-const { registerUser, loginUser } = require('../controllers/authController');
+const { registerUser, loginUser, validateRegistration } = require('../controllers/authController');
 const {
   getUserProfile,
   getAllUserAccounts,
@@ -12,7 +12,7 @@ const requireAuth = require('../middleware/auth');
 const requireAdmin = require('../middleware/requireAdmin');
 
 // Auth routes
-router.post('/register', registerUser);
+router.post('/register', validateRegistration, registerUser);
 router.post('/login', loginUser);
 
 // User profile routes

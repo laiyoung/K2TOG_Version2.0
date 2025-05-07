@@ -1,8 +1,9 @@
 // server/controllers/paymentController.js
 
 const stripe = require('../config/stripe');
-const { savePayment, getPaymentsByUser } = require('../models/paymentModel');
-const { enrollUserInClass } = require('../models/enrollmentModel');
+// const { savePayment, getPaymentsByUser } = require('../models/paymentModel');
+const { getPaymentsByUser } = require('../models/paymentModel');
+// const { enrollUserInClass } = require('../models/enrollmentModel');
 const { getClassById } = require('../models/classModel');
 
 // Create Stripe Checkout Session

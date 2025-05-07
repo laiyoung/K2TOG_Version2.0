@@ -1,4 +1,5 @@
 const { getUserById, getAllUsers } = require('../models/userModel');
+const pool = require('../config/db');
 
 // @desc    Get current user's profile
 // @route   GET /api/users/profile
@@ -38,6 +39,14 @@ const updateUserProfile = async (req, res) => {
     const user = await getUserById(req.user.id);
     if (!user) return res.status(404).json({ error: 'User not found' });
 
+    // Validate email format if provided
+    if (email) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        return res.status(400).json({ error: 'Invalid email format' });
+      }
+    }
+
     const result = await pool.query(
       `UPDATE users SET name = $1, email = $2 WHERE id = $3 RETURNING id, name, email, role`,
       [name || user.name, email || user.email, req.user.id]
@@ -46,7 +55,10 @@ const updateUserProfile = async (req, res) => {
     res.json(result.rows[0]);
   } catch (err) {
     console.error('Update profile error:', err);
-    res.status(500).json({ error: 'Failed to update profile' });
+    res.status(500).json({ 
+      error: 'Failed to update profile',
+      details: process.env.NODE_ENV === 'development' ? err.message : undefined
+    });
   }
 };
 

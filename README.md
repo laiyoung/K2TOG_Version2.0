@@ -179,11 +179,22 @@ Lookup payment by user/class
 
 
 
-🔍 What Each Controller Handles
+server/
+└── controllers/
+    ├── authController.js          # Register, login, JWT handling
+    ├── userController.js          # User profile, update info, admin user views
+    ├── classController.js         # Get/create/manage class data
+    ├── enrollmentController.js    # Enroll, cancel, view enrolled classes
+    ├── paymentController.js       # Stripe session creation (later)
+    └── dashboardController.js     # Admin dashboard data (user + class stats)
 
-authController.js :	Register, login, hash passwords, generate JWTs
-userController.js :	View/update user profile, get all users (admin)
-classController.js :	Get all classes, get one by ID, create/edit classes
-enrollmentController.js :	Enroll user, cancel enrollment, get user’s enrolled classes
-paymentController.js :	(Later) Create Stripe Checkout sessions
-dashboardController.js :	Admin metrics, stats, user-class summaries
+
+
+server/
+└── middleware/
+    ├── auth.js              # Verifies JWT token and attaches user to request
+    ├── requireAdmin.js      # Checks if user has admin privileges
+    ├── errorHandler.js      # Custom error handling middleware
+    ├── validateInput.js     # Middleware for validating user input
+    └── logger.js            # Logs request info for debugging
+
