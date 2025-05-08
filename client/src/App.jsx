@@ -1,28 +1,21 @@
-import { useState } from 'react'
-import './App.css'
+import { Routes, Route } from 'react-router-dom';
+import Landing from './pages/Landing';
+import Classes from './pages/Classes';
+import SingleClass from './pages/SingleClass';
+import UserAccount from './pages/UserAccount';
+import AdminDashboard from './pages/AdminDashboard';
+import './App.css';
 
 function App() {
-  return (
-    <div className="App">
-      <h1>YJ Child Care Plus</h1>
-      {/* 
-        Project Structure:
-        /src
-          /assets         - Static files (images, fonts, etc.)
-          /components     - Reusable UI components
-            /common      - Shared components (buttons, inputs, etc.)
-            /layout      - Layout components (header, footer, sidebar)
-            /features    - Feature-specific components
-          /hooks         - Custom React hooks
-          /pages         - Page components
-          /services      - API calls and external services
-          /store         - State management
-          /styles        - Global styles and themes
-          /utils         - Helper functions
-          /constants     - Constants and configuration
-      */}
-    </div>
-  )
+    return (
+        <Routes>
+            <Route path="/" element={<Landing />} />
+            <Route path="/classes" element={<Classes />} />
+            <Route path="/classes/:id" element={<SingleClass />} />
+            <Route path="/account" element={<UserAccount />} />
+            <Route path="/admin" element={<AdminDashboard />} />
+        </Routes>
+    );
 }
 
-export default App
+export default App;
