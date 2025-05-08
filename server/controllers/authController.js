@@ -66,13 +66,17 @@ const loginUser = async (req, res) => {
 
     const user = await getUserByEmail(email);
     if (!user) {
-      console.log(`Failed login attempt for non-existent email: ${email}`);
+      if (process.env.NODE_ENV !== 'test') {
+        console.log(`Failed login attempt for non-existent email: ${email}`);
+      }
       return res.status(400).json({ error: 'Invalid email or password' });
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      console.log(`Failed login attempt for user: ${user.email}`);
+      if (process.env.NODE_ENV !== 'test') {
+        console.log(`Failed login attempt for user: ${user.email}`);
+      }
       return res.status(400).json({ error: 'Invalid email or password' });
     }
 
@@ -83,7 +87,9 @@ const loginUser = async (req, res) => {
     const { password: _, ...userData } = user;
     res.status(200).json({ user: userData, token });
   } catch (err) {
-    console.error('Login error:', err);
+    if (process.env.NODE_ENV !== 'test') {
+      console.error('Login error:', err);
+    }
     res.status(500).json({ 
       error: 'Login failed',
       details: process.env.NODE_ENV === 'development' ? err.message : undefined

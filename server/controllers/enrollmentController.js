@@ -32,6 +32,10 @@ const enrollInClass = async (req, res) => {
     const now = new Date();
     const classDetails = await getClassById(classId);
 
+    if (!classDetails) {
+      return res.status(404).json({ error: "Class not found" });
+    }
+
     if (new Date(classDetails.date) <= now) {
       return res
         .status(400)
@@ -41,16 +45,25 @@ const enrollInClass = async (req, res) => {
     const enrollment = await enrollUserInClass(userId, classId, "paid");
     await incrementEnrolledCount(classId);
 
-    res.status(201).json(enrollment);
+    // Send email before sending response
+    try {
+      await sendEmail({
+        to: req.user.email,
+        subject: "Class Enrollment Confirmation",
+        html: `<p>You are successfully enrolled in "${classDetails.title}".</p>`,
+      });
+    } catch (emailError) {
+      if (process.env.NODE_ENV !== 'test') {
+        console.error("Email sending failed:", emailError);
+      }
+      // Continue with enrollment even if email fails
+    }
 
-    // After enrolling user
-    await sendEmail({
-      to: req.user.email,
-      subject: "Class Enrollment Confirmation",
-      html: `<p>You are successfully enrolled in "${classInfo.title}".</p>`,
-    });
+    res.status(201).json(enrollment);
   } catch (err) {
-    console.error("Enrollment error:", err);
+    if (process.env.NODE_ENV !== 'test') {
+      console.error("Enrollment error:", err);
+    }
     res.status(500).json({ error: "Failed to enroll in class" });
   }
 };
@@ -70,7 +83,9 @@ const cancelClassEnrollment = async (req, res) => {
     await decrementEnrolledCount(classId);
     res.json({ message: "Enrollment cancelled successfully" });
   } catch (err) {
-    console.error("Cancel error:", err);
+    if (process.env.NODE_ENV !== 'test') {
+      console.error("Cancel error:", err);
+    }
     res.status(500).json({ error: "Failed to cancel enrollment" });
   }
 };
@@ -85,7 +100,9 @@ const getMyEnrollments = async (req, res) => {
     const enrollments = await getUserEnrollments(userId);
     res.json(enrollments);
   } catch (err) {
-    console.error("Get enrollments error:", err);
+    if (process.env.NODE_ENV !== 'test') {
+      console.error("Get enrollments error:", err);
+    }
     res.status(500).json({ error: "Failed to fetch enrollments" });
   }
 };
@@ -98,7 +115,9 @@ const getAllEnrollmentsAdmin = async (req, res) => {
     const enrollments = await getAllEnrollments();
     res.json(enrollments);
   } catch (err) {
-    console.error("Admin fetch error:", err);
+    if (process.env.NODE_ENV !== 'test') {
+      console.error("Admin fetch error:", err);
+    }
     res.status(500).json({ error: "Failed to fetch all enrollments" });
   }
 };

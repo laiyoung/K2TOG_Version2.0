@@ -44,6 +44,32 @@ const {
       price,
       capacity
     } = req.body;
+
+    // Validate required fields
+    const requiredFields = ['title', 'description', 'date', 'location_type', 'location_details', 'price', 'capacity'];
+    const missingFields = requiredFields.filter(field => !req.body[field]);
+    
+    if (missingFields.length > 0) {
+      return res.status(400).json({ 
+        error: 'Missing required fields', 
+        fields: missingFields 
+      });
+    }
+
+    // Validate field types
+    if (typeof price !== 'number' || price <= 0) {
+      return res.status(400).json({ error: 'Price must be a positive number' });
+    }
+
+    if (typeof capacity !== 'number' || capacity <= 0) {
+      return res.status(400).json({ error: 'Capacity must be a positive number' });
+    }
+
+    // Validate date format
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!dateRegex.test(date)) {
+      return res.status(400).json({ error: 'Date must be in YYYY-MM-DD format' });
+    }
   
     try {
       const newClass = await createClass({
