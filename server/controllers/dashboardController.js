@@ -12,6 +12,10 @@ const {
   
   const {
     getAllEnrollments,
+    getPendingEnrollments,
+    getEnrollmentById,
+    approveEnrollment,
+    rejectEnrollment,
     cancelEnrollment
   } = require('../models/enrollmentModel');
   
@@ -99,6 +103,75 @@ const {
     }
   };
   
+  // @desc    Get pending enrollments
+  const adminGetPendingEnrollments = async (req, res) => {
+    try {
+      const pendingEnrollments = await getPendingEnrollments();
+      res.json(pendingEnrollments);
+    } catch (err) {
+      res.status(500).json({ error: 'Failed to fetch pending enrollments' });
+    }
+  };
+  
+  // @desc    Get enrollment details
+  const adminGetEnrollmentDetails = async (req, res) => {
+    try {
+      const enrollment = await getEnrollmentById(req.params.enrollmentId);
+      if (!enrollment) {
+        return res.status(404).json({ error: 'Enrollment not found' });
+      }
+      res.json(enrollment);
+    } catch (err) {
+      res.status(500).json({ error: 'Failed to fetch enrollment details' });
+    }
+  };
+  
+  // @desc    Approve an enrollment
+  const adminApproveEnrollment = async (req, res) => {
+    const { enrollmentId } = req.params;
+    const { adminNotes } = req.body;
+    const adminId = req.user.id; // From auth middleware
+  
+    try {
+      const enrollment = await getEnrollmentById(enrollmentId);
+      if (!enrollment) {
+        return res.status(404).json({ error: 'Enrollment not found' });
+      }
+  
+      if (enrollment.enrollment_status !== 'pending') {
+        return res.status(400).json({ error: 'Enrollment is not pending approval' });
+      }
+  
+      const approvedEnrollment = await approveEnrollment(enrollmentId, adminId, adminNotes);
+      res.json(approvedEnrollment);
+    } catch (err) {
+      res.status(500).json({ error: 'Failed to approve enrollment' });
+    }
+  };
+  
+  // @desc    Reject an enrollment
+  const adminRejectEnrollment = async (req, res) => {
+    const { enrollmentId } = req.params;
+    const { adminNotes } = req.body;
+    const adminId = req.user.id; // From auth middleware
+  
+    try {
+      const enrollment = await getEnrollmentById(enrollmentId);
+      if (!enrollment) {
+        return res.status(404).json({ error: 'Enrollment not found' });
+      }
+  
+      if (enrollment.enrollment_status !== 'pending') {
+        return res.status(400).json({ error: 'Enrollment is not pending approval' });
+      }
+  
+      const rejectedEnrollment = await rejectEnrollment(enrollmentId, adminId, adminNotes);
+      res.json(rejectedEnrollment);
+    } catch (err) {
+      res.status(500).json({ error: 'Failed to reject enrollment' });
+    }
+  };
+  
   module.exports = {
     adminGetUsers,
     adminDeleteUser,
@@ -107,5 +180,9 @@ const {
     adminDeleteClass,
     adminEnrollmentStats,
     adminRemoveUserFromClass,
+    adminGetPendingEnrollments,
+    adminGetEnrollmentDetails,
+    adminApproveEnrollment,
+    adminRejectEnrollment
   };
   

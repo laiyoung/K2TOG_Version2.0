@@ -2,30 +2,30 @@ import { Link } from 'react-router-dom';
 
 function Header() {
     return (
-        <header className="w-full px-6 py-4 bg-white">
+        <header className="w-full bg-white font-montserrat px-6 py-6">
             <div className="max-w-7xl mx-auto flex items-center justify-between">
-                <Link to="/" className="text-2xl font-bold text-teal-700">
-                    LOGO
+                <Link to="/" className="flex items-center">
+                    <div className="h-[120px] w-[400px] overflow-hidden">
+                        <img
+                            src="/images/logo-img.png"
+                            alt="YJ Child Care Plus Inc."
+                            className="h-full w-full object-contain scale-125"
+                        />
+                    </div>
                 </Link>
-
                 <nav className="flex items-center space-x-8">
-                    <a href="#activities" className="text-gray-700 hover:text-teal-600 transition-colors">
-                        Activities
-                    </a>
-                    <a href="#about" className="text-gray-700 hover:text-teal-600 transition-colors">
-                        About
-                    </a>
-                    <a href="#teachers" className="text-gray-700 hover:text-teal-600 transition-colors">
-                        Teachers
-                    </a>
-                    <a href="#contact" className="text-gray-700 hover:text-teal-600 transition-colors">
-                        Contact
-                    </a>
+                    <Link to="/" className="nav-button uppercase text-gray-500 hover:text-black transition-colors" style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 400, fontSize: '14px', padding: '12px 16px' }}>About</Link>
+                    <Link to="/classes" className="nav-button uppercase text-gray-500 hover:text-black transition-colors" style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 400, fontSize: '14px', padding: '12px 16px' }}>Classes</Link>
+                    <Link to="#" className="nav-button uppercase text-gray-500 hover:text-black transition-colors" style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 400, fontSize: '14px', padding: '12px 16px' }}>Resourses</Link>
+                    <Link to="/contact" className="nav-button uppercase text-gray-500 hover:text-black transition-colors" style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 400, fontSize: '14px', padding: '12px 16px' }}>Contact</Link>
+                    <Link
+                        to="/login"
+                        className="nav-button uppercase text-gray-500 hover:text-black transition-colors"
+                        style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 400, fontSize: '14px', padding: '12px 16px' }}
+                    >
+                        Login
+                    </Link>
                 </nav>
-
-                <button className="bg-teal-500 text-white px-6 py-2 rounded-lg hover:bg-teal-600 transition-colors">
-                    Contact Us
-                </button>
             </div>
         </header>
     );

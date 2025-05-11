@@ -9,6 +9,10 @@ const {
   adminDeleteClass,
   adminEnrollmentStats,
   adminRemoveUserFromClass,
+  adminGetPendingEnrollments,
+  adminApproveEnrollment,
+  adminRejectEnrollment,
+  adminGetEnrollmentDetails
 } = require('../controllers/dashboardController');
 
 const requireAuth = require('../middleware/auth');
@@ -28,6 +32,9 @@ router.delete('/classes/:classId', adminDeleteClass);
 
 // Enrollments
 router.get('/enrollments/stats', adminEnrollmentStats);
-router.delete('/enrollments/:userId/:classId', adminRemoveUserFromClass);
+router.get('/enrollments/pending', adminGetPendingEnrollments);
+router.get('/enrollments/:enrollmentId', adminGetEnrollmentDetails);
+router.post('/enrollments/:enrollmentId/approve', adminApproveEnrollment);
+router.post('/enrollments/:enrollmentId/reject', adminRejectEnrollment);
 
 module.exports = router;
