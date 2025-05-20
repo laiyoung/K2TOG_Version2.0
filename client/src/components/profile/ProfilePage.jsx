@@ -7,75 +7,46 @@ import CertificatesSection from './CertificatesSection';
 import PaymentMethodsSection from './PaymentMethodsSection';
 import ActivityLogSection from './ActivityLogSection';
 import NotificationsSection from './NotificationsSection';
+import EnrollmentsSection from './EnrollmentsSection';
+import PasswordSection from './PasswordSection';
+import PaymentsDueSection from './PaymentsDueSection';
 import { mockProfileData } from '../../mock/profileData';
 import './ProfilePage.css';
 
 const ProfilePage = () => {
     const [activeSection, setActiveSection] = useState('overview');
-    const [profile, setProfile] = useState(null);
-    const [loading, setLoading] = useState(true);
+    const [profile, setProfile] = useState(mockProfileData); // Initialize with mock data
+    const [loading, setLoading] = useState(false); // Set to false since we're using mock data
     const [error, setError] = useState(null);
     const navigate = useNavigate();
-
-    useEffect(() => {
-        // Simulate API call with mock data
-        const loadMockData = () => {
-            setLoading(true);
-            try {
-                // Simulate network delay
-                setTimeout(() => {
-                    setProfile(mockProfileData);
-                    setError(null);
-                    setLoading(false);
-                }, 500);
-            } catch (err) {
-                setError('Failed to load profile. Please try again later.');
-                setLoading(false);
-            }
-        };
-
-        loadMockData();
-    }, []);
 
     const handleSectionChange = (section) => {
         setActiveSection(section);
     };
 
-    // Mock function to simulate profile updates
+    // Simplified profile update function for mock data
     const handleProfileUpdate = () => {
-        setLoading(true);
-        // Simulate network delay
-        setTimeout(() => {
-            setProfile(prevProfile => ({
-                ...prevProfile,
-                updated_at: new Date().toISOString()
-            }));
-            setLoading(false);
-        }, 500);
+        // Just update the timestamp to simulate a change
+        setProfile(prevProfile => ({
+            ...prevProfile,
+            updated_at: new Date().toISOString()
+        }));
     };
 
-    if (loading) {
-        return (
-            <div className="profile-page loading">
-                <div className="loading-spinner"></div>
-                <p>Loading profile...</p>
-            </div>
-        );
-    }
+    const handlePaymentComplete = (paymentId) => {
+        // Update payment status in the profile
+        setProfile(prevProfile => ({
+            ...prevProfile,
+            payments: prevProfile.payments.map(payment =>
+                payment.id === paymentId
+                    ? { ...payment, status: 'paid', paid_date: new Date().toISOString() }
+                    : payment
+            )
+        }));
+    };
 
-    if (error) {
-        return (
-            <div className="profile-page error">
-                <div className="error-message">
-                    <i className="fas fa-exclamation-circle"></i>
-                    <p>{error}</p>
-                    <button onClick={() => window.location.reload()} className="retry-button">
-                        Retry
-                    </button>
-                </div>
-            </div>
-        );
-    }
+    // Calculate number of payments due
+    const paymentsDue = profile?.payments?.filter(p => p.status !== 'paid').length || 0;
 
     return (
         <div className="profile-page">
@@ -86,20 +57,37 @@ const ProfilePage = () => {
                     activeSection={activeSection}
                     onSectionChange={handleSectionChange}
                     unreadNotifications={profile?.notifications?.filter(n => !n.is_read).length || 0}
+                    paymentsDue={paymentsDue}
                 />
 
                 <div className="profile-section">
                     {activeSection === 'overview' && (
-                        <ProfileOverview profile={profile} onProfileUpdate={handleProfileUpdate} />
+                        <ProfileOverview
+                            profile={profile}
+                            onProfileUpdate={handleProfileUpdate}
+                            onSectionChange={handleSectionChange}
+                        />
+                    )}
+                    {activeSection === 'enrollments' && (
+                        <EnrollmentsSection enrollments={profile?.enrollments || []} />
                     )}
                     {activeSection === 'certificates' && (
                         <CertificatesSection certificates={profile?.certificates || []} />
+                    )}
+                    {activeSection === 'payments-due' && (
+                        <PaymentsDueSection
+                            payments={profile?.payments || []}
+                            onPaymentComplete={handlePaymentComplete}
+                        />
                     )}
                     {activeSection === 'payment-methods' && (
                         <PaymentMethodsSection
                             paymentMethods={profile?.payment_methods || []}
                             onPaymentMethodsUpdate={handleProfileUpdate}
                         />
+                    )}
+                    {activeSection === 'password' && (
+                        <PasswordSection />
                     )}
                     {activeSection === 'activity' && (
                         <ActivityLogSection activities={profile?.activity_log || []} />

@@ -13,6 +13,10 @@ const enrollmentRoutes = require('./routes/enrollmentRoutes');
 // const paymentRoutes = require('./routes/paymentRoutes');;
 const stripeWebhook = require('./routes/stripeWebhook');
 const adminRoutes = require('./routes/adminRoutes');
+const certificateRoutes = require('./routes/certificateRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
+const analyticsRoutes = require('./routes/analyticsRoutes');
+const settingsRoutes = require('./routes/settingsRoutes');
 const errorHandler = require('./middleware/errorHandler');
 const devLogger = require('./middleware/devLogger');
 
@@ -31,6 +35,10 @@ app.use('/api/enrollments', enrollmentRoutes);
 // app.use('/api/payments', paymentRoutes);
 app.use('/api/webhook', stripeWebhook); 
 app.use('/api/admin', adminRoutes);
+app.use('/api/certificates', certificateRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/analytics', analyticsRoutes);
+app.use('/api/admin/settings', settingsRoutes);
 app.use(devLogger);
 app.use(errorHandler); // place this last!
 

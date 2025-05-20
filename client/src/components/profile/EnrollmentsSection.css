@@ -1,0 +1,74 @@
+.enrollments-section {
+    padding: 16px;
+}
+
+.enrollments-section .MuiGrid-container {
+    margin: -8px;
+}
+
+.enrollments-section .MuiGrid-item {
+    padding: 8px;
+}
+
+.enrollments-section .MuiPaper-root {
+    height: 100%;
+    min-height: 280px;
+    display: flex;
+    flex-direction: column;
+}
+
+.enrollments-section .MuiChip-root {
+    font-weight: 500;
+    flex-shrink: 0;
+}
+
+.enrollments-section .MuiChip-root .MuiChip-icon {
+    margin-left: 4px;
+}
+
+.enrollments-section .enrollment-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.enrollments-section .enrollment-header {
+    margin-bottom: 16px;
+}
+
+.enrollments-section .enrollment-header .MuiBox-root {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 8px;
+}
+
+.enrollments-section .enrollment-header .MuiBox-root > div:first-child {
+    flex: 1;
+    min-width: 0;
+}
+
+.enrollments-section .enrollment-details {
+    flex: 1;
+}
+
+.enrollments-section .enrollment-footer {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid rgba(0, 0, 0, 0.12);
+}
+
+@media (max-width: 600px) {
+    .enrollments-section {
+        padding: 8px;
+    }
+    
+    .enrollments-section .MuiGrid-container {
+        margin: -4px;
+    }
+    
+    .enrollments-section .MuiGrid-item {
+        padding: 4px;
+    }
+} 

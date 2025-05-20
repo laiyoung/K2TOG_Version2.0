@@ -1,0 +1,46 @@
+.class-students-container {
+    padding: 1rem;
+}
+
+.class-students-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.students-table {
+    margin-top: 1rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.students-table .MuiTableCell-root {
+    padding: 1rem;
+}
+
+.students-table .MuiTableHead-root .MuiTableCell-root {
+    font-weight: 600;
+    background-color: #f5f5f5;
+}
+
+.students-table .MuiTableRow-root:hover {
+    background-color: #f8f9fa;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .class-students-header {
+        flex-direction: column;
+        gap: 1rem;
+        align-items: stretch;
+    }
+
+    .students-table {
+        overflow-x: auto;
+    }
+
+    .students-table .MuiTableCell-root {
+        padding: 0.75rem 0.5rem;
+        white-space: nowrap;
+    }
+} 

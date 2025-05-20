@@ -1,39 +1,58 @@
 import React from 'react';
+import { Box, List, ListItem, ListItemIcon, ListItemText, Badge, Paper } from '@mui/material';
+import {
+    Person as PersonIcon,
+    School as SchoolIcon,
+    CardMembership as CertificateIcon,
+    CreditCard as PaymentIcon,
+    History as HistoryIcon,
+    Notifications as NotificationIcon,
+    Lock as LockIcon,
+    Payment as PaymentsDueIcon
+} from '@mui/icons-material';
 import './ProfileNavigation.css';
 
-const ProfileNavigation = ({ activeSection, onSectionChange, unreadNotifications }) => {
-    const navItems = [
-        { id: 'overview', label: 'Overview', icon: 'fas fa-user' },
-        { id: 'certificates', label: 'Certificates', icon: 'fas fa-certificate' },
-        { id: 'payment-methods', label: 'Payment Methods', icon: 'fas fa-credit-card' },
-        { id: 'activity', label: 'Activity Log', icon: 'fas fa-history' },
+const ProfileNavigation = ({ activeSection, onSectionChange, unreadNotifications, paymentsDue }) => {
+    const menuItems = [
+        { value: 'overview', label: 'Overview', icon: <PersonIcon /> },
+        { value: 'enrollments', label: 'Enrollments', icon: <SchoolIcon /> },
+        { value: 'certificates', label: 'Certificates', icon: <CertificateIcon /> },
         {
-            id: 'notifications',
+            value: 'payments-due',
+            label: 'Payments Due',
+            icon: <Badge badgeContent={paymentsDue} color="error">
+                <PaymentsDueIcon />
+            </Badge>
+        },
+        { value: 'payment-methods', label: 'Payment Methods', icon: <PaymentIcon /> },
+        { value: 'password', label: 'Password', icon: <LockIcon /> },
+        { value: 'activity', label: 'Activity', icon: <HistoryIcon /> },
+        {
+            value: 'notifications',
             label: 'Notifications',
-            icon: 'fas fa-bell',
-            badge: unreadNotifications > 0 ? unreadNotifications : null
+            icon: <Badge badgeContent={unreadNotifications} color="error">
+                <NotificationIcon />
+            </Badge>
         }
     ];
 
     return (
-        <nav className="profile-navigation">
-            <ul>
-                {navItems.map(item => (
-                    <li key={item.id}>
-                        <button
-                            className={`nav-item ${activeSection === item.id ? 'active' : ''}`}
-                            onClick={() => onSectionChange(item.id)}
-                        >
-                            <i className={item.icon}></i>
-                            <span>{item.label}</span>
-                            {item.badge && (
-                                <span className="notification-badge">{item.badge}</span>
-                            )}
-                        </button>
-                    </li>
+        <Paper className="profile-navigation" elevation={1}>
+            <List component="nav">
+                {menuItems.map((item) => (
+                    <ListItem
+                        button
+                        key={item.value}
+                        selected={activeSection === item.value}
+                        onClick={() => onSectionChange(item.value)}
+                        className="nav-item"
+                    >
+                        <ListItemIcon>{item.icon}</ListItemIcon>
+                        <ListItemText primary={item.label} />
+                    </ListItem>
                 ))}
-            </ul>
-        </nav>
+            </List>
+        </Paper>
     );
 };
 

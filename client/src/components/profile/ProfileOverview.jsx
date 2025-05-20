@@ -1,31 +1,40 @@
 import React from 'react';
+import { Box, Button, Paper, Typography } from '@mui/material';
 import './ProfileOverview.css';
 
-const ProfileOverview = ({ profile }) => {
+const ProfileOverview = ({ profile, onProfileUpdate, onSectionChange }) => {
     const stats = [
         {
-            label: 'Enrolled Classes',
-            value: profile?.enrollments?.length || 0,
-            icon: 'fa-book'
+            label: 'Active Classes',
+            value: profile?.enrollments?.filter(e => e.status === 'accepted').length || 0,
+            icon: 'fa-book',
+            section: 'enrollments'
         },
         {
             label: 'Certificates',
             value: profile?.certificates?.length || 0,
-            icon: 'fa-certificate'
+            icon: 'fa-certificate',
+            section: 'certificates'
         },
         {
-            label: 'Payment Methods',
-            value: profile?.payment_methods?.length || 0,
-            icon: 'fa-credit-card'
+            label: 'Payments Due',
+            value: profile?.payments?.filter(p => p.status !== 'paid').length || 0,
+            icon: 'fa-credit-card',
+            section: 'payments-due'
         },
         {
             label: 'Unread Notifications',
             value: profile?.notifications?.filter(n => !n.is_read).length || 0,
-            icon: 'fa-bell'
+            icon: 'fa-bell',
+            section: 'notifications'
         }
     ];
 
     const recentActivity = profile?.activity_log?.slice(0, 5) || [];
+
+    const handleStatClick = (section) => {
+        onSectionChange(section);
+    };
 
     return (
         <div className="profile-overview">
@@ -35,13 +44,24 @@ const ProfileOverview = ({ profile }) => {
 
             <div className="stats-grid">
                 {stats.map((stat, index) => (
-                    <div key={index} className="stat-card">
+                    <Button
+                        key={index}
+                        className="stat-card"
+                        onClick={() => handleStatClick(stat.section)}
+                        sx={{
+                            textTransform: 'none',
+                            textAlign: 'left',
+                            padding: '1.5rem',
+                            width: '100%',
+                            justifyContent: 'flex-start'
+                        }}
+                    >
                         <i className={`fas ${stat.icon}`}></i>
                         <div className="stat-info">
                             <span className="stat-value">{stat.value}</span>
                             <span className="stat-label">{stat.label}</span>
                         </div>
-                    </div>
+                    </Button>
                 ))}
             </div>
 

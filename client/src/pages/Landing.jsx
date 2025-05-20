@@ -8,7 +8,6 @@ import whatImg from '../images/whatImg.jpeg';
 function Landing() {
     return (
         <div className="bg-white min-h-screen font-montserrat">
-            <Header />
             {/* Hero Section */}
             <section className="relative w-full h-[620px] flex items-center justify-center text-white text-center overflow-hidden mb-0 px-6" style={{ margin: '10px auto' }}>
                 <img src={heroImg} alt="Hero" className="absolute inset-0 w-full h-full object-cover object-center z-0" />

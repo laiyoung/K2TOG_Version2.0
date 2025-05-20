@@ -1,0 +1,39 @@
+.payments-due-section {
+    padding: 16px;
+}
+
+.payments-due-section .MuiTableContainer-root {
+    margin-top: 16px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.payments-due-section .MuiTableCell-root {
+    padding: 16px;
+}
+
+.payments-due-section .MuiTableHead-root .MuiTableCell-root {
+    font-weight: 600;
+    background-color: #f5f5f5;
+}
+
+.payments-due-section .MuiTableRow-root:hover {
+    background-color: #f8f9fa;
+}
+
+.payments-due-section .MuiChip-root {
+    text-transform: capitalize;
+}
+
+.payments-due-section .MuiButton-root {
+    text-transform: none;
+}
+
+@media (max-width: 600px) {
+    .payments-due-section {
+        padding: 8px;
+    }
+
+    .payments-due-section .MuiTableCell-root {
+        padding: 12px 8px;
+    }
+} 

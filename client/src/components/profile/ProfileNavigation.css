@@ -1,102 +1,36 @@
 .profile-navigation {
-    background-color: white;
-    border-radius: 8px;
-    padding: 1rem;
+    width: 240px;
+    min-width: 240px;
+    height: 100%;
+    border-right: 1px solid rgba(0, 0, 0, 0.12);
 }
 
-.profile-navigation ul {
-    list-style: none;
-    padding: 0;
-    margin: 0;
+.profile-navigation .nav-item {
+    padding: 12px 24px;
+    transition: background-color 0.2s ease;
 }
 
-.profile-navigation li {
-    margin-bottom: 0.5rem;
+.profile-navigation .nav-item:hover {
+    background-color: rgba(0, 0, 0, 0.04);
 }
 
-.nav-item {
-    display: flex;
-    align-items: center;
-    width: 100%;
-    padding: 0.75rem 1rem;
-    border: none;
-    background: none;
-    color: #2c3e50;
-    font-size: 1rem;
-    text-align: left;
-    cursor: pointer;
-    border-radius: 4px;
-    transition: all 0.2s ease;
+.profile-navigation .nav-item.Mui-selected {
+    background-color: rgba(25, 118, 210, 0.08);
 }
 
-.nav-item:hover {
-    background-color: #f8f9fa;
-    color: #3498db;
+.profile-navigation .nav-item.Mui-selected:hover {
+    background-color: rgba(25, 118, 210, 0.12);
 }
 
-.nav-item.active {
-    background-color: #3498db;
-    color: white;
+.profile-navigation .MuiListItemIcon-root {
+    min-width: 40px;
 }
 
-.nav-item i {
-    width: 20px;
-    margin-right: 0.75rem;
-    font-size: 1.1rem;
-}
-
-.nav-item .notification-badge {
-    margin-left: auto;
-    background-color: #e74c3c;
-    color: white;
-    padding: 0.25rem 0.5rem;
-    border-radius: 12px;
-    font-size: 0.75rem;
-    min-width: 20px;
-    text-align: center;
-}
-
-.nav-item.active .notification-badge {
-    background-color: white;
-    color: #e74c3c;
-}
-
-/* Responsive styles */
-@media (max-width: 768px) {
+@media (max-width: 600px) {
     .profile-navigation {
-        padding: 0.5rem;
-    }
-
-    .profile-navigation ul {
-        display: flex;
-        overflow-x: auto;
-        padding-bottom: 0.5rem;
-        -webkit-overflow-scrolling: touch;
-    }
-
-    .profile-navigation li {
-        margin-bottom: 0;
-        margin-right: 0.5rem;
-    }
-
-    .nav-item {
-        white-space: nowrap;
-        padding: 0.5rem 0.75rem;
-    }
-
-    .nav-item span:not(.notification-badge) {
-        display: none;
-    }
-
-    .nav-item i {
-        margin-right: 0;
-        font-size: 1.25rem;
-    }
-
-    .nav-item .notification-badge {
-        position: absolute;
-        top: -5px;
-        right: -5px;
-        margin: 0;
+        width: 100%;
+        min-width: 100%;
+        border-right: none;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.12);
     }
 } 
