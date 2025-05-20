@@ -1,0 +1,200 @@
+{
+  "userStats": {
+    "total": 120,
+    "active": 110,
+    "admins": 3
+  },
+  "revenueStats": {
+    "total": 15000,
+    "monthly": [1200, 1300, 1400, 1500, 1600, 1700, 1800, 1900, 2000, 2100, 2200, 2300]
+  },
+  "enrollmentStats": {
+    "total": 80,
+    "pending": 5,
+    "approved": 75
+  },
+  "recentActivity": [
+    { "user": "Jane Doe", "action": "Enrolled in Art Class", "date": "2024-05-01" },
+    { "user": "John Smith", "action": "Payment Received", "date": "2024-05-02" }
+  ],
+  "users": [
+    { "id": 1, "name": "Jane Doe", "email": "jane@example.com", "role": "user", "status": "active" },
+    { "id": 2, "name": "John Smith", "email": "john@example.com", "role": "user", "status": "active" },
+    { "id": 3, "name": "Admin User", "email": "admin@example.com", "role": "admin", "status": "active" }
+  ],
+  "certificates": [
+    { "id": 1, "user": "Jane Doe", "class": "Intro to Painting", "date": "2024-05-01" },
+    { "id": 2, "user": "John Smith", "class": "Yoga Basics", "date": "2024-05-02" }
+  ],
+  "notifications": [
+    { "id": 1, "user": "Jane Doe", "title": "Class Reminder", "message": "Your class starts soon!", "read": false },
+    { "id": 2, "user": "John Smith", "title": "Payment Received", "message": "Thank you for your payment.", "read": true }
+  ],
+  "systemSettings": {
+    "security": { "passwordPolicy": "Strong", "2faEnabled": true },
+    "apiKeys": [
+      { "id": 1, "name": "Main Key", "status": "active" }
+    ],
+    "integrations": [
+      { "id": 1, "name": "Stripe", "status": "connected" }
+    ]
+  },
+  "classes": [
+    {
+      "id": 1,
+      "title": "Intro to Painting",
+      "instructor": "Jane Doe",
+      "date": "2024-06-01",
+      "location": "Room 101",
+      "capacity": 20,
+      "enrolled": 15
+    },
+    {
+      "id": 2,
+      "title": "Yoga Basics",
+      "instructor": "John Smith",
+      "date": "2024-06-05",
+      "location": "Studio A",
+      "capacity": 25,
+      "enrolled": 20
+    }
+  ],
+  "enrollments": [
+    { "id": 1, "user": "Jane Doe", "class": "Intro to Painting", "status": "pending" },
+    { "id": 2, "user": "John Smith", "class": "Yoga Basics", "status": "approved" },
+    { "id": 3, "user": "Admin User", "class": "Yoga Basics", "status": "rejected" }
+  ],
+  "payments": [
+    { "id": 1, "user": "Jane Doe", "class": "Intro to Painting", "amount": 30, "status": "completed", "refund": false },
+    { "id": 2, "user": "John Smith", "class": "Yoga Basics", "amount": 20, "status": "completed", "refund": true },
+    { "id": 3, "user": "Admin User", "class": "Yoga Basics", "amount": 25, "status": "pending", "refund": false }
+  ],
+  "userActivity": [
+    { "userId": 1, "action": "Logged in", "timestamp": "2024-06-01T10:00:00Z" },
+    { "userId": 1, "action": "Enrolled in class", "timestamp": "2024-06-01T10:05:00Z" },
+    { "userId": 2, "action": "Payment made", "timestamp": "2024-06-02T11:00:00Z" }
+  ],
+  "classSessions": [
+    { "classId": 1, "sessionId": 1, "date": "2024-06-01", "startTime": "10:00", "endTime": "11:00", "status": "scheduled" },
+    { "classId": 1, "sessionId": 2, "date": "2024-06-08", "startTime": "10:00", "endTime": "11:00", "status": "scheduled" },
+    { "classId": 2, "sessionId": 3, "date": "2024-06-05", "startTime": "09:00", "endTime": "10:00", "status": "completed" }
+  ],
+  "classWaitlist": [
+    { "classId": 1, "user": "Waitlist User 1", "status": "waiting" },
+    { "classId": 1, "user": "Waitlist User 2", "status": "offered" },
+    { "classId": 2, "user": "Waitlist User 3", "status": "accepted" }
+  ],
+  "classStudents": [
+    {
+      "class_id": 1,
+      "students": [
+        {
+          "id": 1,
+          "name": "Alice Johnson",
+          "email": "alice@example.com",
+          "enrollment_date": "2024-03-15",
+          "status": "active",
+          "attendance": 85,
+          "last_attended": "2024-03-20"
+        },
+        {
+          "id": 2,
+          "name": "Bob Wilson",
+          "email": "bob@example.com",
+          "enrollment_date": "2024-03-16",
+          "status": "active",
+          "attendance": 90,
+          "last_attended": "2024-03-20"
+        },
+        {
+          "id": 3,
+          "name": "Carol Davis",
+          "email": "carol@example.com",
+          "enrollment_date": "2024-03-17",
+          "status": "inactive",
+          "attendance": 60,
+          "last_attended": "2024-03-13"
+        }
+      ]
+    },
+    {
+      "class_id": 2,
+      "students": [
+        {
+          "id": 4,
+          "name": "David Brown",
+          "email": "david@example.com",
+          "enrollment_date": "2024-03-18",
+          "status": "active",
+          "attendance": 95,
+          "last_attended": "2024-03-21"
+        },
+        {
+          "id": 5,
+          "name": "Eva Martinez",
+          "email": "eva@example.com",
+          "enrollment_date": "2024-03-19",
+          "status": "active",
+          "attendance": 88,
+          "last_attended": "2024-03-21"
+        }
+      ]
+    }
+  ],
+  "financialData": {
+    "outstandingPayments": [
+      {
+        "id": 1,
+        "student_id": 1,
+        "student_name": "Jane Doe",
+        "student_email": "jane@example.com",
+        "class_id": 1,
+        "class_name": "Intro to Painting",
+        "amount": 299.99,
+        "due_date": "2024-04-01",
+        "status": "overdue",
+        "days_overdue": 5,
+        "payment_method": "credit_card",
+        "last_four": "4242",
+        "enrollment_date": "2024-03-15"
+      },
+      {
+        "id": 2,
+        "student_id": 2,
+        "student_name": "John Smith",
+        "student_email": "john@example.com",
+        "class_id": 2,
+        "class_name": "Yoga Basics",
+        "amount": 349.99,
+        "due_date": "2024-04-15",
+        "status": "due_soon",
+        "days_until_due": 3,
+        "payment_method": "credit_card",
+        "last_four": "5678",
+        "enrollment_date": "2024-03-20"
+      },
+      {
+        "id": 3,
+        "student_id": 3,
+        "student_name": "Alice Johnson",
+        "student_email": "alice@example.com",
+        "class_id": 3,
+        "class_name": "Digital Art Fundamentals",
+        "amount": 399.99,
+        "due_date": "2024-03-25",
+        "status": "overdue",
+        "days_overdue": 10,
+        "payment_method": "credit_card",
+        "last_four": "9012",
+        "enrollment_date": "2024-03-10"
+      }
+    ],
+    "paymentStats": {
+      "total_outstanding": 1049.97,
+      "overdue_amount": 699.98,
+      "due_soon_amount": 349.99,
+      "overdue_count": 2,
+      "due_soon_count": 1
+    }
+  }
+} 

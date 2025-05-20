@@ -1,0 +1,46 @@
+.financial-management {
+    padding: 1rem;
+}
+
+.financial-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.payments-table {
+    margin-top: 1rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.payments-table .MuiTableCell-root {
+    padding: 1rem;
+}
+
+.payments-table .MuiTableHead-root .MuiTableCell-root {
+    font-weight: 600;
+    background-color: #f5f5f5;
+}
+
+.payments-table .MuiTableRow-root:hover {
+    background-color: #f8f9fa;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .financial-header {
+        flex-direction: column;
+        gap: 1rem;
+        align-items: stretch;
+    }
+
+    .payments-table {
+        overflow-x: auto;
+    }
+
+    .payments-table .MuiTableCell-root {
+        padding: 0.75rem 0.5rem;
+        white-space: nowrap;
+    }
+} 
