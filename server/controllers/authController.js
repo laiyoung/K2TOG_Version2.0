@@ -23,7 +23,18 @@ const validateRegistration = (req, res, next) => {
 };
 
 const registerUser = async (req, res) => {
-  const { name, email, password } = req.body;
+  const { 
+    name, 
+    email, 
+    password, 
+    role = 'student',
+    status = 'active',
+    first_name,
+    last_name,
+    phone_number = null,
+    email_notifications = true,
+    sms_notifications = false
+  } = req.body;
 
   try {
     const existingUser = await getUserByEmail(email);
@@ -32,7 +43,18 @@ const registerUser = async (req, res) => {
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    const user = await createUser(name, email, hashedPassword);
+    const user = await createUser({
+      name,
+      email,
+      password: hashedPassword,
+      role,
+      status,
+      first_name,
+      last_name,
+      phone_number,
+      email_notifications,
+      sms_notifications
+    });
 
     const token = jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET, {
       expiresIn: '1d',

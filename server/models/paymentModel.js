@@ -206,6 +206,33 @@ const getPaymentByStripeId = async (stripePaymentId) => {
   return result.rows[0];
 };
 
+// Get all payments (simple version)
+async function getAllPaymentsSimple() {
+  const result = await pool.query('SELECT * FROM payments');
+  return result.rows;
+}
+
+// Get payment by ID (simple version)
+async function getPaymentByIdSimple(id) {
+  const result = await pool.query('SELECT * FROM payments WHERE id = $1', [id]);
+  return result.rows[0];
+}
+
+// Create payment
+async function createPayment(data) {
+  const { user_id, class_id, stripe_payment_id, amount, currency, status, refund_status, refund_amount, refund_reason, refunded_at, refunded_by } = data;
+  const result = await pool.query(
+    'INSERT INTO payments (user_id, class_id, stripe_payment_id, amount, currency, status, refund_status, refund_amount, refund_reason, refunded_at, refunded_by) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *',
+    [user_id, class_id, stripe_payment_id, amount, currency, status, refund_status, refund_amount, refund_reason, refunded_at, refunded_by]
+  );
+  return result.rows[0];
+}
+
+// Delete payment
+async function deletePayment(id) {
+  await pool.query('DELETE FROM payments WHERE id = $1', [id]);
+}
+
 module.exports = {
   savePayment,
   processRefund,
@@ -214,5 +241,9 @@ module.exports = {
   getFinancialSummary,
   getRevenueByClass,
   getPaymentsByUser,
-  getPaymentByStripeId
+  getPaymentByStripeId,
+  getAllPaymentsSimple,
+  getPaymentByIdSimple,
+  createPayment,
+  deletePayment,
 };

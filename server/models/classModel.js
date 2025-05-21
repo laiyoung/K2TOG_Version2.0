@@ -1,8 +1,50 @@
 const pool = require('../config/db');
 
 // Get all classes
-const getAllClassesFromDB = async () => {
-  const result = await pool.query('SELECT * FROM classes ORDER BY date DESC');
+const getAllClassesFromDB = async (filters = {}) => {
+  const { status, instructor_id, start_date, end_date } = filters;
+  let query = `
+    SELECT 
+      id, title, description, date, start_time, end_time, 
+      duration_minutes, location_type, location_details, 
+      price, capacity, enrolled_count, is_recurring, 
+      recurrence_pattern, min_enrollment, status, 
+      prerequisites, materials_needed, instructor_id, 
+      waitlist_enabled, waitlist_capacity, image_url,
+      created_at, updated_at
+    FROM classes 
+    WHERE 1=1
+  `;
+  const queryParams = [];
+  let paramCount = 1;
+
+  if (status) {
+    query += ` AND status = $${paramCount}`;
+    queryParams.push(status);
+    paramCount++;
+  }
+
+  if (instructor_id) {
+    query += ` AND instructor_id = $${paramCount}`;
+    queryParams.push(instructor_id);
+    paramCount++;
+  }
+
+  if (start_date) {
+    query += ` AND date >= $${paramCount}`;
+    queryParams.push(start_date);
+    paramCount++;
+  }
+
+  if (end_date) {
+    query += ` AND date <= $${paramCount}`;
+    queryParams.push(end_date);
+    paramCount++;
+  }
+
+  query += ' ORDER BY date DESC';
+
+  const result = await pool.query(query, queryParams);
   return result.rows;
 };
 
@@ -34,7 +76,8 @@ const createClass = async ({
   materials_needed = null,
   instructor_id = null,
   waitlist_enabled = false,
-  waitlist_capacity = 0
+  waitlist_capacity = 0,
+  image_url = null
 }) => {
   const client = await pool.connect();
   try {
@@ -46,15 +89,17 @@ const createClass = async ({
         title, description, date, start_time, end_time, duration_minutes,
         location_type, location_details, price, capacity, is_recurring,
         recurrence_pattern, min_enrollment, prerequisites, materials_needed,
-        instructor_id, waitlist_enabled, waitlist_capacity, enrolled_count, status
+        instructor_id, waitlist_enabled, waitlist_capacity, enrolled_count, status,
+        image_url
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, 0, 'scheduled')
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, 0, 'scheduled', $19)
       RETURNING *`,
       [
         title, description, date, start_time, end_time, duration_minutes,
         location_type, location_details, price, capacity, is_recurring,
         recurrence_pattern, min_enrollment, prerequisites, materials_needed,
-        instructor_id, waitlist_enabled, waitlist_capacity
+        instructor_id, waitlist_enabled, waitlist_capacity,
+        image_url
       ]
     );
 
@@ -210,22 +255,72 @@ const updateClassStatus = async (classId, status) => {
 
 // Get class with enhanced details
 const getClassWithDetails = async (classId) => {
-  const result = await pool.query(
+  // First get the class details
+  const classResult = await pool.query(
     `SELECT c.*, 
             u.name as instructor_name,
-            COUNT(DISTINCT s.id) as total_sessions,
             COUNT(DISTINCT e.id) as total_enrollments,
             COUNT(DISTINCT w.id) as waitlist_count
      FROM classes c
      LEFT JOIN users u ON u.id = c.instructor_id
-     LEFT JOIN class_sessions s ON s.class_id = c.id
      LEFT JOIN enrollments e ON e.class_id = c.id AND e.enrollment_status = 'approved'
      LEFT JOIN class_waitlist w ON w.class_id = c.id AND w.status = 'waiting'
      WHERE c.id = $1
      GROUP BY c.id, u.name`,
     [classId]
   );
-  return result.rows[0];
+
+  if (!classResult.rows[0]) {
+    return null;
+  }
+
+  // Then get the sessions
+  const sessionsResult = await pool.query(
+    `SELECT * FROM class_sessions 
+     WHERE class_id = $1 
+     ORDER BY session_date, start_time`,
+    [classId]
+  );
+
+  // Combine the results
+  const classDetails = classResult.rows[0];
+  classDetails.sessions = sessionsResult.rows;
+
+  // Group sessions into date ranges
+  const dateRanges = [];
+  let currentRange = null;
+
+  sessionsResult.rows.forEach(session => {
+    const sessionDate = new Date(session.session_date);
+    const formattedDate = sessionDate.toISOString().split('T')[0];
+    
+    if (!currentRange || 
+        new Date(currentRange.end_date) < new Date(formattedDate) - 86400000) { // 86400000 ms = 1 day
+      currentRange = {
+        start_date: formattedDate,
+        end_date: formattedDate,
+        time: `${session.start_time} - ${session.end_time}`,
+        days: [sessionDate.toLocaleDateString('en-US', { weekday: 'long' })],
+        sessions: [session]
+      };
+      dateRanges.push(currentRange);
+    } else {
+      currentRange.end_date = formattedDate;
+      const dayName = sessionDate.toLocaleDateString('en-US', { weekday: 'long' });
+      if (!currentRange.days.includes(dayName)) {
+        currentRange.days.push(dayName);
+      }
+      currentRange.sessions.push(session);
+    }
+  });
+
+  // Format the days array into a string
+  dateRanges.forEach(range => {
+    range.days = range.days.join(', ');
+  });
+
+  classDetails.available_dates = dateRanges;
+  return classDetails;
 };
 
 // Update a class (admin use)

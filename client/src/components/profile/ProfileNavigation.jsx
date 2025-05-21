@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, List, ListItem, ListItemIcon, ListItemText, Badge, Paper } from '@mui/material';
+import { Box, List, ListItemButton, ListItemIcon, ListItemText, Badge, Paper } from '@mui/material';
 import {
     Person as PersonIcon,
     School as SchoolIcon,
@@ -40,8 +40,7 @@ const ProfileNavigation = ({ activeSection, onSectionChange, unreadNotifications
         <Paper className="profile-navigation" elevation={1}>
             <List component="nav">
                 {menuItems.map((item) => (
-                    <ListItem
-                        button
+                    <ListItemButton
                         key={item.value}
                         selected={activeSection === item.value}
                         onClick={() => onSectionChange(item.value)}
@@ -49,7 +48,7 @@ const ProfileNavigation = ({ activeSection, onSectionChange, unreadNotifications
                     >
                         <ListItemIcon>{item.icon}</ListItemIcon>
                         <ListItemText primary={item.label} />
-                    </ListItem>
+                    </ListItemButton>
                 ))}
             </List>
         </Paper>

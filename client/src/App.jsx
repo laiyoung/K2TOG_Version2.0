@@ -5,7 +5,6 @@ import Header from './components/layout/Header';
 import AdminDashboard from './pages/AdminDashboard';
 import Landing from './pages/Landing';
 import Classes from './pages/Classes';
-import UserAccount from './pages/UserAccount';
 import Contact from './pages/Contact';
 import ClassDetails from './pages/ClassDetails';
 import Login from './pages/Login';
@@ -53,7 +52,6 @@ const AdminRoute = ({ children }) => {
 
 // AppContent component that uses useAuth
 function AppContent() {
-    const { user } = useAuth();
     const isAdminRoute = window.location.pathname.startsWith('/admin');
 
     return (
@@ -69,21 +67,20 @@ function AppContent() {
                         <Route path="/contact" element={<Contact />} />
                         <Route path="/login" element={<Login />} />
                         <Route path="/signup" element={<Signup />} />
-                        {/* Make profile route public for development */}
-                        <Route path="/profile" element={<ProfilePage />} />
 
                         {/* Protected Routes */}
-                        <Route
-                            path="/account"
-                            element={
-                                <ProtectedRoute>
-                                    <UserAccount />
-                                </ProtectedRoute>
-                            }
-                        />
+                        <Route path="/profile" element={
+                            <ProtectedRoute>
+                                <ProfilePage />
+                            </ProtectedRoute>
+                        } />
 
                         {/* Admin Routes */}
-                        <Route path="/admin" element={<AdminDashboard />} />
+                        <Route path="/admin" element={
+                            <AdminRoute>
+                                <AdminDashboard />
+                            </AdminRoute>
+                        } />
 
                         {/* Fallback Route */}
                         <Route path="*" element={<Navigate to="/" replace />} />

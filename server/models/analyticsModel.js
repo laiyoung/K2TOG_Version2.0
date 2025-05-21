@@ -203,4 +203,29 @@ class Analytics {
     }
 }
 
-module.exports = Analytics; 
+// Example: Get user count
+async function getUserCount() {
+    const result = await pool.query('SELECT COUNT(*) FROM users');
+    return parseInt(result.rows[0].count, 10);
+}
+
+// Example: Get class count
+async function getClassCount() {
+    const result = await pool.query('SELECT COUNT(*) FROM classes');
+    return parseInt(result.rows[0].count, 10);
+}
+
+// Example: Get enrollment count
+async function getEnrollmentCount() {
+    const result = await pool.query('SELECT COUNT(*) FROM enrollments');
+    return parseInt(result.rows[0].count, 10);
+}
+
+
+
+module.exports = {
+    getUserCount,
+    getClassCount,
+    getEnrollmentCount,
+    Analytics,
+}; 

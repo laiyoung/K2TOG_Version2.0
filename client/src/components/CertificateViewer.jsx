@@ -105,7 +105,7 @@ const CertificateViewer = ({ certificates = [], onView, onDownload, onDelete, on
         <>
             <Grid container spacing={3}>
                 {certificates.map((certificate) => (
-                    <Grid item xs={12} lg={4} key={certificate.id}>
+                    <Grid key={certificate.id} sx={{ width: { xs: '100%', lg: '33.33%' } }}>
                         <Card
                             sx={{
                                 height: '100%',

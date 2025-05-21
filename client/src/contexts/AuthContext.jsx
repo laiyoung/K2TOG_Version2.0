@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import axios from 'axios';
+import authService from '../services/authService';
 
 const AuthContext = createContext(null);
 
@@ -14,6 +14,7 @@ export const useAuth = () => {
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
 
     useEffect(() => {
         // Check if user is logged in on mount
@@ -24,18 +25,14 @@ export const AuthProvider = ({ children }) => {
         try {
             const token = localStorage.getItem('token');
             if (token) {
-                // Set default authorization header
-                axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-
-                // Fetch user data
-                const response = await axios.get('/api/users/profile');
-                setUser(response.data);
+                const userData = await authService.getCurrentUser();
+                setUser(userData);
             }
         } catch (error) {
             console.error('Auth status check failed:', error);
+            setError(error.message);
             // Clear invalid token
             localStorage.removeItem('token');
-            delete axios.defaults.headers.common['Authorization'];
         } finally {
             setLoading(false);
         }
@@ -43,58 +40,53 @@ export const AuthProvider = ({ children }) => {
 
     const login = async (email, password) => {
         try {
-            const response = await axios.post('/api/users/login', { email, password });
-            const { token, user } = response.data;
-
-            // Store token
-            localStorage.setItem('token', token);
-            axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-
-            setUser(user);
-            return user;
+            setError(null);
+            const response = await authService.login({ email, password });
+            setUser(response.user);
+            return response.user;
         } catch (error) {
             console.error('Login failed:', error);
+            setError(error.message);
             throw error;
         }
     };
 
     const logout = async () => {
         try {
-            // Call logout endpoint if needed
-            await axios.post('/api/users/logout');
+            setError(null);
+            await authService.logout();
         } catch (error) {
             console.error('Logout request failed:', error);
+            setError(error.message);
         } finally {
             // Clear local storage and state regardless of server response
             localStorage.removeItem('token');
-            delete axios.defaults.headers.common['Authorization'];
             setUser(null);
         }
     };
 
     const register = async (userData) => {
         try {
-            const response = await axios.post('/api/users/register', userData);
-            const { token, user } = response.data;
-
-            localStorage.setItem('token', token);
-            axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-
-            setUser(user);
-            return user;
+            setError(null);
+            const response = await authService.register(userData);
+            setUser(response.user);
+            return response.user;
         } catch (error) {
             console.error('Registration failed:', error);
+            setError(error.message);
             throw error;
         }
     };
 
     const updateProfile = async (profileData) => {
         try {
-            const response = await axios.put('/api/users/profile', profileData);
-            setUser(response.data);
-            return response.data;
+            setError(null);
+            const updatedUser = await authService.updateProfile(profileData);
+            setUser(updatedUser);
+            return updatedUser;
         } catch (error) {
             console.error('Profile update failed:', error);
+            setError(error.message);
             throw error;
         }
     };
@@ -102,10 +94,12 @@ export const AuthProvider = ({ children }) => {
     const value = {
         user,
         loading,
+        error,
         login,
         logout,
         register,
-        updateProfile
+        updateProfile,
+        clearError: () => setError(null)
     };
 
     return (

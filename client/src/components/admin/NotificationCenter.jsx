@@ -22,8 +22,7 @@ import {
     Divider,
     Paper,
     Tab,
-    Tabs,
-    ListSubheader
+    Tabs
 } from '@mui/material';
 import {
     Notifications as NotificationIcon,
@@ -31,8 +30,6 @@ import {
     CheckCircle as ReadIcon,
     Send as SendIcon,
     Add as AddIcon,
-    Close as CloseIcon,
-    Email as EmailIcon,
     Announcement as BroadcastIcon
 } from '@mui/icons-material';
 import { mockData } from '../../mockData/adminDashboardData';
@@ -318,17 +315,16 @@ const NotificationCenter = () => {
                                             </Typography>
                                         }
                                         secondary={
-                                            <Box sx={{ mt: 0.5 }}>
-                                                <Typography
-                                                    component="span"
-                                                    variant="body2"
-                                                    sx={{
-                                                        display: 'block',
-                                                        wordBreak: 'break-word'
-                                                    }}
-                                                >
-                                                    {notification.message}
-                                                </Typography>
+                                            <Typography
+                                                component="span"
+                                                variant="body2"
+                                                color="text.secondary"
+                                                sx={{
+                                                    display: 'block',
+                                                    wordBreak: 'break-word'
+                                                }}
+                                            >
+                                                {notification.message}
                                                 <Typography
                                                     component="span"
                                                     variant="caption"
@@ -337,7 +333,7 @@ const NotificationCenter = () => {
                                                 >
                                                     {new Date(notification.timestamp).toLocaleString()}
                                                 </Typography>
-                                            </Box>
+                                            </Typography>
                                         }
                                     />
                                 </ListItem>
@@ -397,17 +393,16 @@ const NotificationCenter = () => {
                                     </Typography>
                                 }
                                 secondary={
-                                    <Box sx={{ mt: 0.5 }}>
-                                        <Typography
-                                            component="span"
-                                            variant="body2"
-                                            sx={{
-                                                display: 'block',
-                                                wordBreak: 'break-word'
-                                            }}
-                                        >
-                                            {template.content}
-                                        </Typography>
+                                    <Typography
+                                        component="span"
+                                        variant="body2"
+                                        color="text.secondary"
+                                        sx={{
+                                            display: 'block',
+                                            wordBreak: 'break-word'
+                                        }}
+                                    >
+                                        {template.content}
                                         <Typography
                                             component="span"
                                             variant="caption"
@@ -416,7 +411,7 @@ const NotificationCenter = () => {
                                         >
                                             Variables: {template.variables.map(v => `{${v}}`).join(', ')}
                                         </Typography>
-                                    </Box>
+                                    </Typography>
                                 }
                             />
                         </ListItem>

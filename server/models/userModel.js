@@ -1,252 +1,127 @@
 const pool = require('../config/db');
 
-class User {
-    static async create({ email, password, first_name, last_name, phone_number, profile_picture_url }) {
-        const query = `
-            INSERT INTO users (email, password, first_name, last_name, phone_number, profile_picture_url)
-            VALUES ($1, $2, $3, $4, $5, $6)
-            RETURNING id, email, first_name, last_name, phone_number, profile_picture_url, created_at
-        `;
-        const values = [email, password, first_name, last_name, phone_number, profile_picture_url];
-        const { rows } = await pool.query(query, values);
-        return rows[0];
-    }
-
-    static async findByEmail(email) {
-        const query = 'SELECT * FROM users WHERE email = $1';
-        const { rows } = await pool.query(query, [email]);
-        return rows[0];
-    }
-
-    static async findById(id) {
-        const query = 'SELECT * FROM users WHERE id = $1';
-        const { rows } = await pool.query(query, [id]);
-        return rows[0];
-    }
-
-    static async updateProfile(id, { first_name, last_name, phone_number, profile_picture_url, email_notifications, sms_notifications }) {
-        const query = `
-            UPDATE users 
-            SET first_name = COALESCE($1, first_name),
-                last_name = COALESCE($2, last_name),
-                phone_number = COALESCE($3, phone_number),
-                profile_picture_url = COALESCE($4, profile_picture_url),
-                email_notifications = COALESCE($5, email_notifications),
-                sms_notifications = COALESCE($6, sms_notifications)
-            WHERE id = $7
-            RETURNING id, email, first_name, last_name, phone_number, profile_picture_url, 
-                     email_notifications, sms_notifications, created_at, updated_at
-        `;
-        const values = [first_name, last_name, phone_number, profile_picture_url, 
-                       email_notifications, sms_notifications, id];
-        const { rows } = await pool.query(query, values);
-        return rows[0];
-    }
-
-    static async updatePassword(id, hashedPassword) {
-        const query = 'UPDATE users SET password = $1 WHERE id = $2 RETURNING id';
-        const { rows } = await pool.query(query, [hashedPassword, id]);
-        return rows[0];
-    }
-
-    static async getProfileWithDetails(id) {
-        const query = `
-            SELECT 
-                u.*,
-                json_agg(DISTINCT jsonb_build_object(
-                    'id', c.id,
-                    'certificate_name', c.certificate_name,
-                    'issue_date', c.issue_date,
-                    'certificate_url', c.certificate_url
-                )) FILTER (WHERE c.id IS NOT NULL) as certificates,
-                json_agg(DISTINCT jsonb_build_object(
-                    'id', p.id,
-                    'payment_type', p.payment_type,
-                    'last_four', p.last_four,
-                    'expiry_date', p.expiry_date,
-                    'is_default', p.is_default
-                )) FILTER (WHERE p.id IS NOT NULL) as payment_methods
-            FROM users u
-            LEFT JOIN user_certificates c ON u.id = c.user_id
-            LEFT JOIN user_payment_methods p ON u.id = p.user_id
-            WHERE u.id = $1
-            GROUP BY u.id
-        `;
-        const { rows } = await pool.query(query, [id]);
-        return rows[0];
-    }
-
-    // Role Management Functions
-    static async updateUserRole(userId, newRole, updatedBy) {
-        const validRoles = ['user', 'admin', 'instructor'];
-        if (!validRoles.includes(newRole)) {
-            throw new Error('Invalid role specified');
-        }
-
-        const query = `
-            UPDATE users 
-            SET role = $1 
-            WHERE id = $2 
-            RETURNING id, email, role, first_name, last_name
-        `;
-        const { rows } = await pool.query(query, [newRole, userId]);
-
-        // Log the role change
-        await this.logUserActivity(userId, 'role_update', {
-            previous_role: rows[0]?.role,
-            new_role: newRole,
-            updated_by: updatedBy
-        });
-
-        return rows[0];
-    }
-
-    static async getUsersByRole(role) {
-        const query = `
-            SELECT id, email, role, first_name, last_name, phone_number, 
-                   created_at, updated_at
-            FROM users 
-            WHERE role = $1
-            ORDER BY created_at DESC
-        `;
-        const { rows } = await pool.query(query, [role]);
-        return rows;
-    }
-
-    // Activity Tracking Functions
-    static async logUserActivity(userId, action, details = {}) {
-        const query = `
-            INSERT INTO user_activity_log (user_id, action, details)
-            VALUES ($1, $2, $3)
-            RETURNING *
-        `;
-        const { rows } = await pool.query(query, [userId, action, details]);
-        return rows[0];
-    }
-
-    static async getUserActivity(userId, options = {}) {
-        const { limit = 50, offset = 0, action = null, startDate = null, endDate = null } = options;
-        
-        let query = `
-            SELECT * FROM user_activity_log
-            WHERE user_id = $1
-        `;
-        const queryParams = [userId];
-        let paramCount = 1;
-
-        if (action) {
-            paramCount++;
-            query += ` AND action = $${paramCount}`;
-            queryParams.push(action);
-        }
-
-        if (startDate) {
-            paramCount++;
-            query += ` AND created_at >= $${paramCount}`;
-            queryParams.push(startDate);
-        }
-
-        if (endDate) {
-            paramCount++;
-            query += ` AND created_at <= $${paramCount}`;
-            queryParams.push(endDate);
-        }
-
-        query += ` ORDER BY created_at DESC LIMIT $${paramCount + 1} OFFSET $${paramCount + 2}`;
-        queryParams.push(limit, offset);
-
-        const { rows } = await pool.query(query, queryParams);
-        return rows;
-    }
-
-    // Search and Filter Functions
-    static async searchUsers(searchParams = {}) {
-        const {
-            searchTerm = '',
-            role = null,
-            sortBy = 'created_at',
-            sortOrder = 'DESC',
-            limit = 50,
-            offset = 0,
-            includeInactive = false
-        } = searchParams;
-
-        let query = `
-            SELECT 
-                u.id, u.email, u.role, u.first_name, u.last_name, 
-                u.phone_number, u.created_at, u.updated_at,
-                COUNT(*) OVER() as total_count
-            FROM users u
-            WHERE 1=1
-        `;
-        const queryParams = [];
-        let paramCount = 0;
-
-        if (searchTerm) {
-            paramCount += 1;
-            query += `
-                AND (
-                    u.email ILIKE $${paramCount} OR
-                    u.first_name ILIKE $${paramCount} OR
-                    u.last_name ILIKE $${paramCount} OR
-                    u.phone_number ILIKE $${paramCount}
-                )
-            `;
-            queryParams.push(`%${searchTerm}%`);
-        }
-
-        if (role) {
-            paramCount += 1;
-            query += ` AND u.role = $${paramCount}`;
-            queryParams.push(role);
-        }
-
-        if (!includeInactive) {
-            query += ` AND u.status = 'active'`;
-        }
-
-        // Validate sort parameters
-        const validSortColumns = ['created_at', 'email', 'first_name', 'last_name', 'role'];
-        const validSortOrders = ['ASC', 'DESC'];
-        
-        const finalSortBy = validSortColumns.includes(sortBy) ? sortBy : 'created_at';
-        const finalSortOrder = validSortOrders.includes(sortOrder.toUpperCase()) ? sortOrder.toUpperCase() : 'DESC';
-
-        query += ` ORDER BY u.${finalSortBy} ${finalSortOrder}`;
-        query += ` LIMIT $${paramCount + 1} OFFSET $${paramCount + 2}`;
-        queryParams.push(limit, offset);
-
-        const { rows } = await pool.query(query, queryParams);
-        return {
-            users: rows,
-            total: rows.length > 0 ? parseInt(rows[0].total_count) : 0
-        };
-    }
-
-    // User Status Management
-    static async updateUserStatus(userId, status, updatedBy) {
-        const validStatuses = ['active', 'inactive', 'suspended'];
-        if (!validStatuses.includes(status)) {
-            throw new Error('Invalid status specified');
-        }
-
-        const query = `
-            UPDATE users 
-            SET status = $1 
-            WHERE id = $2 
-            RETURNING id, email, status, first_name, last_name
-        `;
-        const { rows } = await pool.query(query, [status, userId]);
-
-        // Log the status change
-        await this.logUserActivity(userId, 'status_update', {
-            previous_status: rows[0]?.status,
-            new_status: status,
-            updated_by: updatedBy
-        });
-
-        return rows[0];
-    }
+// Get all users
+async function getAllUsers() {
+  const result = await pool.query('SELECT * FROM users');
+  return result.rows;
 }
 
-module.exports = User;
+// Get user by ID
+async function getUserById(id) {
+  const result = await pool.query('SELECT * FROM users WHERE id = $1', [id]);
+  return result.rows[0];
+}
+
+// Create user
+async function createUser(data) {
+  const { name, email, password, role, status, first_name, last_name, phone_number, email_notifications, sms_notifications } = data;
+  const result = await pool.query(
+    'INSERT INTO users (name, email, password, role, status, first_name, last_name, phone_number, email_notifications, sms_notifications) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *',
+    [name, email, password, role, status, first_name, last_name, phone_number, email_notifications, sms_notifications]
+  );
+  return result.rows[0];
+}
+
+// Delete user
+async function deleteUser(id) {
+  await pool.query('DELETE FROM users WHERE id = $1', [id]);
+}
+
+// Search users
+async function searchUsers({ searchTerm = '', role = null, sortBy = 'created_at', sortOrder = 'DESC', limit = 50, offset = 0, includeInactive = false }) {
+  let query = `SELECT * FROM users WHERE 1=1`;
+  const params = [];
+  let idx = 1;
+  if (searchTerm) {
+    query += ` AND (email ILIKE $${idx} OR first_name ILIKE $${idx} OR last_name ILIKE $${idx} OR phone_number ILIKE $${idx})`;
+    params.push(`%${searchTerm}%`);
+    idx++;
+  }
+  if (role) {
+    query += ` AND role = $${idx}`;
+    params.push(role);
+    idx++;
+  }
+  if (!includeInactive) {
+    query += ` AND status = 'active'`;
+  }
+  query += ` ORDER BY ${sortBy} ${sortOrder} LIMIT $${idx} OFFSET $${idx + 1}`;
+  params.push(limit, offset);
+  const result = await pool.query(query, params);
+  return { users: result.rows, total: result.rows.length };
+}
+
+// Update user role
+async function updateUserRole(userId, newRole) {
+  const result = await pool.query('UPDATE users SET role = $1 WHERE id = $2 RETURNING *', [newRole, userId]);
+  return result.rows[0];
+}
+
+// Update user status
+async function updateUserStatus(userId, status) {
+  const result = await pool.query('UPDATE users SET status = $1 WHERE id = $2 RETURNING *', [status, userId]);
+  return result.rows[0];
+}
+
+// Get users by role
+async function getUsersByRole(role) {
+  const result = await pool.query('SELECT * FROM users WHERE role = $1 ORDER BY created_at DESC', [role]);
+  return result.rows;
+}
+
+// Log user activity
+async function logUserActivity(userId, action, details = {}) {
+  const result = await pool.query('INSERT INTO user_activity_log (user_id, action, details) VALUES ($1, $2, $3) RETURNING *', [userId, action, details]);
+  return result.rows[0];
+}
+
+// Get user activity
+async function getUserActivity(userId, { limit = 50, offset = 0 } = {}) {
+  const result = await pool.query('SELECT * FROM user_activity_log WHERE user_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3', [userId, limit, offset]);
+  return result.rows;
+}
+
+// Update user profile
+async function updateProfile(id, updates) {
+  const { first_name, last_name, phone_number, email_notifications, sms_notifications } = updates;
+  const result = await pool.query(
+    `UPDATE users SET first_name = $1, last_name = $2, phone_number = $3, email_notifications = $4, sms_notifications = $5 WHERE id = $6 RETURNING *`,
+    [first_name, last_name, phone_number, email_notifications, sms_notifications, id]
+  );
+  return result.rows[0];
+}
+
+// Get users by IDs
+async function getUsersByIds(ids) {
+  const result = await pool.query('SELECT * FROM users WHERE id = ANY($1)', [ids]);
+  return result.rows;
+}
+
+// Get users by status
+async function getUsersByStatus(status) {
+  const result = await pool.query('SELECT * FROM users WHERE status = $1', [status]);
+  return result.rows;
+}
+
+// Get user by email
+async function getUserByEmail(email) {
+  const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+  return result.rows[0];
+}
+
+module.exports = {
+  getAllUsers,
+  getUserById,
+  createUser,
+  deleteUser,
+  searchUsers,
+  updateUserRole,
+  updateUserStatus,
+  getUsersByRole,
+  logUserActivity,
+  getUserActivity,
+  updateProfile,
+  getUsersByIds,
+  getUsersByStatus,
+  getUserByEmail
+};

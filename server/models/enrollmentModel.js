@@ -1,12 +1,12 @@
 const pool = require('../config/db');
 
 // Enroll a user in a class (now creates a pending enrollment)
-const enrollUserInClass = async (userId, classId, paymentStatus = 'paid') => {
+const enrollUserInClass = async (userId, classId, sessionId, paymentStatus = 'paid') => {
   const result = await pool.query(
-    `INSERT INTO enrollments (user_id, class_id, payment_status, enrollment_status)
-     VALUES ($1, $2, $3, 'pending')
+    `INSERT INTO enrollments (user_id, class_id, session_id, payment_status, enrollment_status)
+     VALUES ($1, $2, $3, $4, 'pending')
      RETURNING *`,
-    [userId, classId, paymentStatus]
+    [userId, classId, sessionId, paymentStatus]
   );
   return result.rows[0];
 };

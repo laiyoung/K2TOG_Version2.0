@@ -4,7 +4,7 @@ import Footer from '../components/layout/Footer';
 function Contact() {
     return (
         <div className="bg-white min-h-screen font-montserrat">
-            <Header />
+            
             {/* Hero Section */}
             <section className="w-full" style={{ marginBottom: '48px' }}>
                 <div className="w-full h-[300px] bg-black flex items-center justify-center">

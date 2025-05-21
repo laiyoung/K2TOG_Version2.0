@@ -75,14 +75,15 @@ const EnrollmentsSection = ({ enrollments }) => {
                     </Typography>
                 </Paper>
             ) : (
-                <Grid container>
+                <Grid container spacing={2}>
                     {enrollments.map((enrollment) => (
-                        <Grid item xs={12} sm={6} md={4} key={enrollment.id}>
+                        <Grid item key={enrollment.id}>
                             <Paper
                                 elevation={1}
                                 sx={{
                                     p: 2,
                                     height: '100%',
+                                    width: { xs: '100%', sm: 'calc(50% - 16px)', md: 'calc(33.33% - 16px)' },
                                     '&:hover': {
                                         boxShadow: 2
                                     }

@@ -5,43 +5,17 @@ const bcrypt = require('bcrypt');
 
 const seed = async () => {
   try {
-    // Drop existing tables
+    // Drop only class-related tables
     await pool.query(`
-      DROP TABLE IF EXISTS user_notifications CASCADE;
-      DROP TABLE IF EXISTS notification_templates CASCADE;
-      DROP TABLE IF EXISTS user_activity_log CASCADE;
-      DROP TABLE IF EXISTS user_payment_methods CASCADE;
-      DROP TABLE IF EXISTS user_certificates CASCADE;
       DROP TABLE IF EXISTS class_waitlist CASCADE;
       DROP TABLE IF EXISTS class_sessions CASCADE;
       DROP TABLE IF EXISTS payments CASCADE;
       DROP TABLE IF EXISTS enrollments CASCADE;
       DROP TABLE IF EXISTS classes CASCADE;
-      DROP TABLE IF EXISTS users CASCADE;
-      DROP TABLE IF EXISTS system_settings CASCADE;
-      DROP TABLE IF EXISTS api_keys CASCADE;
-      DROP TABLE IF EXISTS api_requests CASCADE;
     `);
 
-    // Create tables
+    // Create only class-related tables
     await pool.query(`
-      CREATE TABLE users (
-        id SERIAL PRIMARY KEY,
-        name VARCHAR(100) NOT NULL,
-        email VARCHAR(100) UNIQUE NOT NULL,
-        password VARCHAR(255) NOT NULL,
-        role VARCHAR(20) DEFAULT 'user',
-        status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'inactive', 'suspended')),
-        first_name VARCHAR(100),
-        last_name VARCHAR(100),
-        phone_number VARCHAR(20),
-        profile_picture_url VARCHAR(255),
-        email_notifications BOOLEAN DEFAULT true,
-        sms_notifications BOOLEAN DEFAULT false,
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-      );
-
       CREATE TABLE classes (
         id SERIAL PRIMARY KEY,
         title VARCHAR(100) NOT NULL,
@@ -64,6 +38,7 @@ const seed = async () => {
         instructor_id INTEGER REFERENCES users(id),
         waitlist_enabled BOOLEAN DEFAULT false,
         waitlist_capacity INTEGER DEFAULT 0,
+        image_url VARCHAR(255),
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       );
@@ -93,6 +68,7 @@ const seed = async () => {
         id SERIAL PRIMARY KEY,
         user_id INTEGER REFERENCES users(id),
         class_id INTEGER REFERENCES classes(id),
+        session_id INTEGER REFERENCES class_sessions(id),
         payment_status VARCHAR(20),
         enrollment_status VARCHAR(20) DEFAULT 'pending' CHECK (enrollment_status IN ('pending', 'approved', 'rejected')),
         admin_notes TEXT,
@@ -117,98 +93,7 @@ const seed = async () => {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
 
-      CREATE TABLE user_certificates (
-        id SERIAL PRIMARY KEY,
-        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-        class_id INTEGER REFERENCES classes(id) ON DELETE SET NULL,
-        certificate_name VARCHAR(255) NOT NULL,
-        issue_date TIMESTAMP WITH TIME ZONE NOT NULL,
-        certificate_url VARCHAR(255),
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-      );
-
-      CREATE TABLE user_payment_methods (
-        id SERIAL PRIMARY KEY,
-        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-        payment_type VARCHAR(50) NOT NULL,
-        last_four VARCHAR(4),
-        expiry_date DATE,
-        is_default BOOLEAN DEFAULT false,
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-      );
-
-      CREATE TABLE user_activity_log (
-        id SERIAL PRIMARY KEY,
-        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-        action VARCHAR(100) NOT NULL,
-        details JSONB,
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-      );
-
-      CREATE TABLE notification_templates (
-        id SERIAL PRIMARY KEY,
-        name VARCHAR(100) UNIQUE NOT NULL,
-        type VARCHAR(50) NOT NULL,
-        title_template TEXT NOT NULL,
-        message_template TEXT NOT NULL,
-        metadata JSONB DEFAULT '{}',
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-      );
-
-      CREATE TABLE user_notifications (
-        id SERIAL PRIMARY KEY,
-        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-        type VARCHAR(50) NOT NULL,
-        title VARCHAR(255) NOT NULL,
-        message TEXT NOT NULL,
-        is_read BOOLEAN DEFAULT false,
-        action_url VARCHAR(255),
-        metadata JSONB DEFAULT '{}',
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-      );
-
-      CREATE TABLE system_settings (
-        id SERIAL PRIMARY KEY,
-        category VARCHAR(50) NOT NULL,
-        setting_key VARCHAR(100) NOT NULL,
-        setting_value TEXT,
-        description TEXT,
-        is_encrypted BOOLEAN DEFAULT false,
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-        updated_by INTEGER REFERENCES users(id),
-        UNIQUE(category, setting_key)
-      );
-
-      CREATE TABLE api_keys (
-        id SERIAL PRIMARY KEY,
-        name VARCHAR(100) NOT NULL,
-        key_value VARCHAR(100) NOT NULL UNIQUE,
-        permissions JSONB NOT NULL DEFAULT '[]',
-        created_by INTEGER REFERENCES users(id),
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-        expires_at TIMESTAMP WITH TIME ZONE,
-        revoked_at TIMESTAMP WITH TIME ZONE,
-        revoked_by INTEGER REFERENCES users(id),
-        status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'revoked', 'expired')),
-        last_used_at TIMESTAMP WITH TIME ZONE
-      );
-
-      CREATE TABLE api_requests (
-        id SERIAL PRIMARY KEY,
-        api_key_id INTEGER REFERENCES api_keys(id),
-        endpoint VARCHAR(255) NOT NULL,
-        method VARCHAR(10) NOT NULL,
-        status_code INTEGER NOT NULL,
-        response_time INTEGER NOT NULL,
-        ip_address VARCHAR(45),
-        user_agent TEXT,
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-      );
-
-      -- Create updated_at trigger function
+      -- Create updated_at trigger function if it doesn't exist
       CREATE OR REPLACE FUNCTION update_updated_at_column()
       RETURNS TRIGGER AS $$
       BEGIN
@@ -218,175 +103,186 @@ const seed = async () => {
       $$ language 'plpgsql';
 
       -- Create triggers for updated_at
-      CREATE TRIGGER update_users_updated_at
-          BEFORE UPDATE ON users
-          FOR EACH ROW
-          EXECUTE FUNCTION update_updated_at_column();
-
-      CREATE TRIGGER update_payment_methods_updated_at
-          BEFORE UPDATE ON user_payment_methods
-          FOR EACH ROW
-          EXECUTE FUNCTION update_updated_at_column();
-
+      DROP TRIGGER IF EXISTS update_classes_updated_at ON classes;
       CREATE TRIGGER update_classes_updated_at
           BEFORE UPDATE ON classes
           FOR EACH ROW
           EXECUTE FUNCTION update_updated_at_column();
 
+      DROP TRIGGER IF EXISTS update_class_waitlist_updated_at ON class_waitlist;
       CREATE TRIGGER update_class_waitlist_updated_at
           BEFORE UPDATE ON class_waitlist
           FOR EACH ROW
           EXECUTE FUNCTION update_updated_at_column();
 
-      -- Create trigger for notification_templates updated_at
-      CREATE TRIGGER update_notification_templates_updated_at
-          BEFORE UPDATE ON notification_templates
-          FOR EACH ROW
-          EXECUTE FUNCTION update_updated_at_column();
-
       -- Create indexes for better query performance
-      CREATE INDEX idx_user_certificates_user_id ON user_certificates(user_id);
-      CREATE INDEX idx_user_certificates_class_id ON user_certificates(class_id);
-      CREATE INDEX idx_user_payment_methods_user_id ON user_payment_methods(user_id);
-      CREATE INDEX idx_user_activity_log_user_id ON user_activity_log(user_id);
-      CREATE INDEX idx_user_notifications_user_id ON user_notifications(user_id);
-      CREATE INDEX idx_user_notifications_type ON user_notifications(type);
-      CREATE INDEX idx_user_notifications_is_read ON user_notifications(is_read);
-      CREATE INDEX idx_user_notifications_created_at ON user_notifications(created_at);
-      CREATE INDEX idx_notification_templates_name ON notification_templates(name);
-      CREATE INDEX idx_notification_templates_type ON notification_templates(type);
-      CREATE INDEX idx_class_sessions_class_id ON class_sessions(class_id);
-      CREATE INDEX idx_class_sessions_session_date ON class_sessions(session_date);
-      CREATE INDEX idx_class_waitlist_class_id ON class_waitlist(class_id);
-      CREATE INDEX idx_class_waitlist_user_id ON class_waitlist(user_id);
-      CREATE INDEX idx_class_waitlist_status ON class_waitlist(status);
-
-      -- Create indexes
-      CREATE INDEX idx_system_settings_category ON system_settings(category);
-      CREATE INDEX idx_api_keys_status ON api_keys(status);
-      CREATE INDEX idx_api_keys_key_value ON api_keys(key_value);
-      CREATE INDEX idx_api_requests_api_key_id ON api_requests(api_key_id);
-      CREATE INDEX idx_api_requests_created_at ON api_requests(created_at);
-
-      -- Create trigger for updating system_settings updated_at
-      CREATE OR REPLACE FUNCTION update_system_settings_updated_at()
-      RETURNS TRIGGER AS $$
-      BEGIN
-          NEW.updated_at = CURRENT_TIMESTAMP;
-          RETURN NEW;
-      END;
-      $$ LANGUAGE plpgsql;
-
-      DROP TRIGGER IF EXISTS update_system_settings_updated_at ON system_settings;
-      CREATE TRIGGER update_system_settings_updated_at
-          BEFORE UPDATE ON system_settings
-          FOR EACH ROW
-          EXECUTE FUNCTION update_system_settings_updated_at();
+      CREATE INDEX IF NOT EXISTS idx_class_sessions_class_id ON class_sessions(class_id);
+      CREATE INDEX IF NOT EXISTS idx_class_sessions_session_date ON class_sessions(session_date);
+      CREATE INDEX IF NOT EXISTS idx_class_waitlist_class_id ON class_waitlist(class_id);
+      CREATE INDEX IF NOT EXISTS idx_class_waitlist_user_id ON class_waitlist(user_id);
+      CREATE INDEX IF NOT EXISTS idx_class_waitlist_status ON class_waitlist(status);
+      CREATE INDEX IF NOT EXISTS idx_enrollments_session_id ON enrollments(session_id);
     `);
 
-    // Hash passwords
+    // Create test users only if they don't exist
     const userPassword = await bcrypt.hash('user123', 10);
     const adminPassword = await bcrypt.hash('admin123', 10);
-
-    // Insert seed users with new fields
+    
     await pool.query(`
-      INSERT INTO users (name, email, password, role, status, first_name, last_name, phone_number, email_notifications, sms_notifications) 
-      VALUES
-        ('Jane Doe', 'jane@example.com', $1, 'user', 'active', 'Jane', 'Doe', '555-0123', true, false),
-        ('John Smith', 'john@example.com', $1, 'user', 'active', 'John', 'Smith', '555-0124', true, true),
-        ('Admin User', 'admin@example.com', $2, 'admin', 'active', 'Admin', 'User', '555-0125', true, false),
-        ('Instructor One', 'instructor1@example.com', $1, 'instructor', 'active', 'Instructor', 'One', '555-0126', true, true),
-        ('Instructor Two', 'instructor2@example.com', $1, 'instructor', 'active', 'Instructor', 'Two', '555-0127', true, false)
+      INSERT INTO users (name, email, password, role, status, first_name, last_name, phone_number, email_notifications, sms_notifications)
+      SELECT * FROM (
+        VALUES
+          ('Jane Doe', 'jane@example.com', $1, 'user', 'active', 'Jane', 'Doe', '555-0123', true, false),
+          ('John Smith', 'john@example.com', $1, 'user', 'active', 'John', 'Smith', '555-0124', true, true),
+          ('Admin User', 'admin@example.com', $2, 'admin', 'active', 'Admin', 'User', '555-0125', true, false),
+          ('Instructor One', 'instructor1@example.com', $1, 'instructor', 'active', 'Instructor', 'One', '555-0126', true, true),
+          ('Instructor Two', 'instructor2@example.com', $1, 'instructor', 'active', 'Instructor', 'Two', '555-0127', true, false)
+      ) AS new_users(name, email, password, role, status, first_name, last_name, phone_number, email_notifications, sms_notifications)
+      WHERE NOT EXISTS (
+        SELECT 1 FROM users WHERE email = new_users.email
+      )
     `, [userPassword, adminPassword]);
 
-    // Insert seed classes with enhanced features
-    await pool.query(`
-      INSERT INTO classes (
-        title, description, date, start_time, end_time, duration_minutes,
-        location_type, location_details, price, capacity, is_recurring,
-        recurrence_pattern, min_enrollment, prerequisites, materials_needed,
-        instructor_id, waitlist_enabled, waitlist_capacity, status
-      )
-      VALUES 
-        (
-          'Intro to Painting',
-          'A beginner friendly class on watercolor painting.',
-          '2025-04-20 10:00:00',
-          '10:00',
-          '11:30',
-          90,
-          'in-person',
-          '123 Art St, NY',
-          30.00,
-          10,
-          false,
-          NULL,
-          3,
-          'No prior experience needed',
-          'Watercolor set, brushes, paper',
-          4,
-          true,
-          5,
-          'scheduled'
-        ),
-        (
-          'Yoga Basics',
-          'Learn the fundamentals of yoga.',
-          '2025-04-21 09:00:00',
-          '09:00',
-          '10:00',
-          60,
-          'zoom',
-          'https://zoom.us/yogabasics',
-          20.00,
-          15,
-          true,
-          '{"frequency": "weekly", "interval": 7, "endDate": "2025-06-30", "daysOfWeek": [2, 4]}',
-          5,
-          'Yoga mat required',
-          'Yoga mat, comfortable clothes',
-          5,
-          true,
-          3,
-          'scheduled'
-        ),
-        (
-          'Cooking with Spices',
-          'Explore spice blends in various cuisines.',
-          '2025-04-22 18:00:00',
-          '18:00',
-          '19:30',
-          90,
-          'in-person',
-          '456 Culinary Ave, NY',
-          35.00,
-          12,
-          false,
-          NULL,
-          4,
-          'Basic cooking skills required',
-          'Apron, chef knife, cutting board',
-          4,
-          false,
-          0,
-          'scheduled'
-        );
-    `);
+    // Seed classes
+    const classes = [
+      {
+        title: 'Child Development Associate (CDA)',
+        description: 'This comprehensive course prepares you for the CDA credential, covering all aspects of early childhood education. Learn about child development, curriculum planning, and professional practices. Perfect for those seeking to advance their career in early childhood education.',
+        date: new Date('2025-06-01'),
+        start_time: '09:00',
+        end_time: '17:00',
+        duration_minutes: 480,
+        location_type: 'zoom',
+        location_details: 'Online via Zoom',
+        price: 299.99,
+        capacity: 20,
+        enrolled_count: 0,
+        is_recurring: true,
+        recurrence_pattern: { frequency: 'weekly', interval: 1, days: ['Monday', 'Wednesday'] },
+        min_enrollment: 5,
+        status: 'active',
+        prerequisites: 'None required',
+        materials_needed: 'Computer with internet access, webcam, and microphone',
+        waitlist_enabled: true,
+        waitlist_capacity: 10,
+        image_url: 'https://res.cloudinary.com/dufbdy0z0/image/upload/v1747786188/class-1_mlye6d.jpg'
+      },
+      {
+        title: 'Development and Operations',
+        description: 'Master the essential skills needed to run a successful childcare program. Learn about business operations, staff management, curriculum development, and regulatory compliance. This course is ideal for current and aspiring childcare center directors.',
+        date: new Date('2025-06-15'),
+        start_time: '10:00',
+        end_time: '16:00',
+        duration_minutes: 360,
+        location_type: 'in-person',
+        location_details: 'Main Training Center, Room 101',
+        price: 349.99,
+        capacity: 15,
+        enrolled_count: 0,
+        is_recurring: true,
+        recurrence_pattern: { frequency: 'weekly', interval: 1, days: ['Tuesday', 'Thursday'] },
+        min_enrollment: 5,
+        status: 'active',
+        prerequisites: 'Basic childcare experience recommended',
+        materials_needed: 'Notebook, laptop (optional)',
+        waitlist_enabled: true,
+        waitlist_capacity: 5,
+        image_url: 'https://res.cloudinary.com/dufbdy0z0/image/upload/v1747786188/class-2_vpqyct.jpg'
+      },
+      {
+        title: 'CPR and First Aid Certification',
+        description: 'Essential training for childcare providers. Learn life-saving techniques including CPR, AED use, and first aid procedures. This course meets state licensing requirements and provides certification valid for two years.',
+        date: new Date('2025-06-01'),
+        start_time: '08:00',
+        end_time: '17:00',
+        duration_minutes: 540,
+        location_type: 'in-person',
+        location_details: 'Training Center, Room 203',
+        price: 149.99,
+        capacity: 12,
+        enrolled_count: 0,
+        is_recurring: false,
+        min_enrollment: 4,
+        status: 'active',
+        prerequisites: 'None required',
+        materials_needed: 'Comfortable clothing for practical exercises',
+        waitlist_enabled: true,
+        waitlist_capacity: 8,
+        image_url: 'https://res.cloudinary.com/dufbdy0z0/image/upload/v1747786180/class-3_fealxp.jpg'
+      }
+    ];
 
-    // Insert sample class sessions for recurring class
+    // Insert classes
+    for (const classData of classes) {
+      await pool.query(`
+        INSERT INTO classes (
+          title, description, date, start_time, end_time, duration_minutes,
+          location_type, location_details, price, capacity, enrolled_count,
+          is_recurring, recurrence_pattern, min_enrollment, status,
+          prerequisites, materials_needed, waitlist_enabled, waitlist_capacity,
+          image_url
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+      `, [
+        classData.title,
+        classData.description,
+        classData.date,
+        classData.start_time,
+        classData.end_time,
+        classData.duration_minutes,
+        classData.location_type,
+        classData.location_details,
+        classData.price,
+        classData.capacity,
+        classData.enrolled_count,
+        classData.is_recurring,
+        JSON.stringify(classData.recurrence_pattern || null),
+        classData.min_enrollment,
+        classData.status,
+        classData.prerequisites,
+        classData.materials_needed,
+        classData.waitlist_enabled,
+        classData.waitlist_capacity,
+        classData.image_url
+      ]);
+    }
+
+    // Insert sample class sessions for all classes
     await pool.query(`
+      -- CDA Class Sessions (Class ID 1)
       INSERT INTO class_sessions (class_id, session_date, start_time, end_time)
       SELECT 
-        2, -- Yoga Basics class ID
+        1,
         gs::date,
         '09:00'::time,
-        '10:00'::time
+        '17:00'::time
       FROM generate_series(
-          '2025-04-21'::date,
+          '2025-06-01'::date,
           '2025-06-30'::date,
           '1 day'::interval
       ) AS gs
+      WHERE EXTRACT(DOW FROM gs) IN (1, 3); -- Monday and Wednesday
+
+      -- Development and Operations Class Sessions (Class ID 2)
+      INSERT INTO class_sessions (class_id, session_date, start_time, end_time)
+      SELECT 
+        2,
+        gs::date,
+        '10:00'::time,
+        '16:00'::time
+      FROM generate_series(
+          '2025-06-15'::date,
+          '2025-07-15'::date,
+          '1 day'::interval
+      ) AS gs
       WHERE EXTRACT(DOW FROM gs) IN (2, 4); -- Tuesday and Thursday
+
+      -- CPR and First Aid Class Sessions (Class ID 3)
+      INSERT INTO class_sessions (class_id, session_date, start_time, end_time)
+      VALUES
+        (3, '2025-06-01', '08:00', '17:00'),
+        (3, '2025-06-08', '08:00', '17:00'),
+        (3, '2025-06-15', '08:00', '17:00'),
+        (3, '2025-06-22', '08:00', '17:00');
     `);
 
     // Insert sample waitlist entries
@@ -398,15 +294,31 @@ const seed = async () => {
         (2, 1, 1, 'accepted');
     `);
 
-    // Insert sample enrollments with status
+    // Insert sample enrollments with status and session IDs
     await pool.query(`
-      INSERT INTO enrollments (user_id, class_id, payment_status, enrollment_status, admin_notes, reviewed_at, reviewed_by)
-      VALUES
-        (1, 1, 'paid', 'approved', 'Initial enrollment approved', CURRENT_TIMESTAMP, 3),
-        (1, 2, 'paid', 'approved', 'Initial enrollment approved', CURRENT_TIMESTAMP, 3),
-        (2, 3, 'paid', 'approved', 'Initial enrollment approved', CURRENT_TIMESTAMP, 3),
-        (2, 1, 'paid', 'pending', NULL, NULL, NULL),
-        (1, 3, 'paid', 'rejected', 'Class capacity reached', CURRENT_TIMESTAMP, 3);
+      WITH session_ids AS (
+        SELECT id, class_id, ROW_NUMBER() OVER (PARTITION BY class_id ORDER BY session_date) as session_num
+        FROM class_sessions
+      )
+      INSERT INTO enrollments (user_id, class_id, session_id, payment_status, enrollment_status, admin_notes, reviewed_at, reviewed_by)
+      SELECT 
+        e.user_id,
+        e.class_id,
+        s.id as session_id,
+        e.payment_status,
+        e.enrollment_status,
+        e.admin_notes,
+        e.reviewed_at,
+        e.reviewed_by
+      FROM (
+        VALUES
+          (1, 1, 'paid', 'approved', 'Initial enrollment approved', CURRENT_TIMESTAMP, 3),
+          (1, 2, 'paid', 'approved', 'Initial enrollment approved', CURRENT_TIMESTAMP, 3),
+          (2, 3, 'paid', 'approved', 'Initial enrollment approved', CURRENT_TIMESTAMP, 3),
+          (2, 1, 'paid', 'pending', NULL, NULL, NULL),
+          (1, 3, 'paid', 'rejected', 'Class capacity reached', CURRENT_TIMESTAMP, 3)
+      ) AS e(user_id, class_id, payment_status, enrollment_status, admin_notes, reviewed_at, reviewed_by)
+      JOIN session_ids s ON s.class_id = e.class_id AND s.session_num = 1;
     `);
 
     // Insert sample certificates
@@ -466,54 +378,59 @@ const seed = async () => {
         (1, 3, 'stripe_payment_5', 35.00, 'USD', 'completed', 'processed', 17.50, 'Partial refund due to cancellation', CURRENT_TIMESTAMP, 3);
     `);
 
-    // Insert notification templates
+    // Insert notification templates only if they don't exist
     await pool.query(`
       INSERT INTO notification_templates (name, type, title_template, message_template, metadata)
-      VALUES
-        (
-          'class_reminder',
-          'class_reminder',
-          'Upcoming Class: {{class_name}}',
-          'Your class "{{class_name}}" starts in {{time_until}}. Please join at {{location}}.',
-          '{"category": "class", "priority": "high"}'
-        ),
-        (
-          'enrollment_approved',
-          'enrollment',
-          'Enrollment Approved: {{class_name}}',
-          'Your enrollment in "{{class_name}}" has been approved. The class starts on {{start_date}}.',
-          '{"category": "enrollment", "priority": "medium"}'
-        ),
-        (
-          'payment_due',
-          'payment',
-          'Payment Due: {{class_name}}',
-          'Payment of {{amount}} for "{{class_name}}" is due on {{due_date}}.',
-          '{"category": "payment", "priority": "high"}'
-        ),
-        (
-          'certificate_ready',
-          'certificate',
-          'Certificate Available: {{class_name}}',
-          'Your certificate for "{{class_name}}" is now available for download.',
-          '{"category": "certificate", "priority": "medium"}'
-        ),
-        (
-          'class_cancelled',
-          'class_update',
-          'Class Cancelled: {{class_name}}',
-          'The class "{{class_name}}" scheduled for {{class_date}} has been cancelled. {{refund_info}}',
-          '{"category": "class", "priority": "high"}'
-        ),
-        (
-          'waitlist_offered',
-          'waitlist',
-          'Spot Available: {{class_name}}',
-          'A spot has opened up in "{{class_name}}". You have 24 hours to accept this offer.',
-          '{"category": "waitlist", "priority": "high"}'
-        );
+      SELECT * FROM (
+        VALUES
+          (
+            'class_reminder',
+            'class_reminder',
+            'Upcoming Class: {{class_name}}',
+            'Your class "{{class_name}}" starts in {{time_until}}. Please join at {{location}}.',
+            '{"category": "class", "priority": "high"}'::jsonb
+          ),
+          (
+            'enrollment_approved',
+            'enrollment',
+            'Enrollment Approved: {{class_name}}',
+            'Your enrollment in "{{class_name}}" has been approved. The class starts on {{start_date}}.',
+            '{"category": "enrollment", "priority": "medium"}'::jsonb
+          ),
+          (
+            'payment_due',
+            'payment',
+            'Payment Due: {{class_name}}',
+            'Payment of {{amount}} for "{{class_name}}" is due on {{due_date}}.',
+            '{"category": "payment", "priority": "high"}'::jsonb
+          ),
+          (
+            'certificate_ready',
+            'certificate',
+            'Certificate Available: {{class_name}}',
+            'Your certificate for "{{class_name}}" is now available for download.',
+            '{"category": "certificate", "priority": "medium"}'::jsonb
+          ),
+          (
+            'class_cancelled',
+            'class_update',
+            'Class Cancelled: {{class_name}}',
+            'The class "{{class_name}}" scheduled for {{class_date}} has been cancelled. {{refund_info}}',
+            '{"category": "class", "priority": "high"}'::jsonb
+          ),
+          (
+            'waitlist_offered',
+            'waitlist',
+            'Spot Available: {{class_name}}',
+            'A spot has opened up in "{{class_name}}". You have 24 hours to accept this offer.',
+            '{"category": "waitlist", "priority": "high"}'::jsonb
+          )
+      ) AS new_templates(name, type, title_template, message_template, metadata)
+      WHERE NOT EXISTS (
+        SELECT 1 FROM notification_templates WHERE name = new_templates.name
+      );
 
-      -- Update existing notifications with metadata
+      -- Update existing notifications with metadata if needed
       UPDATE user_notifications
       SET metadata = jsonb_build_object(
         'category', 
@@ -528,7 +445,7 @@ const seed = async () => {
           WHEN type IN ('class_reminder', 'payment_due', 'class_cancelled') THEN 'high'
           ELSE 'medium'
         END
-      )
+      )::jsonb
       WHERE metadata IS NULL;
     `);
 
