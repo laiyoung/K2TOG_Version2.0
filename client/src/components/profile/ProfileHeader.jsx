@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import axios from 'axios';
+import userService from '../../services/userService';
 import './ProfileHeader.css';
 
-const ProfileHeader = ({ profile, onProfileUpdate }) => {
+const ProfileHeader = ({ profile, onUpdate }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [formData, setFormData] = useState({
         first_name: profile?.first_name || '',
@@ -27,12 +27,9 @@ const ProfileHeader = ({ profile, onProfileUpdate }) => {
         setSuccess(null);
 
         try {
-            const response = await axios.put('/api/profile/profile', formData, {
-                headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-            });
-
+            const response = await userService.updateProfile(formData);
             setSuccess('Profile updated successfully');
-            onProfileUpdate();
+            onUpdate(response.data);
             setIsEditing(false);
         } catch (err) {
             setError(err.response?.data?.message || 'Failed to update profile');
@@ -43,22 +40,13 @@ const ProfileHeader = ({ profile, onProfileUpdate }) => {
         const file = e.target.files[0];
         if (!file) return;
 
-        const formData = new FormData();
-        formData.append('profile_picture', file);
-
         try {
-            const response = await axios.post('/api/profile/upload-picture', formData, {
-                headers: {
-                    'Content-Type': 'multipart/form-data',
-                    Authorization: `Bearer ${localStorage.getItem('token')}`
-                }
-            });
-
+            const response = await userService.uploadProfilePicture(file);
             setFormData(prev => ({
                 ...prev,
                 profile_picture_url: response.data.profile_picture_url
             }));
-            onProfileUpdate();
+            onUpdate(response.data);
         } catch (err) {
             setError('Failed to upload profile picture');
         }

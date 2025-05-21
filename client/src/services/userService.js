@@ -1,14 +1,14 @@
 import api from './apiConfig';
 
 const userService = {
-    // Get user profile
+    // Get user profile with all details
     getProfile: async () => {
-        return api.get('/users/profile');
+        return api.get('/profile/profile');
     },
 
     // Update user profile
     updateProfile: async (profileData) => {
-        return api.put('/users/profile', profileData);
+        return api.put('/profile/profile', profileData);
     },
 
     // Update user preferences

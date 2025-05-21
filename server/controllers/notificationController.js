@@ -137,7 +137,7 @@ const sendBulkNotification = async (req, res) => {
             return res.status(400).json({ error: 'One or more user IDs are invalid' });
         }
 
-        const notifications = await Notification.createBulkFromTemplate(
+        const result = await Notification.createBulkFromTemplate(
             template_name,
             user_ids,
             variables,
@@ -145,8 +145,10 @@ const sendBulkNotification = async (req, res) => {
         );
 
         res.status(201).json({
-            message: 'Bulk notification sent successfully',
-            count: notifications.length
+            success: true,
+            sent_count: result.sent_count,
+            failed_count: result.failed_count || 0,
+            message: 'Bulk notification sent successfully'
         });
     } catch (error) {
         console.error('Send bulk notification error:', error);
@@ -173,7 +175,7 @@ const broadcastNotification = async (req, res) => {
         const users = await User.getUsersByStatus('active');
         const user_ids = users.map(user => user.id);
 
-        const notifications = await Notification.createBulkFromTemplate(
+        const result = await Notification.createBulkFromTemplate(
             template_name,
             user_ids,
             variables,
@@ -181,8 +183,9 @@ const broadcastNotification = async (req, res) => {
         );
 
         res.status(201).json({
-            message: 'Broadcast notification sent successfully',
-            count: notifications.length
+            success: true,
+            sent_count: result.sent_count,
+            message: 'Broadcast notification sent successfully'
         });
     } catch (error) {
         console.error('Broadcast notification error:', error);

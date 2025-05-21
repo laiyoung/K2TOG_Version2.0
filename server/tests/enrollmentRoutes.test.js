@@ -2,6 +2,11 @@
 process.env.NODE_ENV = 'test';
 process.env.JWT_SECRET = 'test_jwt_secret';
 
+// Mock the database pool
+jest.mock('../config/db', () => ({
+  query: jest.fn()
+}));
+
 // Mock the email sending utility
 jest.mock('../utils/sendEmail');
 
@@ -45,6 +50,7 @@ describe('Enrollment Routes', () => {
         id: 1,
         user_id: 1,
         class_id: 1,
+        session_id: 1,
         payment_status: 'paid',
         enrolled_at: new Date().toISOString()
       };
@@ -55,20 +61,30 @@ describe('Enrollment Routes', () => {
         date: new Date(Date.now() + 86400000).toISOString().split('T')[0] // Tomorrow's date
       };
 
+      const mockSession = {
+        id: 1,
+        class_id: 1,
+        session_date: new Date(Date.now() + 86400000).toISOString().split('T')[0],
+        start_time: '10:00',
+        end_time: '11:00'
+      };
+
       // Mock the database calls
       enrollmentModel.isUserAlreadyEnrolled.mockResolvedValue(false);
       enrollmentModel.enrollUserInClass.mockResolvedValue(mockEnrollment);
-      classModel.getClassById.mockResolvedValue(mockClass);
+      classModel.getClassWithDetails.mockResolvedValue(mockClass);
       classModel.incrementEnrolledCount.mockResolvedValue();
+      pool.query.mockResolvedValue({ rows: [mockSession] });
 
       // Make the enrollment request
       const response = await request(app)
-        .post('/api/enrollments/1');
+        .post('/api/enrollments/1')
+        .send({ sessionId: 1 });
 
       // Assertions
       expect(response.status).toBe(201);
       expect(response.body).toEqual(mockEnrollment);
-      expect(enrollmentModel.enrollUserInClass).toHaveBeenCalledWith(1, '1', 'paid');
+      expect(enrollmentModel.enrollUserInClass).toHaveBeenCalledWith(1, '1', 1, 'paid');
       expect(classModel.incrementEnrolledCount).toHaveBeenCalledWith('1');
       expect(mockSendEmail).toHaveBeenCalledWith({
         to: 'test@example.com',
@@ -82,7 +98,8 @@ describe('Enrollment Routes', () => {
       enrollmentModel.isUserAlreadyEnrolled.mockResolvedValue(true);
 
       const response = await request(app)
-        .post('/api/enrollments/1');
+        .post('/api/enrollments/1')
+        .send({ sessionId: 1 });
 
       expect(response.status).toBe(400);
       expect(response.body).toHaveProperty('error', 'User already enrolled in this class');
@@ -96,24 +113,35 @@ describe('Enrollment Routes', () => {
         date: new Date(Date.now() - 86400000).toISOString().split('T')[0] // Yesterday's date
       };
 
+      const mockSession = {
+        id: 1,
+        class_id: 1,
+        session_date: new Date(Date.now() - 86400000).toISOString().split('T')[0],
+        start_time: '10:00',
+        end_time: '11:00'
+      };
+
       // Mock the database calls
       enrollmentModel.isUserAlreadyEnrolled.mockResolvedValue(false);
-      classModel.getClassById.mockResolvedValue(mockClass);
+      classModel.getClassWithDetails.mockResolvedValue(mockClass);
+      pool.query.mockResolvedValue({ rows: [mockSession] });
 
       const response = await request(app)
-        .post('/api/enrollments/1');
+        .post('/api/enrollments/1')
+        .send({ sessionId: 1 });
 
       expect(response.status).toBe(400);
-      expect(response.body).toHaveProperty('error', 'Class has already started or ended');
+      expect(response.body).toHaveProperty('error', 'Session has already started or ended');
     });
 
     it('should return 404 if class does not exist', async () => {
       // Mock that class doesn't exist
       enrollmentModel.isUserAlreadyEnrolled.mockResolvedValue(false);
-      classModel.getClassById.mockResolvedValue(null);
+      classModel.getClassWithDetails.mockResolvedValue(null);
 
       const response = await request(app)
-        .post('/api/enrollments/999');
+        .post('/api/enrollments/999')
+        .send({ sessionId: 1 });
 
       expect(response.status).toBe(404);
       expect(response.body).toHaveProperty('error', 'Class not found');
@@ -125,6 +153,7 @@ describe('Enrollment Routes', () => {
         id: 1,
         user_id: 1,
         class_id: 1,
+        session_id: 1,
         payment_status: 'paid',
         enrolled_at: new Date().toISOString()
       };
@@ -135,15 +164,25 @@ describe('Enrollment Routes', () => {
         date: new Date(Date.now() + 86400000).toISOString().split('T')[0] // Tomorrow's date
       };
 
+      const mockSession = {
+        id: 1,
+        class_id: 1,
+        session_date: new Date(Date.now() + 86400000).toISOString().split('T')[0],
+        start_time: '10:00',
+        end_time: '11:00'
+      };
+
       // Mock successful enrollment but failed email
       enrollmentModel.isUserAlreadyEnrolled.mockResolvedValue(false);
       enrollmentModel.enrollUserInClass.mockResolvedValue(mockEnrollment);
-      classModel.getClassById.mockResolvedValue(mockClass);
+      classModel.getClassWithDetails.mockResolvedValue(mockClass);
       classModel.incrementEnrolledCount.mockResolvedValue();
+      pool.query.mockResolvedValue({ rows: [mockSession] });
       mockSendEmail.mockRejectedValueOnce(new Error('Email failed'));
 
       const response = await request(app)
-        .post('/api/enrollments/1');
+        .post('/api/enrollments/1')
+        .send({ sessionId: 1 });
 
       // Should still return success even if email fails
       expect(response.status).toBe(201);
@@ -154,7 +193,15 @@ describe('Enrollment Routes', () => {
   // Test suite for DELETE /api/enrollments/:classId (cancel enrollment)
   describe('DELETE /api/enrollments/:classId', () => {
     it('should successfully cancel an enrollment', async () => {
-      // Mock the database call
+      // Mock data
+      const mockClass = {
+        id: 1,
+        title: 'Yoga Class',
+        date: new Date(Date.now() + 86400000).toISOString().split('T')[0] // Tomorrow's date
+      };
+
+      // Mock the database calls
+      classModel.getClassById.mockResolvedValue(mockClass);
       enrollmentModel.cancelEnrollment.mockResolvedValue({ id: 1 });
       classModel.decrementEnrolledCount.mockResolvedValue();
 
@@ -168,7 +215,15 @@ describe('Enrollment Routes', () => {
     });
 
     it('should return 404 if enrollment not found', async () => {
-      // Mock that no enrollment was found
+      // Mock data
+      const mockClass = {
+        id: 1,
+        title: 'Yoga Class',
+        date: new Date(Date.now() + 86400000).toISOString().split('T')[0] // Tomorrow's date
+      };
+
+      // Mock the database calls
+      classModel.getClassById.mockResolvedValue(mockClass);
       enrollmentModel.cancelEnrollment.mockResolvedValue(null);
 
       const response = await request(app)

@@ -31,10 +31,8 @@ const updateProfile = async (req, res) => {
             sms_notifications
         });
         
-        await ActivityLog.create({
-            user_id: req.user.id,
-            action: 'update_profile',
-            details: { updated_fields: Object.keys(req.body) }
+        await ActivityLog.createActivityLog(req.user.id, 'update_profile', {
+            updated_fields: Object.keys(req.body)
         });
 
         res.json(updatedProfile);
@@ -45,10 +43,15 @@ const updateProfile = async (req, res) => {
 
 // Update password
 const updatePassword = async (req, res) => {
+    console.log('DEBUG: updatePassword controller called');
     try {
         const { currentPassword, newPassword } = req.body;
-        const user = await User.findById(req.user.id);
+        const user = await User.getUserById(req.user.id);
         
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
         const validPassword = await bcrypt.compare(currentPassword, user.password);
         if (!validPassword) {
             return res.status(400).json({ message: 'Current password is incorrect' });
@@ -57,10 +60,8 @@ const updatePassword = async (req, res) => {
         const hashedPassword = await bcrypt.hash(newPassword, 10);
         await User.updatePassword(req.user.id, hashedPassword);
         
-        await ActivityLog.create({
-            user_id: req.user.id,
-            action: 'update_password',
-            details: { timestamp: new Date() }
+        await ActivityLog.createActivityLog(req.user.id, 'update_password', {
+            timestamp: new Date()
         });
 
         res.json({ message: 'Password updated successfully' });

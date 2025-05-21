@@ -7,8 +7,10 @@ const requireAuth = require('../middleware/auth'); // Authentication middleware
 const requireAdmin = require('../middleware/requireAdmin'); // Admin authorization middleware
 
 // Mock the authentication middleware to bypass it during testing
-// This allows us to test routes without needing real authentication
-jest.mock('../middleware/auth', () => (req, res, next) => next());
+jest.mock('../middleware/auth', () => (req, res, next) => {
+  req.user = { id: 1, role: 'admin' }; // Mock admin user
+  next();
+});
 jest.mock('../middleware/requireAdmin', () => (req, res, next) => next());
 
 // Mock the class model to avoid actual database calls during testing
@@ -18,6 +20,10 @@ jest.mock('../models/classModel');
 const app = express();
 app.use(express.json()); // Enable JSON body parsing
 app.use('/api/classes', classRoutes); // Mount our class routes
+
+// Define tokens for use in tests
+const adminToken = 'admin-token';
+const userToken = 'user-token';
 
 // Main test suite for Class Routes
 describe('Class Routes', () => {
@@ -40,7 +46,8 @@ describe('Class Routes', () => {
           location_details: 'Zoom',
           price: 25,
           capacity: 20,
-          enrolled_count: 5
+          enrolled_count: 5,
+          status: 'scheduled',
         }
       ];
 
@@ -70,11 +77,16 @@ describe('Class Routes', () => {
         location_details: 'Zoom',
         price: 25,
         capacity: 20,
-        enrolled_count: 5
+        enrolled_count: 5,
+        status: 'scheduled',
+        instructor: {
+          id: 1,
+          name: 'Test Instructor'
+        }
       };
 
       // Mock the database call to return our test class
-      classModel.getClassById.mockResolvedValue(mockClass);
+      classModel.getClassWithDetails.mockResolvedValue(mockClass);
 
       // Make the HTTP request with a specific ID
       const response = await request(app).get('/api/classes/1');
@@ -82,46 +94,59 @@ describe('Class Routes', () => {
       // Assertions
       expect(response.status).toBe(200);
       expect(response.body).toEqual(mockClass);
-      expect(classModel.getClassById).toHaveBeenCalledWith('1'); // Note: Express params are strings
+      expect(classModel.getClassWithDetails).toHaveBeenCalledWith('1');
     });
 
     it('should return 404 when class is not found', async () => {
       // Mock the database to return null (class not found)
-      classModel.getClassById.mockResolvedValue(null);
+      classModel.getClassWithDetails.mockResolvedValue(null);
 
       // Make request with non-existent ID
       const response = await request(app).get('/api/classes/999');
       
       // Verify 404 response
       expect(response.status).toBe(404);
+      expect(response.body).toHaveProperty('error', 'Class not found');
     });
   });
 
   // Test suite for POST /api/classes endpoint
   describe('POST /api/classes', () => {
     it('should create a new class', async () => {
-      // Test data for creating a new class
       const newClass = {
         title: 'New Yoga Class',
-        description: 'A new yoga class for kids',
-        date: '2024-03-25',
-        location_type: 'online',
-        location_details: 'Zoom',
+        description: 'A fun yoga class for kids',
+        date: '2024-04-01',
+        start_time: '10:00',
+        end_time: '11:00',
+        duration_minutes: undefined,
+        location_type: 'in-person',
+        location_details: 'Main Studio',
         price: 30,
-        capacity: 15
+        capacity: 15,
+        is_recurring: undefined,
+        recurrence_pattern: undefined,
+        min_enrollment: undefined,
+        prerequisites: undefined,
+        materials_needed: undefined,
+        instructor_id: 1,
+        waitlist_enabled: undefined,
+        waitlist_capacity: undefined
       };
 
-      // Mock the database to return the created class with an ID
-      const createdClass = { id: 1, ...newClass, enrolled_count: 0 };
+      const createdClass = {
+        id: 1,
+        ...newClass
+      };
+
       classModel.createClass.mockResolvedValue(createdClass);
 
-      // Make POST request with new class data
       const response = await request(app)
         .post('/api/classes')
+        .set('Authorization', `Bearer ${adminToken}`)
         .send(newClass);
-      
-      // Assertions
-      expect(response.status).toBe(201); // 201 Created
+
+      expect(response.status).toBe(201);
       expect(response.body).toEqual(createdClass);
       expect(classModel.createClass).toHaveBeenCalledWith(newClass);
     });
@@ -132,7 +157,7 @@ describe('Class Routes', () => {
         title: 'Incomplete Class'
       };
 
-      // Mock the database to reject the request
+      // Mock the validation error
       classModel.createClass.mockRejectedValue(new Error('Missing required fields'));
 
       // Make POST request with incomplete data
@@ -141,8 +166,8 @@ describe('Class Routes', () => {
         .send(incompleteClass);
       
       // Assertions
-      expect(response.status).toBe(400); // 400 Bad Request
-      expect(response.body).toHaveProperty('error'); // Should have error message
+      expect(response.status).toBe(400);
+      expect(response.body).toHaveProperty('error', 'Missing required fields');
     });
   });
 }); 

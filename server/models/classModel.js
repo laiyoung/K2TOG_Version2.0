@@ -137,13 +137,25 @@ const createClass = async ({
 // Generate recurring sessions based on pattern
 const generateRecurringSessions = (startDate, pattern, startTime, endTime) => {
   const sessions = [];
-  const { frequency, interval, endDate, daysOfWeek } = pattern;
+  const { frequency, interval, endDate, daysOfWeek, days } = pattern;
   const start = new Date(startDate);
   const end = new Date(endDate);
   let current = new Date(start);
 
+  // Map day names to numbers if daysOfWeek is not provided
+  const dayNameToNumber = {
+    'Sunday': 0,
+    'Monday': 1,
+    'Tuesday': 2,
+    'Wednesday': 3,
+    'Thursday': 4,
+    'Friday': 5,
+    'Saturday': 6
+  };
+  const daysArray = daysOfWeek || (days ? days.map(day => dayNameToNumber[day]) : []);
+
   while (current <= end) {
-    if (daysOfWeek.includes(current.getDay())) {
+    if (daysArray.includes(current.getDay())) {
       sessions.push({
         date: current.toISOString().split('T')[0],
         start_time: startTime,
@@ -264,7 +276,7 @@ const getClassWithDetails = async (classId) => {
      FROM classes c
      LEFT JOIN users u ON u.id = c.instructor_id
      LEFT JOIN enrollments e ON e.class_id = c.id AND e.enrollment_status = 'approved'
-     LEFT JOIN class_waitlist w ON w.class_id = c.id AND w.status = 'waiting'
+     LEFT JOIN class_waitlist w ON w.class_id = c.id AND w.status = 'pending'
      WHERE c.id = $1
      GROUP BY c.id, u.name`,
     [classId]

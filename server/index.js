@@ -17,6 +17,7 @@ const certificateRoutes = require('./routes/certificateRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const analyticsRoutes = require('./routes/analyticsRoutes');
 const settingsRoutes = require('./routes/settingsRoutes');
+const profileRoutes = require('./routes/profileRoutes');
 const errorHandler = require('./middleware/errorHandler');
 const devLogger = require('./middleware/devLogger');
 
@@ -47,6 +48,7 @@ app.use('/api/certificates', certificateRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/admin/settings', settingsRoutes);
+app.use('/api/profile', profileRoutes);
 app.use(devLogger);
 app.use(errorHandler); // place this last!
 

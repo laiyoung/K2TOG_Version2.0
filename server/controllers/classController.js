@@ -234,6 +234,7 @@ const updateWaitlistEntryStatus = async (req, res) => {
     const { waitlistId } = req.params;
     const { status } = req.body;
 
+    // Allowed values: 'pending', 'approved', 'rejected', 'cancelled'
     if (!['pending', 'approved', 'rejected', 'cancelled'].includes(status)) {
         return res.status(400).json({ error: 'Invalid status' });
     }
@@ -270,6 +271,7 @@ const updateClassStatusById = async (req, res) => {
     const { id } = req.params;
     const { status } = req.body;
 
+    // Allowed values: 'scheduled', 'in_progress', 'completed', 'cancelled'
     if (!['scheduled', 'in_progress', 'completed', 'cancelled'].includes(status)) {
         return res.status(400).json({ error: 'Invalid status' });
     }

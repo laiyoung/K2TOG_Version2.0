@@ -26,7 +26,7 @@ import './EnrollmentsSection.css';
 const EnrollmentsSection = ({ enrollments }) => {
     const getStatusColor = (status) => {
         switch (status) {
-            case 'accepted':
+            case 'approved':
                 return 'success';
             case 'pending':
                 return 'warning';
@@ -39,7 +39,7 @@ const EnrollmentsSection = ({ enrollments }) => {
 
     const getStatusIcon = (status) => {
         switch (status) {
-            case 'accepted':
+            case 'approved':
                 return <AcceptedIcon />;
             case 'pending':
                 return <PendingIcon />;
@@ -68,22 +68,32 @@ const EnrollmentsSection = ({ enrollments }) => {
                 Class Enrollments
             </Typography>
 
-            {enrollments.length === 0 ? (
+            {!enrollments || enrollments.length === 0 ? (
                 <Paper sx={{ p: 3, textAlign: 'center' }}>
                     <Typography color="text.secondary">
                         No class enrollments found
                     </Typography>
                 </Paper>
             ) : (
-                <Grid container spacing={2}>
+                <Grid container spacing={3} sx={{ flexWrap: 'wrap' }} alignItems="stretch">
                     {enrollments.map((enrollment) => (
-                        <Grid item key={enrollment.id}>
+                        <Grid
+                            key={enrollment.enrollment_id}
+                            sx={{
+                                width: 280,
+                                display: 'flex',
+                                flexDirection: 'column',
+                                height: '100%',
+                            }}
+                        >
                             <Paper
                                 elevation={1}
                                 sx={{
-                                    p: 2,
+                                    flex: 1,
+                                    display: 'flex',
+                                    flexDirection: 'column',
                                     height: '100%',
-                                    width: { xs: '100%', sm: 'calc(50% - 16px)', md: 'calc(33.33% - 16px)' },
+                                    mb: 2,
                                     '&:hover': {
                                         boxShadow: 2
                                     }
@@ -93,17 +103,14 @@ const EnrollmentsSection = ({ enrollments }) => {
                                     <Box className="enrollment-header">
                                         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 1 }}>
                                             <Box sx={{ minWidth: 0 }}>
-                                                <Typography variant="h6" component="h3" noWrap>
-                                                    {enrollment.class_name}
-                                                </Typography>
-                                                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }} noWrap>
-                                                    {enrollment.class_description}
+                                                <Typography variant="h6" component="h3">
+                                                    {enrollment.class_name || 'N/A'}
                                                 </Typography>
                                             </Box>
                                             <Chip
-                                                icon={getStatusIcon(enrollment.status)}
-                                                label={enrollment.status.charAt(0).toUpperCase() + enrollment.status.slice(1)}
-                                                color={getStatusColor(enrollment.status)}
+                                                icon={getStatusIcon(enrollment.enrollment_status)}
+                                                label={enrollment.enrollment_status ? enrollment.enrollment_status.charAt(0).toUpperCase() + enrollment.enrollment_status.slice(1) : 'N/A'}
+                                                color={getStatusColor(enrollment.enrollment_status)}
                                                 size="small"
                                             />
                                         </Box>
@@ -113,37 +120,37 @@ const EnrollmentsSection = ({ enrollments }) => {
                                         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                                 <TeacherIcon color="action" fontSize="small" />
-                                                <Typography variant="body2" noWrap>
-                                                    Teacher: {enrollment.teacher_name}
+                                                <Typography variant="body2">
+                                                    Instructor: {enrollment.instructor_name || 'N/A'}
                                                 </Typography>
                                             </Box>
                                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                                 <ScheduleIcon color="action" fontSize="small" />
-                                                <Typography variant="body2" noWrap>
-                                                    Schedule: {enrollment.schedule}
+                                                <Typography variant="body2">
+                                                    Schedule: {enrollment.start_time && enrollment.end_time ? `${enrollment.start_time} - ${enrollment.end_time}` : 'N/A'}
                                                 </Typography>
                                             </Box>
                                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                                 <LocationIcon color="action" fontSize="small" />
                                                 <Typography variant="body2" noWrap>
-                                                    Location: {enrollment.location}
+                                                    Location: {enrollment.location || 'N/A'}
                                                 </Typography>
                                             </Box>
                                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                                 <CalendarIcon color="action" fontSize="small" />
                                                 <Typography variant="body2" noWrap>
-                                                    {formatDate(enrollment.start_date)} - {formatDate(enrollment.end_date)}
+                                                    {enrollment.start_date ? formatDate(enrollment.start_date) : 'N/A'} - {enrollment.end_date ? formatDate(enrollment.end_date) : 'N/A'}
                                                 </Typography>
                                             </Box>
                                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                                 <GroupIcon color="action" fontSize="small" />
                                                 <Box sx={{ width: '100%' }}>
                                                     <Typography variant="body2" sx={{ mb: 0.5 }} noWrap>
-                                                        Class Capacity: {enrollment.current_students}/{enrollment.capacity} students
+                                                        Class Capacity: {enrollment.current_students ?? 'N/A'}/{enrollment.capacity ?? 'N/A'} students
                                                     </Typography>
                                                     <LinearProgress
                                                         variant="determinate"
-                                                        value={calculateCapacityPercentage(enrollment.current_students, enrollment.capacity)}
+                                                        value={enrollment.current_students && enrollment.capacity ? calculateCapacityPercentage(enrollment.current_students, enrollment.capacity) : 0}
                                                         sx={{ height: 6, borderRadius: 3 }}
                                                     />
                                                 </Box>
@@ -153,16 +160,16 @@ const EnrollmentsSection = ({ enrollments }) => {
 
                                     <Box className="enrollment-footer">
                                         <Typography variant="caption" color="text.secondary" display="block">
-                                            Enrolled: {formatDate(enrollment.enrollment_date)}
+                                            Enrolled: {enrollment.enrollment_date ? formatDate(enrollment.enrollment_date) : 'N/A'}
                                         </Typography>
 
-                                        {enrollment.status === 'declined' && enrollment.decline_reason && (
+                                        {enrollment.enrollment_status === 'declined' && enrollment.decline_reason && (
                                             <Typography variant="body2" color="error" sx={{ mt: 1 }}>
                                                 Reason: {enrollment.decline_reason}
                                             </Typography>
                                         )}
 
-                                        {enrollment.status === 'pending' && (
+                                        {enrollment.enrollment_status === 'pending' && (
                                             <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
                                                 Your enrollment request is being reviewed. We'll notify you once it's processed.
                                             </Typography>

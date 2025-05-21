@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { authenticateToken } = require('../middleware/auth');
+const requireAuth = require('../middleware/auth');
 
 const {
     getProfileWithDetails,
@@ -18,25 +18,25 @@ const {
 } = require('../controllers/profileController');
 
 // Profile routes
-router.get('/profile', authenticateToken, getProfileWithDetails);
-router.put('/profile', authenticateToken, updateProfile);
-router.put('/profile/password', authenticateToken, updatePassword);
+router.get('/profile', requireAuth, getProfileWithDetails);
+router.put('/profile', requireAuth, updateProfile);
+router.put('/profile/password', requireAuth, updatePassword);
 
 // Certificate routes
-router.get('/certificates', authenticateToken, getCertificates);
+router.get('/certificates', requireAuth, getCertificates);
 
 // Payment method routes
-router.get('/payment-methods', authenticateToken, getPaymentMethods);
-router.post('/payment-methods', authenticateToken, addPaymentMethod);
-router.put('/payment-methods/:id/default', authenticateToken, setDefaultPaymentMethod);
-router.delete('/payment-methods/:id', authenticateToken, deletePaymentMethod);
+router.get('/payment-methods', requireAuth, getPaymentMethods);
+router.post('/payment-methods', requireAuth, addPaymentMethod);
+router.put('/payment-methods/:id/default', requireAuth, setDefaultPaymentMethod);
+router.delete('/payment-methods/:id', requireAuth, deletePaymentMethod);
 
 // Activity log routes
-router.get('/activity', authenticateToken, getActivityLog);
+router.get('/activity', requireAuth, getActivityLog);
 
 // Notification routes
-router.get('/notifications', authenticateToken, getNotifications);
-router.put('/notifications/:id/read', authenticateToken, markNotificationAsRead);
-router.put('/notifications/read-all', authenticateToken, markAllNotificationsAsRead);
+router.get('/notifications', requireAuth, getNotifications);
+router.put('/notifications/:id/read', requireAuth, markNotificationAsRead);
+router.put('/notifications/read-all', requireAuth, markAllNotificationsAsRead);
 
 module.exports = router; 

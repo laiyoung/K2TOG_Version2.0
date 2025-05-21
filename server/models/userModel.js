@@ -109,6 +109,112 @@ async function getUserByEmail(email) {
   return result.rows[0];
 }
 
+// Get user profile with all details
+async function getProfileWithDetails(userId) {
+  try {
+    // Get user details
+    const userResult = await pool.query(`
+      SELECT 
+        u.*,
+        COUNT(DISTINCT e.id) as total_enrollments,
+        COUNT(DISTINCT CASE WHEN e.enrollment_status = 'approved' THEN e.id END) as active_enrollments,
+        COUNT(DISTINCT p.id) as total_payments,
+        COUNT(DISTINCT CASE WHEN p.status = 'pending' THEN p.id END) as pending_payments
+      FROM users u
+      LEFT JOIN enrollments e ON u.id = e.user_id
+      LEFT JOIN payments p ON u.id = p.user_id
+      WHERE u.id = $1
+      GROUP BY u.id
+    `, [userId]);
+
+    if (!userResult.rows[0]) {
+      return null;
+    }
+
+    const user = userResult.rows[0];
+
+    // Initialize empty arrays for optional data
+    const profile = {
+      ...user,
+      certificates: [],
+      payment_methods: [],
+      recent_activity: [],
+      notifications: [],
+      enrollments: []
+    };
+
+    // Try to get user's enrollments if the table exists
+    try {
+      const enrollmentsResult = await pool.query(`
+        SELECT e.id as enrollment_id,
+               e.enrollment_status,
+               e.payment_status,
+               e.enrolled_at,
+               c.title as class_name,
+               c.description as class_description,
+               c.location_details as location,
+               c.capacity,
+               cs.session_date as start_date,
+               cs.start_time,
+               cs.end_time,
+               u.name as instructor_name
+        FROM enrollments e
+        JOIN classes c ON c.id = e.class_id
+        LEFT JOIN class_sessions cs ON cs.id = e.session_id
+        LEFT JOIN users u ON u.id = c.instructor_id
+        WHERE e.user_id = $1
+        ORDER BY c.date DESC
+      `, [userId]);
+      profile.enrollments = enrollmentsResult.rows;
+    } catch (err) {
+      console.log('Enrollments table not available:', err.message);
+    }
+
+    // Try to get user's payment methods if the table exists
+    try {
+      const paymentMethodsResult = await pool.query(`
+        SELECT * FROM user_payment_methods
+        WHERE user_id = $1
+        ORDER BY is_default DESC, created_at DESC
+      `, [userId]);
+      profile.payment_methods = paymentMethodsResult.rows;
+    } catch (err) {
+      console.log('Payment methods table not available:', err.message);
+    }
+
+    // Try to get user's recent activity if the table exists
+    try {
+      const activityResult = await pool.query(`
+        SELECT * FROM user_activity_log
+        WHERE user_id = $1
+        ORDER BY created_at DESC
+        LIMIT 10
+      `, [userId]);
+      profile.recent_activity = activityResult.rows;
+    } catch (err) {
+      console.log('Activity log table not available:', err.message);
+    }
+
+    // Try to get user's recent notifications if the table exists
+    try {
+      const notificationsResult = await pool.query(`
+        SELECT * FROM user_notifications
+        WHERE user_id = $1
+        ORDER BY created_at DESC
+        LIMIT 10
+      `, [userId]);
+      profile.notifications = notificationsResult.rows;
+    } catch (err) {
+      console.log('Notifications table not available:', err.message);
+    }
+
+    return profile;
+  } catch (error) {
+    console.error('Error in getProfileWithDetails:', error);
+    throw error;
+  }
+}
+
 module.exports = {
   getAllUsers,
   getUserById,
@@ -123,5 +229,6 @@ module.exports = {
   updateProfile,
   getUsersByIds,
   getUsersByStatus,
-  getUserByEmail
+  getUserByEmail,
+  getProfileWithDetails
 };

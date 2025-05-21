@@ -32,7 +32,7 @@ const seed = async () => {
         is_recurring BOOLEAN DEFAULT false,
         recurrence_pattern JSONB,
         min_enrollment INTEGER DEFAULT 1,
-        status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'cancelled', 'completed', 'scheduled')),
+        status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('in_progress', 'cancelled', 'completed', 'scheduled')),
         prerequisites TEXT,
         materials_needed TEXT,
         instructor_id INTEGER REFERENCES users(id),
@@ -58,7 +58,7 @@ const seed = async () => {
         class_id INTEGER REFERENCES classes(id) ON DELETE CASCADE,
         user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
         position INTEGER NOT NULL,
-        status VARCHAR(20) DEFAULT 'waiting' CHECK (status IN ('waiting', 'offered', 'accepted', 'declined')),
+        status VARCHAR(20) DEFAULT 'waiting' CHECK (status IN ('pending', 'approved', 'rejected', 'cancelled')),
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         UNIQUE(class_id, user_id)
@@ -143,7 +143,14 @@ const seed = async () => {
       )
     `, [userPassword, adminPassword]);
 
-    // Seed classes
+    // Dynamically get instructor IDs
+    const { rows: instructorRows } = await pool.query(`
+      SELECT id, email FROM users WHERE email IN ('instructor1@example.com', 'instructor2@example.com')
+    `);
+    const instructorOneId = instructorRows.find(u => u.email === 'instructor1@example.com')?.id;
+    const instructorTwoId = instructorRows.find(u => u.email === 'instructor2@example.com')?.id;
+
+    // Seed classes with dynamic instructor IDs
     const classes = [
       {
         title: 'Child Development Associate (CDA)',
@@ -160,12 +167,13 @@ const seed = async () => {
         is_recurring: true,
         recurrence_pattern: { frequency: 'weekly', interval: 1, days: ['Monday', 'Wednesday'] },
         min_enrollment: 5,
-        status: 'active',
+        status: 'scheduled',
         prerequisites: 'None required',
         materials_needed: 'Computer with internet access, webcam, and microphone',
         waitlist_enabled: true,
         waitlist_capacity: 10,
-        image_url: 'https://res.cloudinary.com/dufbdy0z0/image/upload/v1747786188/class-1_mlye6d.jpg'
+        image_url: 'https://res.cloudinary.com/dufbdy0z0/image/upload/v1747786188/class-1_mlye6d.jpg',
+        instructor_id: instructorOneId
       },
       {
         title: 'Development and Operations',
@@ -182,12 +190,13 @@ const seed = async () => {
         is_recurring: true,
         recurrence_pattern: { frequency: 'weekly', interval: 1, days: ['Tuesday', 'Thursday'] },
         min_enrollment: 5,
-        status: 'active',
+        status: 'scheduled',
         prerequisites: 'Basic childcare experience recommended',
         materials_needed: 'Notebook, laptop (optional)',
         waitlist_enabled: true,
         waitlist_capacity: 5,
-        image_url: 'https://res.cloudinary.com/dufbdy0z0/image/upload/v1747786188/class-2_vpqyct.jpg'
+        image_url: 'https://res.cloudinary.com/dufbdy0z0/image/upload/v1747786188/class-2_vpqyct.jpg',
+        instructor_id: instructorTwoId
       },
       {
         title: 'CPR and First Aid Certification',
@@ -203,12 +212,13 @@ const seed = async () => {
         enrolled_count: 0,
         is_recurring: false,
         min_enrollment: 4,
-        status: 'active',
+        status: 'scheduled',
         prerequisites: 'None required',
         materials_needed: 'Comfortable clothing for practical exercises',
         waitlist_enabled: true,
         waitlist_capacity: 8,
-        image_url: 'https://res.cloudinary.com/dufbdy0z0/image/upload/v1747786180/class-3_fealxp.jpg'
+        image_url: 'https://res.cloudinary.com/dufbdy0z0/image/upload/v1747786180/class-3_fealxp.jpg',
+        instructor_id: instructorOneId
       }
     ];
 
@@ -220,8 +230,8 @@ const seed = async () => {
           location_type, location_details, price, capacity, enrolled_count,
           is_recurring, recurrence_pattern, min_enrollment, status,
           prerequisites, materials_needed, waitlist_enabled, waitlist_capacity,
-          image_url
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+          image_url, instructor_id
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
       `, [
         classData.title,
         classData.description,
@@ -242,7 +252,8 @@ const seed = async () => {
         classData.materials_needed,
         classData.waitlist_enabled,
         classData.waitlist_capacity,
-        classData.image_url
+        classData.image_url,
+        classData.instructor_id
       ]);
     }
 
@@ -289,9 +300,9 @@ const seed = async () => {
     await pool.query(`
       INSERT INTO class_waitlist (class_id, user_id, position, status)
       VALUES
-        (1, 1, 1, 'waiting'),
-        (1, 2, 2, 'offered'),
-        (2, 1, 1, 'accepted');
+        (1, 1, 1, 'pending'),
+        (1, 2, 2, 'approved'),
+        (2, 1, 1, 'rejected');
     `);
 
     // Insert sample enrollments with status and session IDs

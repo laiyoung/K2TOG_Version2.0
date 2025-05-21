@@ -12,13 +12,16 @@ import {
 } from '@mui/icons-material';
 import './ProfileNavigation.css';
 
-const ProfileNavigation = ({ activeSection, onSectionChange, unreadNotifications, paymentsDue }) => {
+const ProfileNavigation = ({ activeSection, onSectionChange, profile }) => {
+    const unreadNotifications = profile?.notifications?.filter(n => !n.is_read).length || 0;
+    const paymentsDue = profile?.payments?.filter(p => p.status !== 'paid').length || 0;
+
     const menuItems = [
         { value: 'overview', label: 'Overview', icon: <PersonIcon /> },
         { value: 'enrollments', label: 'Enrollments', icon: <SchoolIcon /> },
         { value: 'certificates', label: 'Certificates', icon: <CertificateIcon /> },
         {
-            value: 'payments-due',
+            value: 'payments',
             label: 'Payments Due',
             icon: <Badge badgeContent={paymentsDue} color="error">
                 <PaymentsDueIcon />
