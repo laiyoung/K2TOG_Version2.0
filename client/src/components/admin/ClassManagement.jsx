@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import mockData from '../../mock/adminDashboardData.json';
 import ClassStudents from './ClassStudents';
 import {
@@ -7,6 +7,7 @@ import {
     Dialog,
     DialogTitle,
     DialogContent,
+    DialogActions,
     IconButton,
     Table,
     TableBody,
@@ -19,7 +20,11 @@ import {
     Menu,
     MenuItem,
     ListItemIcon,
-    ListItemText
+    ListItemText,
+    CircularProgress,
+    Alert,
+    Snackbar,
+    TextField
 } from '@mui/material';
 import {
     Edit as EditIcon,
@@ -46,22 +51,51 @@ function ClassManagement() {
     const [selectedClass, setSelectedClass] = useState(null);
     const [anchorEl, setAnchorEl] = useState(null);
     const [selectedClassForMenu, setSelectedClassForMenu] = useState(null);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(null);
+    const [notification, setNotification] = useState({ open: false, message: '', severity: 'success' });
+
+    const showNotification = useCallback((message, severity = 'success') => {
+        setNotification({ open: true, message, severity });
+    }, []);
+
+    const handleCloseNotification = () => {
+        setNotification(prev => ({ ...prev, open: false }));
+    };
+
+    const handleError = useCallback((error, customMessage = 'An error occurred') => {
+        console.error(error);
+        setError(error.message || customMessage);
+        showNotification(error.message || customMessage, 'error');
+    }, [showNotification]);
 
     const handleAdd = () => {
+        setError(null);
         setEditClass(null);
         setForm({ title: '', instructor: '', date: '', location: '', capacity: '', enrolled: '' });
         setShowModal(true);
     };
 
     const handleEdit = (cls) => {
+        setError(null);
         setEditClass(cls);
         setForm({ ...cls });
         setShowModal(true);
     };
 
-    const handleDelete = (id) => {
-        if (window.confirm('Are you sure you want to delete this class?')) {
-            setClasses(classes.filter(c => c.id !== id));
+    const handleDelete = async (id) => {
+        try {
+            if (window.confirm('Are you sure you want to delete this class?')) {
+                setLoading(true);
+                // TODO: Replace with actual API call
+                // await deleteClass(id);
+                setClasses(classes.filter(c => c.id !== id));
+                showNotification('Class deleted successfully');
+            }
+        } catch (error) {
+            handleError(error, 'Failed to delete class');
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -69,16 +103,32 @@ function ClassManagement() {
         setForm({ ...form, [e.target.name]: e.target.value });
     };
 
-    const handleSave = () => {
-        if (editClass) {
-            setClasses(classes.map(c => c.id === editClass.id ? { ...editClass, ...form } : c));
-        } else {
-            setClasses([
-                ...classes,
-                { id: Date.now(), ...form }
-            ]);
+    const handleSave = async () => {
+        try {
+            setLoading(true);
+            setError(null);
+
+            // Validate form
+            if (!form.title || !form.instructor || !form.date || !form.location || !form.capacity) {
+                throw new Error('Please fill in all required fields');
+            }
+
+            // TODO: Replace with actual API call
+            if (editClass) {
+                // await updateClass(editClass.id, form);
+                setClasses(classes.map(c => c.id === editClass.id ? { ...editClass, ...form } : c));
+                showNotification('Class updated successfully');
+            } else {
+                // await createClass(form);
+                setClasses([...classes, { id: Date.now(), ...form }]);
+                showNotification('Class created successfully');
+            }
+            setShowModal(false);
+        } catch (error) {
+            handleError(error, 'Failed to save class');
+        } finally {
+            setLoading(false);
         }
-        setShowModal(false);
     };
 
     const handleViewSessions = (cls) => {
@@ -94,10 +144,22 @@ function ClassManagement() {
         setNewStatus(cls.status || 'scheduled');
     };
 
-    const handleStatusSave = () => {
-        setClasses(classes.map(c => c.id === statusClass.id ? { ...c, status: newStatus } : c));
-        setStatusClass(null);
-        setNewStatus('');
+    const handleStatusSave = async () => {
+        try {
+            setLoading(true);
+            setError(null);
+
+            // TODO: Replace with actual API call
+            // await updateClassStatus(statusClass.id, newStatus);
+            setClasses(classes.map(c => c.id === statusClass.id ? { ...c, status: newStatus } : c));
+            showNotification('Class status updated successfully');
+            setStatusClass(null);
+            setNewStatus('');
+        } catch (error) {
+            handleError(error, 'Failed to update class status');
+        } finally {
+            setLoading(false);
+        }
     };
 
     const handleViewStudents = (cls) => {
@@ -142,6 +204,12 @@ function ClassManagement() {
 
     return (
         <Box className="class-management">
+            {error && (
+                <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+                    {error}
+                </Alert>
+            )}
+
             <Typography variant="h5" component="h2" gutterBottom>
                 Class Management
             </Typography>
@@ -151,9 +219,16 @@ function ClassManagement() {
                 color="primary"
                 onClick={handleAdd}
                 sx={{ mb: 2 }}
+                disabled={loading}
             >
                 Add Class
             </Button>
+
+            {loading && (
+                <Box sx={{ display: 'flex', justifyContent: 'center', my: 2 }}>
+                    <CircularProgress />
+                </Box>
+            )}
 
             <TableContainer component={Paper}>
                 <Table>
@@ -262,7 +337,7 @@ function ClassManagement() {
             {showModal && (
                 <Dialog
                     open={showModal}
-                    onClose={() => setShowModal(false)}
+                    onClose={() => !loading && setShowModal(false)}
                     maxWidth="sm"
                     fullWidth
                 >
@@ -320,9 +395,16 @@ function ClassManagement() {
                         </Box>
                     </DialogContent>
                     <DialogActions>
-                        <Button onClick={() => setShowModal(false)}>Cancel</Button>
-                        <Button onClick={handleSave} variant="contained" color="primary">
-                            Save
+                        <Button onClick={() => setShowModal(false)} disabled={loading}>
+                            Cancel
+                        </Button>
+                        <Button
+                            onClick={handleSave}
+                            variant="contained"
+                            color="primary"
+                            disabled={loading}
+                        >
+                            {loading ? <CircularProgress size={24} /> : 'Save'}
                         </Button>
                     </DialogActions>
                 </Dialog>
@@ -400,6 +482,21 @@ function ClassManagement() {
                     </div>
                 </div>
             )}
+
+            <Snackbar
+                open={notification.open}
+                autoHideDuration={6000}
+                onClose={handleCloseNotification}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+            >
+                <Alert
+                    onClose={handleCloseNotification}
+                    severity={notification.severity}
+                    sx={{ width: '100%' }}
+                >
+                    {notification.message}
+                </Alert>
+            </Snackbar>
         </Box>
     );
 }

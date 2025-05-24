@@ -17,7 +17,7 @@ const {
   getClassWithDetails
 } = require("../models/classModel");
 
-const sendEmail = require("../utils/sendEmail");
+const { sendEmail } = require("../utils/emailService");
 const { validateEmail } = require("../utils/validators");
 const pool = require("../config/db");
 
