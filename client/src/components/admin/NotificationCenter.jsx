@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     Box,
     Typography,
@@ -22,7 +22,8 @@ import {
     Divider,
     Paper,
     Tab,
-    Tabs
+    Tabs,
+    Alert
 } from '@mui/material';
 import {
     Notifications as NotificationIcon,
@@ -33,10 +34,15 @@ import {
     Announcement as BroadcastIcon
 } from '@mui/icons-material';
 import { mockData } from '../../mockData/adminDashboardData';
+import adminService from '../../services/adminService';
+import { useSnackbar } from 'notistack';
 
 const NotificationCenter = () => {
-    const [activeTab, setActiveTab] = useState(0);
-    const [notifications, setNotifications] = useState(mockData.notifications || []);
+    const { enqueueSnackbar } = useSnackbar();
+
+    const [notifications, setNotifications] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(null);
     const [templates, setTemplates] = useState(mockData.notificationTemplates || []);
     const [showSendDialog, setShowSendDialog] = useState(false);
     const [showTemplateDialog, setShowTemplateDialog] = useState(false);
@@ -52,58 +58,85 @@ const NotificationCenter = () => {
         selectedRecipient: '',
         variables: []
     });
+    const [selectedNotification, setSelectedNotification] = useState(null);
+    const [notificationDialogOpen, setNotificationDialogOpen] = useState(false);
 
     // Get users and classes from mock data
     const users = mockData.users || [];
     const classes = mockData.classes || [];
 
-    const handleTabChange = (event, newValue) => {
+    useEffect(() => {
+        fetchNotifications();
+    }, []);
+
+    const fetchNotifications = async () => {
+        try {
+            setLoading(true);
+            const data = await adminService.getNotifications();
+            setNotifications(data);
+        } catch (error) {
+            handleError(error, 'Failed to fetch notifications');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleTabChange = (_, newValue) => {
         setActiveTab(newValue);
     };
 
-    const handleMarkAsRead = (notificationId) => {
-        setNotifications(notifications.map(notification =>
-            notification.id === notificationId
-                ? { ...notification, read: true }
-                : notification
-        ));
+    const handleMarkAsRead = async (notificationId) => {
+        try {
+            setLoading(true);
+            await adminService.markNotificationAsRead(notificationId);
+            await fetchNotifications();
+        } catch (error) {
+            handleError(error, 'Failed to mark notification as read');
+        } finally {
+            setLoading(false);
+        }
+    };
+    const handleMarkAllAsRead = async () => {
+        try {
+            setLoading(true);
+            await adminService.markAllNotificationsAsRead();   // <-- new endpoint
+            await fetchNotifications();
+        } catch (err) {
+            handleError(err, 'Failed to mark all notifications as read');
+        } finally {
+            setLoading(false);
+        }
     };
 
-    const handleMarkAllAsRead = () => {
-        setNotifications(notifications.map(notification => ({
-            ...notification,
-            read: true
-        })));
+    const handleDeleteNotification = async (notificationId) => {
+        try {
+            setLoading(true);
+            await adminService.deleteNotification(notificationId);
+            await fetchNotifications();
+            enqueueSnackbar('Notification deleted successfully', { variant: 'success' });
+        } catch (error) {
+            handleError(error, 'Failed to delete notification');
+        } finally {
+            setLoading(false);
+        }
     };
 
-    const handleDeleteNotification = (notificationId) => {
-        setNotifications(notifications.filter(n => n.id !== notificationId));
-    };
-
-    const handleSendNotification = () => {
-        // Mock sending notification
-        const recipientName = selectedRecipientType === 'user'
-            ? users.find(u => u.id === selectedRecipient)?.name
-            : classes.find(c => c.id === selectedRecipient)?.title;
-
-        const newNotification = {
-            id: notifications.length + 1,
-            title: selectedTemplate
-                ? templates.find(t => t.id === selectedTemplate)?.name
-                : 'Custom Notification',
-            message: broadcastMessage,
-            read: false,
-            timestamp: new Date().toISOString(),
-            type: 'custom',
-            recipient: recipientName,
-            recipientType: selectedRecipientType
-        };
-        setNotifications([newNotification, ...notifications]);
-        setShowSendDialog(false);
-        setSelectedTemplate('');
-        setBroadcastMessage('');
-        setSelectedRecipient('');
-        setSelectedRecipientType('user');
+    const handleSendNotification = async (notificationData) => {
+        try {
+            setLoading(true);
+            await adminService.sendNotification(notificationData);
+            await fetchNotifications();
+            enqueueSnackbar('Notification sent successfully', { variant: 'success' });
+            setShowSendDialog(false);
+            setSelectedTemplate('');
+            setBroadcastMessage('');
+            setSelectedRecipient('');
+            setSelectedRecipientType('user');
+        } catch (error) {
+            handleError(error, 'Failed to send notification');
+        } finally {
+            setLoading(false);
+        }
     };
 
     const handleCreateTemplate = () => {
@@ -147,7 +180,21 @@ const NotificationCenter = () => {
         setBroadcastMessage('');
     };
 
+    const handleViewNotification = (notification) => {
+        setSelectedNotification(notification);
+        setNotificationDialogOpen(true);
+        if (!notification.read) {
+            handleMarkAsRead(notification.id);
+        }
+    };
+
     const unreadCount = notifications.filter(n => !n.read).length;
+
+    const handleError = (error, customMessage = 'An error occurred') => {
+        console.error(error);
+        setError(error.message || customMessage);
+        enqueueSnackbar(error.message || customMessage, { variant: 'error' });
+    };
 
     return (
         <Box sx={{
@@ -156,6 +203,11 @@ const NotificationCenter = () => {
             overflow: 'hidden',
             px: { xs: 1, sm: 2, md: 3 } // Responsive padding
         }}>
+            {error && (
+                <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+                    {error}
+                </Alert>
+            )}
             <Box sx={{
                 display: 'flex',
                 flexDirection: { xs: 'column', sm: 'row' },
@@ -261,11 +313,13 @@ const NotificationCenter = () => {
                         {notifications.map((notification) => (
                             <React.Fragment key={notification.id}>
                                 <ListItem
+                                    onClick={() => handleViewNotification(notification)}
                                     sx={{
                                         flexDirection: { xs: 'column', sm: 'row' },
                                         alignItems: { xs: 'flex-start', sm: 'center' },
                                         gap: 1,
-                                        py: 2
+                                        py: 2,
+                                        cursor: 'pointer'
                                     }}
                                     secondaryAction={
                                         <Box sx={{
@@ -276,7 +330,10 @@ const NotificationCenter = () => {
                                             {!notification.read && (
                                                 <IconButton
                                                     edge="end"
-                                                    onClick={() => handleMarkAsRead(notification.id)}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleMarkAsRead(notification.id);
+                                                    }}
                                                     size="small"
                                                 >
                                                     <ReadIcon />
@@ -284,7 +341,10 @@ const NotificationCenter = () => {
                                             )}
                                             <IconButton
                                                 edge="end"
-                                                onClick={() => handleDeleteNotification(notification.id)}
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleDeleteNotification(notification.id);
+                                                }}
                                                 size="small"
                                             >
                                                 <DeleteIcon />
@@ -558,7 +618,14 @@ const NotificationCenter = () => {
                         Cancel
                     </Button>
                     <Button
-                        onClick={handleSendNotification}
+                        onClick={() => handleSendNotification({
+                            title: selectedTemplate ? templates.find(t => t.id === selectedTemplate)?.name : 'Custom Notification',
+                            message: broadcastMessage,
+                            recipient: selectedRecipientType === 'user'
+                                ? users.find(u => u.id === selectedRecipient)?.name
+                                : classes.find(c => c.id === selectedRecipient)?.title,
+                            recipientType: selectedRecipientType
+                        })}
                         variant="contained"
                         disabled={!selectedRecipient || !broadcastMessage}
                     >
@@ -770,4 +837,4 @@ const NotificationCenter = () => {
     );
 };
 
-export default NotificationCenter; 
+export default NotificationCenter;
