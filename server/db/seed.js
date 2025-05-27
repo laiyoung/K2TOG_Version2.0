@@ -435,6 +435,20 @@ const seed = async () => {
             'Spot Available: {{class_name}}',
             'A spot has opened up in "{{class_name}}". You have 24 hours to accept this offer.',
             '{"category": "waitlist", "priority": "high"}'::jsonb
+          ),
+          (
+            'custom_notification',
+            'custom',
+            '{{title}}',
+            '{{message}}',
+            '{"category": "custom", "priority": "medium"}'::jsonb
+          ),
+          (
+            'broadcast_notification',
+            'broadcast',
+            'Announcement',
+            '{{message}}',
+            '{"category": "broadcast", "priority": "high"}'::jsonb
           )
       ) AS new_templates(name, type, title_template, message_template, metadata)
       WHERE NOT EXISTS (

@@ -1,6 +1,6 @@
 // server/controllers/paymentController.js
 
-const stripe = require('../config/stripe');
+const {stripe} = require('../config/stripe');
 // const { savePayment, getPaymentsByUser } = require('../models/paymentModel');
 const { getPaymentsByUser } = require('../models/paymentModel');
 // const { enrollUserInClass } = require('../models/enrollmentModel');

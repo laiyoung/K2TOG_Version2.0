@@ -76,9 +76,39 @@ async function logUserActivity(userId, action, details = {}) {
 }
 
 // Get user activity
-async function getUserActivity(userId, { limit = 50, offset = 0 } = {}) {
-  const result = await pool.query('SELECT * FROM user_activity_log WHERE user_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3', [userId, limit, offset]);
-  return result.rows;
+async function getUserActivity(userId, { action, startDate, endDate, limit = 50, offset = 0 } = {}) {
+  try {
+    let query = 'SELECT * FROM user_activity_log WHERE user_id = $1';
+    const params = [userId];
+    let paramIndex = 2;
+
+    if (action) {
+      query += ` AND action = $${paramIndex}`;
+      params.push(action);
+      paramIndex++;
+    }
+
+    if (startDate) {
+      query += ` AND created_at >= $${paramIndex}`;
+      params.push(startDate);
+      paramIndex++;
+    }
+
+    if (endDate) {
+      query += ` AND created_at <= $${paramIndex}`;
+      params.push(endDate);
+      paramIndex++;
+    }
+
+    query += ` ORDER BY created_at DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+    params.push(limit, offset);
+
+    const result = await pool.query(query, params);
+    return result.rows;
+  } catch (error) {
+    console.error('Error in getUserActivity:', error);
+    throw error;
+  }
 }
 
 // Update user profile
@@ -93,7 +123,23 @@ async function updateProfile(id, updates) {
 
 // Get users by IDs
 async function getUsersByIds(ids) {
-  const result = await pool.query('SELECT * FROM users WHERE id = ANY($1)', [ids]);
+  if (!Array.isArray(ids) || ids.length === 0) {
+    throw new Error('Invalid user IDs provided');
+  }
+
+  // Convert all IDs to integers and filter out any invalid values
+  const numericIds = ids
+    .map(id => {
+      const num = parseInt(id, 10);
+      return isNaN(num) ? null : num;
+    })
+    .filter(id => id !== null);
+
+  if (numericIds.length === 0) {
+    throw new Error('No valid user IDs provided');
+  }
+
+  const result = await pool.query('SELECT * FROM users WHERE id = ANY($1)', [numericIds]);
   return result.rows;
 }
 

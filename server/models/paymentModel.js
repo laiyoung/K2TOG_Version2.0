@@ -233,6 +233,82 @@ async function deletePayment(id) {
   await pool.query('DELETE FROM payments WHERE id = $1', [id]);
 }
 
+// Get outstanding payments with statistics
+const getOutstandingPayments = async ({ startDate, endDate } = {}) => {
+  // Get outstanding payments
+  const paymentsQuery = `
+    SELECT 
+      p.id,
+      p.user_id,
+      u.name as student_name,
+      u.email as student_email,
+      p.class_id,
+      c.title as class_name,
+      p.amount,
+      p.due_date,
+      CASE 
+        WHEN p.due_date < CURRENT_DATE THEN 'overdue'
+        WHEN p.due_date <= CURRENT_DATE + INTERVAL '7 days' THEN 'due_soon'
+        ELSE 'upcoming'
+      END as status,
+      CASE 
+        WHEN p.due_date < CURRENT_DATE THEN CURRENT_DATE - p.due_date
+        ELSE p.due_date - CURRENT_DATE
+      END as days_difference,
+      p.payment_method,
+      p.last_four
+    FROM payments p
+    JOIN users u ON u.id = p.user_id
+    JOIN classes c ON c.id = p.class_id
+    WHERE p.status = 'pending'
+    AND p.due_date IS NOT NULL
+    ${startDate ? 'AND p.due_date >= $1' : ''}
+    ${endDate ? 'AND p.due_date <= $2' : ''}
+    ORDER BY p.due_date ASC
+  `;
+
+  // Get payment statistics
+  const statsQuery = `
+    SELECT 
+      SUM(amount) as total_outstanding,
+      SUM(CASE WHEN due_date < CURRENT_DATE THEN amount ELSE 0 END) as overdue_amount,
+      COUNT(CASE WHEN due_date < CURRENT_DATE THEN 1 END) as overdue_count,
+      SUM(CASE WHEN due_date <= CURRENT_DATE + INTERVAL '7 days' AND due_date >= CURRENT_DATE THEN amount ELSE 0 END) as due_soon_amount,
+      COUNT(CASE WHEN due_date <= CURRENT_DATE + INTERVAL '7 days' AND due_date >= CURRENT_DATE THEN 1 END) as due_soon_count
+    FROM payments
+    WHERE status = 'pending'
+    AND due_date IS NOT NULL
+    ${startDate ? 'AND due_date >= $1' : ''}
+    ${endDate ? 'AND due_date <= $2' : ''}
+  `;
+
+  const values = [];
+  if (startDate) values.push(startDate);
+  if (endDate) values.push(endDate);
+
+  const [paymentsResult, statsResult] = await Promise.all([
+    pool.query(paymentsQuery, values),
+    pool.query(statsQuery, values)
+  ]);
+
+  const payments = paymentsResult.rows.map(payment => ({
+    ...payment,
+    days_overdue: payment.status === 'overdue' ? payment.days_difference : null,
+    days_until_due: payment.status !== 'overdue' ? payment.days_difference : null
+  }));
+
+  return {
+    payments,
+    stats: statsResult.rows[0] || {
+      total_outstanding: 0,
+      overdue_amount: 0,
+      overdue_count: 0,
+      due_soon_amount: 0,
+      due_soon_count: 0
+    }
+  };
+};
+
 module.exports = {
   savePayment,
   processRefund,
@@ -246,4 +322,5 @@ module.exports = {
   getPaymentByIdSimple,
   createPayment,
   deletePayment,
+  getOutstandingPayments
 };

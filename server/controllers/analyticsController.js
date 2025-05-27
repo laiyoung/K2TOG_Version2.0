@@ -1,4 +1,4 @@
-const Analytics = require('../models/analyticsModel');
+const { Analytics } = require('../models/analyticsModel');
 
 // @desc    Get dashboard summary
 // @route   GET /api/admin/analytics/summary

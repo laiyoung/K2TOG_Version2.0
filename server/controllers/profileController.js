@@ -1,8 +1,8 @@
-const User = require('../models/userModel');
-const Certificate = require('../models/certificateModel');
-const PaymentMethod = require('../models/paymentMethodModel');
-const ActivityLog = require('../models/activityLogModel');
-const Notification = require('../models/notificationModel');
+const {User} = require('../models/userModel');
+const {Certificate} = require('../models/certificateModel');
+const {PaymentMethod} = require('../models/paymentMethodModel');
+const {ActivityLog} = require('../models/activityLogModel');
+const {Notification} = require('../models/notificationModel');
 const bcrypt = require('bcrypt');
 
 // Get user profile with all details

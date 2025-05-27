@@ -1,6 +1,5 @@
 const {
-    getAllUsers,
-    getUserById
+    getAllUsers
   } = require('../models/userModel');
   
   const {
@@ -30,7 +29,8 @@ const {
     getPaymentById,
     getFinancialSummary,
     getRevenueByClass,
-    processRefund
+    processRefund,
+    getOutstandingPayments
   } = require('../models/paymentModel');
   
   const pool = require('../config/db'); // for direct deletes
@@ -482,6 +482,20 @@ const {
     }
   };
   
+  // @desc    Get outstanding payments
+  // @route   GET /api/admin/financial/payments/outstanding
+  // @access  Admin
+  const adminGetOutstandingPayments = async (req, res) => {
+    try {
+      const { startDate, endDate } = req.query;
+      const outstandingPayments = await getOutstandingPayments({ startDate, endDate });
+      res.json(outstandingPayments);
+    } catch (err) {
+      console.error('Get outstanding payments error:', err);
+      res.status(500).json({ error: 'Failed to fetch outstanding payments' });
+    }
+  };
+  
   module.exports = {
     adminGetUsers,
     adminDeleteUser,
@@ -504,6 +518,7 @@ const {
     adminGetClassSessions,
     adminUpdateClassStatus,
     adminGetClassWaitlist,
-    adminUpdateWaitlistStatus
+    adminUpdateWaitlistStatus,
+    adminGetOutstandingPayments
   };
   

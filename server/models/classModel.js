@@ -255,9 +255,20 @@ const getClassWaitlist = async (classId) => {
 
 // Update class status
 const updateClassStatus = async (classId, status) => {
+  // First check if the class exists
+  const classExists = await pool.query(
+    'SELECT id FROM classes WHERE id = $1',
+    [classId]
+  );
+
+  if (!classExists.rows[0]) {
+    return null;
+  }
+
   const result = await pool.query(
     `UPDATE classes 
-     SET status = $1
+     SET status = $1,
+         updated_at = CURRENT_TIMESTAMP
      WHERE id = $2
      RETURNING *`,
     [status, classId]

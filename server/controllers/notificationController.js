@@ -1,17 +1,12 @@
 const Notification = require('../models/notificationModel');
-const User = require('../models/userModel');
+const {getUsersByIds, getUsersByStatus} = require('../models/userModel');
 
 // @desc    Get user notifications
 // @route   GET /api/notifications
 // @access  Private
 const getUserNotifications = async (req, res) => {
     try {
-        const { page = 1, limit = 10, includeRead = false } = req.query;
-        const result = await Notification.getByUserId(req.user.id, {
-            page: parseInt(page),
-            limit: parseInt(limit),
-            includeRead: includeRead === 'true'
-        });
+        const result = await Notification.getUserNotifications(req.user.id, { page: 1, limit: 10 });
         res.json(result);
     } catch (error) {
         console.error('Get notifications error:', error);
@@ -37,7 +32,7 @@ const getUnreadCount = async (req, res) => {
 // @access  Private
 const markAsRead = async (req, res) => {
     try {
-        const notification = await Notification.markAsRead(req.params.id, req.user.id);
+        const notification = await Notification.markNotificationRead(req.params.id);
         if (!notification) {
             return res.status(404).json({ error: 'Notification not found' });
         }
@@ -66,10 +61,7 @@ const markAllAsRead = async (req, res) => {
 // @access  Private
 const deleteNotification = async (req, res) => {
     try {
-        const notification = await Notification.delete(req.params.id, req.user.id);
-        if (!notification) {
-            return res.status(404).json({ error: 'Notification not found' });
-        }
+        await Notification.deleteNotification(req.params.id);
         res.json({ message: 'Notification deleted successfully' });
     } catch (error) {
         console.error('Delete notification error:', error);
@@ -132,7 +124,7 @@ const sendBulkNotification = async (req, res) => {
         }
 
         // Validate that all user IDs exist
-        const users = await User.getUsersByIds(user_ids);
+        const users = await getUsersByIds(user_ids);
         if (users.length !== user_ids.length) {
             return res.status(400).json({ error: 'One or more user IDs are invalid' });
         }
@@ -172,7 +164,7 @@ const broadcastNotification = async (req, res) => {
         }
 
         // Get all active users
-        const users = await User.getUsersByStatus('active');
+        const users = await getUsersByStatus('active');
         const user_ids = users.map(user => user.id);
 
         const result = await Notification.createBulkFromTemplate(

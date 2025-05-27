@@ -1,8 +1,16 @@
-const User = require('../models/userModel');
+const { 
+    searchUsers: searchUsersModel,
+    updateUserRole: updateUserRoleModel,
+    updateUserStatus: updateUserStatusModel,
+    getUsersByRole: getUsersByRoleModel,
+    getUserActivity: getUserActivityModel,
+    updateProfile,
+    getProfileWithDetails,
+    logUserActivity
+} = require('../models/userModel');
 const { validateEmail, validatePhoneNumber } = require('../utils/validators');
 const bcrypt = require('bcrypt');
 const pool = require('../config/db');
-const { logUserActivity } = require('../models/userModel');
 
 // @desc    Search and filter users
 // @route   GET /api/admin/users/search
@@ -20,7 +28,7 @@ const searchUsers = async (req, res) => {
         } = req.query;
 
         const offset = (page - 1) * limit;
-        const result = await User.searchUsers({
+        const result = await searchUsersModel({
             searchTerm,
             role,
             sortBy,
@@ -57,7 +65,7 @@ const updateUserRole = async (req, res) => {
             return res.status(400).json({ error: 'Role is required' });
         }
 
-        const updatedUser = await User.updateUserRole(id, role, req.user.id);
+        const updatedUser = await updateUserRoleModel(id, role, req.user.id);
         res.json(updatedUser);
     } catch (error) {
         console.error('Update role error:', error);
@@ -80,7 +88,7 @@ const updateUserStatus = async (req, res) => {
             return res.status(400).json({ error: 'Status is required' });
         }
 
-        const updatedUser = await User.updateUserStatus(id, status, req.user.id);
+        const updatedUser = await updateUserStatusModel(id, status, req.user.id);
         res.json(updatedUser);
     } catch (error) {
         console.error('Update status error:', error);
@@ -97,7 +105,7 @@ const updateUserStatus = async (req, res) => {
 const getUsersByRole = async (req, res) => {
     try {
         const { role } = req.params;
-        const users = await User.getUsersByRole(role);
+        const users = await getUsersByRoleModel(role);
         res.json(users);
     } catch (error) {
         console.error('Get users by role error:', error);
@@ -120,7 +128,7 @@ const getUserActivity = async (req, res) => {
         } = req.query;
 
         const offset = (page - 1) * limit;
-        const activities = await User.getUserActivity(id, {
+        const activities = await getUserActivityModel(id, {
             action,
             startDate,
             endDate,
@@ -166,7 +174,7 @@ const updateUserProfile = async (req, res) => {
             return res.status(400).json({ error: 'Invalid phone number format' });
         }
 
-        const updatedUser = await User.updateProfile(id, {
+        const updatedUser = await updateProfile(id, {
             email,
             first_name,
             last_name,
@@ -176,7 +184,7 @@ const updateUserProfile = async (req, res) => {
         });
 
         // Log the profile update
-        await User.logUserActivity(id, 'profile_update', {
+        await logUserActivity(id, 'profile_update', {
             updated_by: req.user.id,
             updated_fields: Object.keys(req.body)
         });
@@ -377,6 +385,25 @@ const getUserAccountStatus = async (req, res) => {
     }
 };
 
+// @desc    Get user profile with details
+// @route   GET /api/admin/users/:id/profile
+// @access  Private/Admin
+const getUserProfile = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const profile = await getProfileWithDetails(id);
+        
+        if (!profile) {
+            return res.status(404).json({ error: 'User profile not found' });
+        }
+
+        res.json(profile);
+    } catch (error) {
+        console.error('Get user profile error:', error);
+        res.status(500).json({ error: 'Failed to get user profile' });
+    }
+};
+
 module.exports = {
     searchUsers,
     updateUserRole,
@@ -386,5 +413,6 @@ module.exports = {
     updateUserProfile,
     changeUserPassword,
     deleteUserAccount,
-    getUserAccountStatus
+    getUserAccountStatus,
+    getUserProfile
 }; 

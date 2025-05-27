@@ -9,14 +9,10 @@ const {
     updateClassStatus,
     getClassWithDetails,
     updateClass,
-    deleteClass,
-    incrementEnrolledCount,
-    decrementEnrolledCount
+    deleteClass
 } = require('../models/classModel');
 
 const { validateDate, validateTime, validatePrice, validateCapacity } = require('../utils/validators');
-
-const { upload } = require('../config/cloudinary');
 
 // @desc    Get all classes with optional filtering
 // @route   GET /api/classes

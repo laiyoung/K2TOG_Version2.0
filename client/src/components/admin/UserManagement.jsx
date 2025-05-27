@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
     Box,
     Typography,
@@ -24,8 +24,6 @@ import {
     FormControl,
     InputLabel,
     Grid,
-    Tab,
-    Tabs,
     Tooltip,
     Menu,
     ListItemIcon,
@@ -37,8 +35,10 @@ import {
     List,
     ListItem,
     ListItemAvatar,
-    Avatar
-} from '@mui/material';
+    Avatar,
+    Tabs,
+    Tab,
+} from "@mui/material";
 import {
     Search as SearchIcon,
     MoreVert as MoreIcon,
@@ -54,79 +54,19 @@ import {
     Send as SendIcon,
     Visibility as ViewIcon,
     Lock as LockIcon,
-    History as HistoryIcon
-} from '@mui/icons-material';
-
-// Mock data
-const mockUsers = [
-    {
-        id: 1,
-        first_name: 'John',
-        last_name: 'Doe',
-        email: 'john.doe@example.com',
-        role: 'admin',
-        status: 'active',
-        phone_number: '123-456-7890',
-        created_at: '2024-01-01T00:00:00Z',
-        updated_at: '2024-03-15T00:00:00Z',
-        email_notifications: true,
-        sms_notifications: false
-    },
-    {
-        id: 2,
-        first_name: 'Jane',
-        last_name: 'Smith',
-        email: 'jane.smith@example.com',
-        role: 'instructor',
-        status: 'active',
-        phone_number: '234-567-8901',
-        created_at: '2024-01-15T00:00:00Z',
-        updated_at: '2024-03-14T00:00:00Z',
-        email_notifications: true,
-        sms_notifications: true
-    },
-    {
-        id: 3,
-        first_name: 'Bob',
-        last_name: 'Johnson',
-        email: 'bob.johnson@example.com',
-        role: 'user',
-        status: 'inactive',
-        phone_number: '345-678-9012',
-        created_at: '2024-02-01T00:00:00Z',
-        updated_at: '2024-03-13T00:00:00Z',
-        email_notifications: false,
-        sms_notifications: true
-    }
-];
-
-const mockActivity = [
-    {
-        id: 1,
-        action: 'role_update',
-        created_at: '2024-03-15T10:00:00Z',
-        details: { old_role: 'user', new_role: 'admin' }
-    },
-    {
-        id: 2,
-        action: 'status_update',
-        created_at: '2024-03-14T15:30:00Z',
-        details: { old_status: 'active', new_status: 'inactive' }
-    },
-    {
-        id: 3,
-        action: 'profile_update',
-        created_at: '2024-03-13T09:15:00Z',
-        details: { updated_fields: 'email, phone_number' }
-    }
-];
+    History as HistoryIcon,
+    Close as CloseIcon,
+} from "@mui/icons-material";
+import adminService from "../../services/adminService";
+import { useNotifications } from '../../utils/notificationUtils';
 
 const UserManagement = () => {
+    const { showSuccess, showError } = useNotifications();
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [searchTerm, setSearchTerm] = useState('');
-    const [selectedRole, setSelectedRole] = useState('all');
+    const [searchTerm, setSearchTerm] = useState("");
+    const [selectedRole, setSelectedRole] = useState("all");
     const [menuAnchor, setMenuAnchor] = useState(null);
     const [selectedUser, setSelectedUser] = useState(null);
     const [profileDialogOpen, setProfileDialogOpen] = useState(false);
@@ -134,168 +74,65 @@ const UserManagement = () => {
     const [statusDialogOpen, setStatusDialogOpen] = useState(false);
     const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+    const [enrollmentDialogOpen, setEnrollmentDialogOpen] = useState(false);
+    const [userEnrollments, setUserEnrollments] = useState([]);
     const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+    const [notificationDialogOpen, setNotificationDialogOpen] = useState(false);
     const [pagination, setPagination] = useState({
         page: 1,
         limit: 10,
         total: 0,
-        totalPages: 0
+        totalPages: 0,
     });
-    const [userProfile, setUserProfile] = useState(null);
     const [userActivity, setUserActivity] = useState([]);
     const [activityLoading, setActivityLoading] = useState(false);
     const [activityPage, setActivityPage] = useState(1);
     const [activityTotal, setActivityTotal] = useState(0);
+    const [userProfile, setUserProfile] = useState(null);
+    const [activeTab, setActiveTab] = useState(0);
+    const [newPassword, setNewPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+    const [passwordError, setPasswordError] = useState('');
+    const [updatingRole, setUpdatingRole] = useState(false);
+    const [enrollmentsLoading, setEnrollmentsLoading] = useState(false);
 
-    // Mock fetch functions
+    useEffect(() => {
+        fetchUsers();
+    }, [pagination.page, pagination.limit, searchTerm, selectedRole]);
+
     const fetchUsers = async () => {
         try {
             setLoading(true);
-            // Simulate API delay
-            await new Promise(resolve => setTimeout(resolve, 500));
-
-            // Filter users based on search term and role
-            const filteredUsers = mockUsers.filter(user => {
-                const matchesSearch = searchTerm === '' ||
-                    `${user.first_name} ${user.last_name}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                    user.email.toLowerCase().includes(searchTerm.toLowerCase());
-                const matchesRole = selectedRole === 'all' || user.role === selectedRole;
-                return matchesSearch && matchesRole;
+            const response = await adminService.getAllUsers({
+                page: pagination.page,
+                limit: pagination.limit,
+                search: searchTerm,
+                role: selectedRole !== 'all' ? selectedRole : undefined
             });
-
-            setUsers(filteredUsers);
-            setPagination(prev => ({
-                ...prev,
-                total: filteredUsers.length,
-                totalPages: Math.ceil(filteredUsers.length / prev.limit)
-            }));
-        } catch (err) {
-            setError('Failed to fetch users');
-            console.error('Fetch users error:', err);
+            setUsers(Array.isArray(response) ? response : response.data || []);
+            if (response.pagination) {
+                setPagination(response.pagination);
+            }
+        } catch (error) {
+            handleError(error, "Failed to fetch users");
+            setUsers([]);
         } finally {
             setLoading(false);
         }
     };
 
-    const fetchUserProfile = async (userId) => {
+    const handleDeleteUser = async (userId) => {
         try {
-            // Simulate API delay
-            await new Promise(resolve => setTimeout(resolve, 300));
-            const user = mockUsers.find(u => u.id === userId);
-            setUserProfile(user);
-        } catch (err) {
-            setSnackbar({
-                open: true,
-                message: 'Failed to fetch user profile',
-                severity: 'error'
-            });
-        }
-    };
-
-    const fetchUserActivity = async (userId, page = 1) => {
-        try {
-            setActivityLoading(true);
-            // Simulate API delay
-            await new Promise(resolve => setTimeout(resolve, 300));
-            setUserActivity(mockActivity);
-            setActivityTotal(mockActivity.length);
-        } catch (err) {
-            setSnackbar({
-                open: true,
-                message: 'Failed to fetch user activity',
-                severity: 'error'
-            });
+            setLoading(true);
+            await adminService.deleteUser(userId);
+            await fetchUsers();
+            showSuccess('User deleted successfully');
+        } catch (error) {
+            handleError(error, 'Failed to delete user');
         } finally {
-            setActivityLoading(false);
+            setLoading(false);
         }
     };
-
-    const handleRoleUpdate = async (newRole) => {
-        try {
-            // Simulate API delay
-            await new Promise(resolve => setTimeout(resolve, 300));
-            setSnackbar({
-                open: true,
-                message: 'User role updated successfully',
-                severity: 'success'
-            });
-            fetchUsers();
-        } catch (err) {
-            setSnackbar({
-                open: true,
-                message: 'Failed to update user role',
-                severity: 'error'
-            });
-        }
-        setRoleDialogOpen(false);
-        handleMenuClose();
-    };
-
-    const handleStatusUpdate = async (newStatus) => {
-        try {
-            // Simulate API delay
-            await new Promise(resolve => setTimeout(resolve, 300));
-            setSnackbar({
-                open: true,
-                message: 'User status updated successfully',
-                severity: 'success'
-            });
-            fetchUsers();
-        } catch (err) {
-            setSnackbar({
-                open: true,
-                message: 'Failed to update user status',
-                severity: 'error'
-            });
-        }
-        setStatusDialogOpen(false);
-        handleMenuClose();
-    };
-
-    const handlePasswordChange = async (newPassword) => {
-        try {
-            // Simulate API delay
-            await new Promise(resolve => setTimeout(resolve, 300));
-            setSnackbar({
-                open: true,
-                message: 'Password updated successfully',
-                severity: 'success'
-            });
-        } catch (err) {
-            setSnackbar({
-                open: true,
-                message: 'Failed to update password',
-                severity: 'error'
-            });
-        }
-        setPasswordDialogOpen(false);
-        handleMenuClose();
-    };
-
-    const handleDeleteUser = async () => {
-        try {
-            // Simulate API delay
-            await new Promise(resolve => setTimeout(resolve, 300));
-            setSnackbar({
-                open: true,
-                message: 'User deleted successfully',
-                severity: 'success'
-            });
-            fetchUsers();
-        } catch (err) {
-            setSnackbar({
-                open: true,
-                message: 'Failed to delete user',
-                severity: 'error'
-            });
-        }
-        setDeleteDialogOpen(false);
-        handleMenuClose();
-    };
-
-    useEffect(() => {
-        fetchUsers();
-    }, [searchTerm, selectedRole, pagination.page]);
 
     const handleMenuOpen = (event, user) => {
         setMenuAnchor(event.currentTarget);
@@ -304,14 +141,73 @@ const UserManagement = () => {
 
     const handleMenuClose = () => {
         setMenuAnchor(null);
-        setSelectedUser(null);
+    };
+
+    const handleNotificationDialogOpen = (user) => {
+        if (!user?.id) {
+            showError('Invalid user selected');
+            return;
+        }
+        setSelectedUser({
+            ...user,
+            notificationMessage: ''
+        });
+        setNotificationDialogOpen(true);
+        handleMenuClose();
+    };
+
+    const fetchUserActivity = async (userId, page = 1) => {
+        try {
+            setActivityLoading(true);
+            const data = await adminService.getUserActivity(userId, page);
+            setUserActivity(data.activities);
+            setActivityTotal(data.total);
+        } catch (error) {
+            handleError(error, "Failed to fetch user activity");
+        } finally {
+            setActivityLoading(false);
+        }
+    };
+
+    const fetchUserProfile = async (userId) => {
+        try {
+            setActivityLoading(true);
+            const profile = await adminService.getUserProfile(userId);
+            setUserProfile(profile);
+        } catch (error) {
+            handleError(error, "Failed to fetch user profile");
+        } finally {
+            setActivityLoading(false);
+        }
+    };
+
+    const handleViewEnrollments = async (user) => {
+        try {
+            setLoading(true);
+            const enrollments = await adminService.getUserEnrollments(user.id);
+            setUserEnrollments(enrollments);
+            setSelectedUser(user);
+            setEnrollmentDialogOpen(true);
+        } catch (error) {
+            handleError(error, "Failed to fetch user enrollments");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleCloseEnrollmentDialog = () => {
+        setEnrollmentDialogOpen(false);
+        setTimeout(() => {
+            setSelectedUser(null);
+            setUserEnrollments([]);
+        }, 150);
     };
 
     const getRoleIcon = (role) => {
         switch (role) {
-            case 'admin':
+            case "admin":
                 return <AdminIcon color="error" />;
-            case 'instructor':
+            case "instructor":
                 return <InstructorIcon color="primary" />;
             default:
                 return <UserIcon color="action" />;
@@ -320,12 +216,33 @@ const UserManagement = () => {
 
     const getStatusChip = (status) => {
         switch (status) {
-            case 'active':
-                return <Chip icon={<ActiveIcon />} label="Active" color="success" size="small" />;
-            case 'inactive':
-                return <Chip icon={<BlockIcon />} label="Inactive" color="error" size="small" />;
-            case 'suspended':
-                return <Chip icon={<WarningIcon />} label="Suspended" color="warning" size="small" />;
+            case "active":
+                return (
+                    <Chip
+                        icon={<ActiveIcon />}
+                        label="Active"
+                        color="success"
+                        size="small"
+                    />
+                );
+            case "inactive":
+                return (
+                    <Chip
+                        icon={<BlockIcon />}
+                        label="Inactive"
+                        color="error"
+                        size="small"
+                    />
+                );
+            case "suspended":
+                return (
+                    <Chip
+                        icon={<WarningIcon />}
+                        label="Suspended"
+                        color="warning"
+                        size="small"
+                    />
+                );
             default:
                 return null;
         }
@@ -338,10 +255,120 @@ const UserManagement = () => {
         await fetchUserActivity(user.id);
     };
 
-    const handleActivityPageChange = async (event, newPage) => {
+    const handleActivityPageChange = async (_, newPage) => {
         setActivityPage(newPage + 1);
         if (selectedUser) {
             await fetchUserActivity(selectedUser.id, newPage + 1);
+        }
+    };
+
+    const handleError = (error, customMessage = "An error occurred") => {
+        console.error(error);
+        setError(error.message || customMessage);
+        showError(error.message || customMessage);
+    };
+
+    const handleSendNotification = async () => {
+        try {
+            if (!selectedUser?.id) {
+                showError('Invalid user selected');
+                return;
+            }
+
+            if (!selectedUser.notificationMessage?.trim()) {
+                showError('Please enter a notification message');
+                return;
+            }
+
+            await adminService.sendNotification({
+                title: "Admin Notification",
+                message: selectedUser.notificationMessage,
+                recipient: selectedUser.id,
+                recipientType: "user"
+            });
+            showSuccess('Notification sent successfully');
+            setNotificationDialogOpen(false);
+            setSelectedUser(prev => ({ ...prev, notificationMessage: '' }));
+        } catch (error) {
+            handleError(error, 'Failed to send notification');
+        }
+    };
+
+    const handlePasswordReset = async () => {
+        try {
+            setPasswordError('');
+
+            // Validate passwords
+            if (!newPassword || !confirmPassword) {
+                setPasswordError('Both password fields are required');
+                return;
+            }
+            if (newPassword !== confirmPassword) {
+                setPasswordError('Passwords do not match');
+                return;
+            }
+            if (newPassword.length < 8) {
+                setPasswordError('Password must be at least 8 characters long');
+                return;
+            }
+
+            setLoading(true);
+            await adminService.resetUserPassword(selectedUser.id, newPassword);
+            showSuccess('Password reset successfully');
+            setPasswordDialogOpen(false);
+            setNewPassword('');
+            setConfirmPassword('');
+            setPasswordError('');
+        } catch (error) {
+            handleError(error, 'Failed to reset password');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleRoleUpdate = async () => {
+        try {
+            setUpdatingRole(true);
+            await adminService.updateUserRole(selectedUser.id, selectedUser.role);
+            await fetchUsers(); // Refresh the user list
+            showSuccess('User role updated successfully');
+            setRoleDialogOpen(false);
+        } catch (error) {
+            handleError(error, 'Failed to update user role');
+        } finally {
+            setUpdatingRole(false);
+        }
+    };
+
+    const handlePageChange = (_, newPage) => {
+        setPagination(prev => ({ ...prev, page: newPage + 1 }));
+    };
+
+    const handleRowsPerPageChange = (event) => {
+        setPagination(prev => ({
+            ...prev,
+            page: 1, // Reset to first page when changing rows per page
+            limit: parseInt(event.target.value, 10)
+        }));
+    };
+
+    const handleTabChange = async (_, newValue) => {
+        setActiveTab(newValue);
+        if (newValue === 2 && selectedUser) { // 2 is the enrollments tab
+            await fetchUserEnrollments(selectedUser.id);
+        }
+    };
+
+    const fetchUserEnrollments = async (userId) => {
+        try {
+            setEnrollmentsLoading(true);
+            const enrollments = await adminService.getUserEnrollments(userId);
+            setUserEnrollments(enrollments);
+        } catch (error) {
+            handleError(error, "Failed to fetch user enrollments");
+            setUserEnrollments([]);
+        } finally {
+            setEnrollmentsLoading(false);
         }
     };
 
@@ -354,22 +381,24 @@ const UserManagement = () => {
             {/* Filters */}
             <Paper sx={{ p: 2, mb: 3 }}>
                 <Grid container spacing={2} alignItems="center">
-                    <Grid sx={{ width: { xs: '100%', sm: '50%', md: '40%' } }}>
+                    <Grid columns={{ xs: 12, sm: 6, md: 5 }}>
                         <TextField
                             fullWidth
                             placeholder="Search users..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            InputProps={{
-                                startAdornment: (
-                                    <InputAdornment position="start">
-                                        <SearchIcon />
-                                    </InputAdornment>
-                                ),
+                            slotProps={{
+                                input: {
+                                    startAdornment: (
+                                        <InputAdornment position="start">
+                                            <SearchIcon />
+                                        </InputAdornment>
+                                    ),
+                                },
                             }}
                         />
                     </Grid>
-                    <Grid sx={{ width: { xs: '100%', sm: '50%', md: '30%' } }}>
+                    <Grid columns={{ xs: 12, sm: 6, md: 4 }}>
                         <FormControl fullWidth>
                             <InputLabel>Role</InputLabel>
                             <Select
@@ -423,7 +452,7 @@ const UserManagement = () => {
                             users.map((user) => (
                                 <TableRow key={user.id}>
                                     <TableCell>
-                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                                             <PersonIcon color="action" />
                                             <Box>
                                                 <Typography variant="body2">
@@ -436,9 +465,12 @@ const UserManagement = () => {
                                         </Box>
                                     </TableCell>
                                     <TableCell>
-                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                                             {getRoleIcon(user.role)}
-                                            <Typography variant="body2" sx={{ textTransform: 'capitalize' }}>
+                                            <Typography
+                                                variant="body2"
+                                                sx={{ textTransform: "capitalize" }}
+                                            >
                                                 {user.role}
                                             </Typography>
                                         </Box>
@@ -451,12 +483,14 @@ const UserManagement = () => {
                                         {new Date(user.updated_at).toLocaleDateString()}
                                     </TableCell>
                                     <TableCell align="right">
-                                        <IconButton
-                                            size="small"
-                                            onClick={(e) => handleMenuOpen(e, user)}
-                                        >
-                                            <MoreIcon />
-                                        </IconButton>
+                                        <Tooltip title="More Actions">
+                                            <IconButton
+                                                size="small"
+                                                onClick={(e) => handleMenuOpen(e, user)}
+                                            >
+                                                <MoreIcon />
+                                            </IconButton>
+                                        </Tooltip>
                                     </TableCell>
                                 </TableRow>
                             ))
@@ -467,10 +501,10 @@ const UserManagement = () => {
                     component="div"
                     count={pagination.total}
                     page={pagination.page - 1}
-                    onPageChange={(e, newPage) => setPagination(prev => ({ ...prev, page: newPage + 1 }))}
+                    onPageChange={handlePageChange}
                     rowsPerPage={pagination.limit}
                     rowsPerPageOptions={[10, 25, 50]}
-                    onRowsPerPageChange={(e) => setPagination(prev => ({ ...prev, limit: parseInt(e.target.value) }))}
+                    onRowsPerPageChange={handleRowsPerPageChange}
                 />
             </TableContainer>
 
@@ -480,37 +514,64 @@ const UserManagement = () => {
                 open={Boolean(menuAnchor)}
                 onClose={handleMenuClose}
             >
-                <MenuItem onClick={() => {
-                    handleProfileDialogOpen(selectedUser);
-                    handleMenuClose();
-                }}>
+                <MenuItem
+                    onClick={() => {
+                        handleProfileDialogOpen(selectedUser);
+                        handleMenuClose();
+                    }}
+                >
                     <ListItemIcon>
                         <ViewIcon fontSize="small" />
                     </ListItemIcon>
                     <ListItemText>View Profile</ListItemText>
                 </MenuItem>
-                <MenuItem onClick={() => {
-                    setRoleDialogOpen(true);
-                    handleMenuClose();
-                }}>
+                <MenuItem
+                    onClick={() => handleNotificationDialogOpen(selectedUser)}
+                >
+                    <ListItemIcon>
+                        <SendIcon fontSize="small" />
+                    </ListItemIcon>
+                    <ListItemText>Send Notification</ListItemText>
+                </MenuItem>
+                <MenuItem
+                    onClick={() => {
+                        handleViewEnrollments(selectedUser);
+                        handleMenuClose();
+                    }}
+                >
+                    <ListItemIcon>
+                        <HistoryIcon fontSize="small" />
+                    </ListItemIcon>
+                    <ListItemText>View Enrollments</ListItemText>
+                </MenuItem>
+                <MenuItem
+                    onClick={() => {
+                        setRoleDialogOpen(true);
+                        handleMenuClose();
+                    }}
+                >
                     <ListItemIcon>
                         <EditIcon fontSize="small" />
                     </ListItemIcon>
                     <ListItemText>Change Role</ListItemText>
                 </MenuItem>
-                <MenuItem onClick={() => {
-                    setStatusDialogOpen(true);
-                    handleMenuClose();
-                }}>
+                <MenuItem
+                    onClick={() => {
+                        setStatusDialogOpen(true);
+                        handleMenuClose();
+                    }}
+                >
                     <ListItemIcon>
                         <BlockIcon fontSize="small" />
                     </ListItemIcon>
                     <ListItemText>Change Status</ListItemText>
                 </MenuItem>
-                <MenuItem onClick={() => {
-                    setPasswordDialogOpen(true);
-                    handleMenuClose();
-                }}>
+                <MenuItem
+                    onClick={() => {
+                        setPasswordDialogOpen(true);
+                        handleMenuClose();
+                    }}
+                >
                     <ListItemIcon>
                         <LockIcon fontSize="small" />
                     </ListItemIcon>
@@ -521,7 +582,7 @@ const UserManagement = () => {
                         setDeleteDialogOpen(true);
                         handleMenuClose();
                     }}
-                    sx={{ color: 'error.main' }}
+                    sx={{ color: "error.main" }}
                 >
                     <ListItemIcon>
                         <DeleteIcon fontSize="small" color="error" />
@@ -531,15 +592,22 @@ const UserManagement = () => {
             </Menu>
 
             {/* Role Update Dialog */}
-            <Dialog open={roleDialogOpen} onClose={() => setRoleDialogOpen(false)}>
+            <Dialog
+                open={roleDialogOpen}
+                onClose={() => setRoleDialogOpen(false)}
+                disableEnforceFocus
+                keepMounted={false}
+            >
                 <DialogTitle>Change User Role</DialogTitle>
                 <DialogContent>
                     <FormControl fullWidth sx={{ mt: 2 }}>
                         <InputLabel>New Role</InputLabel>
                         <Select
-                            value=""
+                            value={selectedUser?.role}
                             label="New Role"
-                            onChange={(e) => handleRoleUpdate(e.target.value)}
+                            onChange={(e) => {
+                                setSelectedUser((prev) => ({ ...prev, role: e.target.value }));
+                            }}
                         >
                             <MenuItem value="user">User</MenuItem>
                             <MenuItem value="instructor">Instructor</MenuItem>
@@ -549,19 +617,37 @@ const UserManagement = () => {
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={() => setRoleDialogOpen(false)}>Cancel</Button>
+                    <Button
+                        variant="contained"
+                        color="primary"
+                        onClick={handleRoleUpdate}
+                        disabled={updatingRole}
+                    >
+                        {updatingRole ? 'Saving...' : 'Save Changes'}
+                    </Button>
                 </DialogActions>
             </Dialog>
 
             {/* Status Update Dialog */}
-            <Dialog open={statusDialogOpen} onClose={() => setStatusDialogOpen(false)}>
+            <Dialog
+                open={statusDialogOpen}
+                onClose={() => setStatusDialogOpen(false)}
+                disableEnforceFocus
+                keepMounted={false}
+            >
                 <DialogTitle>Change User Status</DialogTitle>
                 <DialogContent>
                     <FormControl fullWidth sx={{ mt: 2 }}>
                         <InputLabel>New Status</InputLabel>
                         <Select
-                            value=""
+                            value={selectedUser?.status}
                             label="New Status"
-                            onChange={(e) => handleStatusUpdate(e.target.value)}
+                            onChange={(e) => {
+                                setSelectedUser((prev) => ({
+                                    ...prev,
+                                    status: e.target.value,
+                                }));
+                            }}
                         >
                             <MenuItem value="active">Active</MenuItem>
                             <MenuItem value="inactive">Inactive</MenuItem>
@@ -575,37 +661,84 @@ const UserManagement = () => {
             </Dialog>
 
             {/* Password Reset Dialog */}
-            <Dialog open={passwordDialogOpen} onClose={() => setPasswordDialogOpen(false)}>
+            <Dialog
+                open={passwordDialogOpen}
+                onClose={() => {
+                    setPasswordDialogOpen(false);
+                    setNewPassword('');
+                    setConfirmPassword('');
+                    setPasswordError('');
+                }}
+                disableEnforceFocus
+                keepMounted={false}
+            >
                 <DialogTitle>Reset User Password</DialogTitle>
                 <DialogContent>
+                    {passwordError && (
+                        <Alert severity="error" sx={{ mt: 2, mb: 2 }}>
+                            {passwordError}
+                        </Alert>
+                    )}
                     <TextField
                         fullWidth
                         type="password"
                         label="New Password"
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
                         sx={{ mt: 2 }}
-                        onChange={(e) => handlePasswordChange(e.target.value)}
+                        error={!!passwordError}
+                    />
+                    <TextField
+                        fullWidth
+                        type="password"
+                        label="Confirm Password"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        sx={{ mt: 2 }}
+                        error={!!passwordError}
                     />
                 </DialogContent>
                 <DialogActions>
-                    <Button onClick={() => setPasswordDialogOpen(false)}>Cancel</Button>
-                    <Button variant="contained" color="primary">
-                        Reset Password
+                    <Button onClick={() => {
+                        setPasswordDialogOpen(false);
+                        setNewPassword('');
+                        setConfirmPassword('');
+                        setPasswordError('');
+                    }}>
+                        Cancel
+                    </Button>
+                    <Button
+                        variant="contained"
+                        color="primary"
+                        onClick={handlePasswordReset}
+                        disabled={loading}
+                    >
+                        {loading ? 'Resetting...' : 'Reset Password'}
                     </Button>
                 </DialogActions>
             </Dialog>
 
             {/* Delete Confirmation Dialog */}
-            <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
+            <Dialog
+                open={deleteDialogOpen}
+                onClose={() => setDeleteDialogOpen(false)}
+                disableEnforceFocus
+                keepMounted={false}
+            >
                 <DialogTitle>Delete User</DialogTitle>
                 <DialogContent>
                     <Typography>
-                        Are you sure you want to delete this user? This action cannot be undone.
+                        Are you sure you want to delete this user? This action cannot be
+                        undone.
                     </Typography>
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
                     <Button
-                        onClick={handleDeleteUser}
+                        onClick={() => {
+                            handleDeleteUser(selectedUser.id);
+                            setDeleteDialogOpen(false);
+                        }}
                         color="error"
                         variant="contained"
                     >
@@ -620,9 +753,11 @@ const UserManagement = () => {
                 onClose={() => setProfileDialogOpen(false)}
                 maxWidth="md"
                 fullWidth
+                disableEnforceFocus
+                keepMounted={false}
             >
                 <DialogTitle>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                         <PersonIcon />
                         <Typography variant="h6">
                             {userProfile?.first_name} {userProfile?.last_name}'s Profile
@@ -630,127 +765,235 @@ const UserManagement = () => {
                     </Box>
                 </DialogTitle>
                 <DialogContent>
-                    {userProfile ? (
+                    {activityLoading ? (
+                        <Box sx={{ display: "flex", justifyContent: "center", py: 3 }}>
+                            <CircularProgress />
+                        </Box>
+                    ) : userProfile ? (
                         <Box sx={{ mt: 2 }}>
-                            <Grid container spacing={3}>
-                                <Grid sx={{ width: { xs: '100%', md: '50%' } }}>
-                                    <Typography variant="subtitle1" gutterBottom>Personal Information</Typography>
-                                    <Box sx={{ mb: 2 }}>
-                                        <Typography variant="body2" color="text.secondary">Email</Typography>
-                                        <Typography variant="body1">{userProfile.email}</Typography>
-                                    </Box>
-                                    <Box sx={{ mb: 2 }}>
-                                        <Typography variant="body2" color="text.secondary">Phone</Typography>
-                                        <Typography variant="body1">{userProfile.phone_number || 'Not provided'}</Typography>
-                                    </Box>
-                                    <Box sx={{ mb: 2 }}>
-                                        <Typography variant="body2" color="text.secondary">Role</Typography>
-                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                            {getRoleIcon(userProfile.role)}
-                                            <Typography variant="body1" sx={{ textTransform: 'capitalize' }}>
-                                                {userProfile.role}
-                                            </Typography>
-                                        </Box>
-                                    </Box>
-                                    <Box sx={{ mb: 2 }}>
-                                        <Typography variant="body2" color="text.secondary">Status</Typography>
-                                        {getStatusChip(userProfile.status)}
-                                    </Box>
-                                </Grid>
-                                <Grid sx={{ width: { xs: '100%', md: '50%' } }}>
-                                    <Typography variant="subtitle1" gutterBottom>Account Information</Typography>
-                                    <Box sx={{ mb: 2 }}>
-                                        <Typography variant="body2" color="text.secondary">Member Since</Typography>
-                                        <Typography variant="body1">
-                                            {new Date(userProfile.created_at).toLocaleDateString()}
-                                        </Typography>
-                                    </Box>
-                                    <Box sx={{ mb: 2 }}>
-                                        <Typography variant="body2" color="text.secondary">Last Updated</Typography>
-                                        <Typography variant="body1">
-                                            {new Date(userProfile.updated_at).toLocaleDateString()}
-                                        </Typography>
-                                    </Box>
-                                    <Box sx={{ mb: 2 }}>
-                                        <Typography variant="body2" color="text.secondary">Email Notifications</Typography>
-                                        <Typography variant="body1">
-                                            {userProfile.email_notifications ? 'Enabled' : 'Disabled'}
-                                        </Typography>
-                                    </Box>
-                                    <Box sx={{ mb: 2 }}>
-                                        <Typography variant="body2" color="text.secondary">SMS Notifications</Typography>
-                                        <Typography variant="body1">
-                                            {userProfile.sms_notifications ? 'Enabled' : 'Disabled'}
-                                        </Typography>
-                                    </Box>
-                                </Grid>
-                            </Grid>
+                            <Tabs
+                                value={activeTab}
+                                onChange={handleTabChange}
+                                sx={{ borderBottom: 1, borderColor: "divider", mb: 3 }}
+                            >
+                                <Tab label="Profile" />
+                                <Tab label="Activity" />
+                                <Tab label="Enrollments" />
+                            </Tabs>
 
-                            <Divider sx={{ my: 3 }} />
-
-                            <Typography variant="subtitle1" gutterBottom>Recent Activity</Typography>
-                            {activityLoading ? (
-                                <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
-                                    <CircularProgress />
-                                </Box>
-                            ) : (
+                            {activeTab === 0 && (
                                 <>
+                                    <Grid container spacing={3}>
+                                        <Grid columns={{ xs: 12, md: 6 }}>
+                                            <Typography variant="subtitle1" gutterBottom>
+                                                Personal Information
+                                            </Typography>
+                                            <Box sx={{ mb: 2 }}>
+                                                <Typography variant="body2" color="text.secondary">
+                                                    Email
+                                                </Typography>
+                                                <Typography variant="body1">
+                                                    {userProfile.email}
+                                                </Typography>
+                                            </Box>
+                                            <Box sx={{ mb: 2 }}>
+                                                <Typography variant="body2" color="text.secondary">
+                                                    Phone
+                                                </Typography>
+                                                <Typography variant="body1">
+                                                    {userProfile.phone_number || "Not provided"}
+                                                </Typography>
+                                            </Box>
+                                            <Box sx={{ mb: 2 }}>
+                                                <Typography variant="body2" color="text.secondary">
+                                                    Address
+                                                </Typography>
+                                                <Typography variant="body1">
+                                                    {userProfile.address || "Not provided"}
+                                                </Typography>
+                                            </Box>
+                                            <Box sx={{ mb: 2 }}>
+                                                <Typography variant="body2" color="text.secondary">
+                                                    Emergency Contact
+                                                </Typography>
+                                                <Typography variant="body1">
+                                                    {userProfile.emergency_contact || "Not provided"}
+                                                </Typography>
+                                            </Box>
+                                            <Box sx={{ mb: 2 }}>
+                                                <Typography variant="body2" color="text.secondary">
+                                                    Role
+                                                </Typography>
+                                                <Box
+                                                    sx={{ display: "flex", alignItems: "center", gap: 1 }}
+                                                >
+                                                    {getRoleIcon(userProfile.role)}
+                                                    <Typography
+                                                        variant="body1"
+                                                        sx={{ textTransform: "capitalize" }}
+                                                    >
+                                                        {userProfile.role}
+                                                    </Typography>
+                                                </Box>
+                                            </Box>
+                                            <Box sx={{ mb: 2 }}>
+                                                <Typography variant="body2" color="text.secondary">
+                                                    Status
+                                                </Typography>
+                                                {getStatusChip(userProfile.status)}
+                                            </Box>
+                                        </Grid>
+                                        <Grid columns={{ xs: 12, md: 6 }}>
+                                            <Typography variant="subtitle1" gutterBottom>
+                                                Account Information
+                                            </Typography>
+                                            <Box sx={{ mb: 2 }}>
+                                                <Typography variant="body2" color="text.secondary">
+                                                    Member Since
+                                                </Typography>
+                                                <Typography variant="body1">
+                                                    {new Date(
+                                                        userProfile.created_at
+                                                    ).toLocaleDateString()}
+                                                </Typography>
+                                            </Box>
+                                            <Box sx={{ mb: 2 }}>
+                                                <Typography variant="body2" color="text.secondary">
+                                                    Last Updated
+                                                </Typography>
+                                                <Typography variant="body1">
+                                                    {new Date(
+                                                        userProfile.updated_at
+                                                    ).toLocaleDateString()}
+                                                </Typography>
+                                            </Box>
+                                            <Box sx={{ mb: 2 }}>
+                                                <Typography variant="body2" color="text.secondary">
+                                                    Email Notifications
+                                                </Typography>
+                                                <Typography variant="body1">
+                                                    {userProfile.email_notifications
+                                                        ? "Enabled"
+                                                        : "Disabled"}
+                                                </Typography>
+                                            </Box>
+                                            <Box sx={{ mb: 2 }}>
+                                                <Typography variant="body2" color="text.secondary">
+                                                    SMS Notifications
+                                                </Typography>
+                                                <Typography variant="body1">
+                                                    {userProfile.sms_notifications
+                                                        ? "Enabled"
+                                                        : "Disabled"}
+                                                </Typography>
+                                            </Box>
+                                            <Box sx={{ mb: 2 }}>
+                                                <Typography variant="body2" color="text.secondary">
+                                                    Last Login
+                                                </Typography>
+                                                <Typography variant="body1">
+                                                    {userProfile.last_login
+                                                        ? new Date(userProfile.last_login).toLocaleString()
+                                                        : "Never"}
+                                                </Typography>
+                                            </Box>
+                                        </Grid>
+                                    </Grid>
+                                    <Divider sx={{ my: 3 }} />
+                                </>
+                            )}
+
+                            {activeTab === 1 && (
+                                <>
+                                    <Typography variant="subtitle1" gutterBottom>
+                                        Recent Activity
+                                    </Typography>
                                     <List>
                                         {userActivity.map((activity) => (
                                             <ListItem
                                                 key={activity.id}
                                                 alignItems="flex-start"
                                                 sx={{
-                                                    borderLeft: '4px solid',
+                                                    borderLeft: "4px solid",
                                                     borderColor:
-                                                        activity.action === 'role_update' ? 'primary.main' :
-                                                            activity.action === 'status_update' ? 'warning.main' :
-                                                                activity.action === 'profile_update' ? 'info.main' :
-                                                                    'grey.500',
+                                                        activity.action === "role_update"
+                                                            ? "primary.main"
+                                                            : activity.action === "status_update"
+                                                                ? "warning.main"
+                                                                : activity.action === "profile_update"
+                                                                    ? "info.main"
+                                                                    : "grey.500",
                                                     mb: 1,
-                                                    bgcolor: 'background.paper',
-                                                    borderRadius: 1
+                                                    bgcolor: "background.paper",
+                                                    borderRadius: 1,
                                                 }}
                                             >
                                                 <ListItemAvatar>
                                                     <Avatar
                                                         sx={{
                                                             bgcolor:
-                                                                activity.action === 'role_update' ? 'primary.main' :
-                                                                    activity.action === 'status_update' ? 'warning.main' :
-                                                                        activity.action === 'profile_update' ? 'info.main' :
-                                                                            'grey.500'
+                                                                activity.action === "role_update"
+                                                                    ? "primary.main"
+                                                                    : activity.action === "status_update"
+                                                                        ? "warning.main"
+                                                                        : activity.action === "profile_update"
+                                                                            ? "info.main"
+                                                                            : "grey.500",
                                                         }}
                                                     >
-                                                        {activity.action === 'role_update' ? <AdminIcon /> :
-                                                            activity.action === 'status_update' ? <BlockIcon /> :
-                                                                activity.action === 'profile_update' ? <EditIcon /> :
-                                                                    <HistoryIcon />}
+                                                        {activity.action === "role_update" ? (
+                                                            <AdminIcon />
+                                                        ) : activity.action === "status_update" ? (
+                                                            <BlockIcon />
+                                                        ) : activity.action === "profile_update" ? (
+                                                            <EditIcon />
+                                                        ) : (
+                                                            <HistoryIcon />
+                                                        )}
                                                     </Avatar>
                                                 </ListItemAvatar>
                                                 <ListItemText
                                                     primary={
-                                                        <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
-                                                            {activity.action.replace('_', ' ').toUpperCase()}
+                                                        <Typography
+                                                            variant="body2"
+                                                            sx={{ fontWeight: "medium" }}
+                                                        >
+                                                            {activity.action.replace("_", " ").toUpperCase()}
                                                         </Typography>
                                                     }
                                                     secondary={
-                                                        <Box component="span" sx={{ display: 'block' }}>
-                                                            <Typography component="span" variant="caption" color="text.secondary">
+                                                        <Box component="span" sx={{ display: "block" }}>
+                                                            <Typography
+                                                                component="span"
+                                                                variant="caption"
+                                                                color="text.secondary"
+                                                            >
                                                                 {new Date(activity.created_at).toLocaleString()}
                                                             </Typography>
                                                             {activity.details && (
-                                                                <Box component="span" sx={{ display: 'block', mt: 0.5 }}>
-                                                                    {Object.entries(activity.details).map(([key, value]) => (
-                                                                        <Box key={key} component="span" sx={{ display: 'flex', gap: 1 }}>
-                                                                            <Typography component="span" sx={{ fontWeight: 'bold' }}>
-                                                                                {key.replace('_', ' ')}:
-                                                                            </Typography>
-                                                                            <Typography component="span">
-                                                                                {value}
-                                                                            </Typography>
-                                                                        </Box>
-                                                                    ))}
+                                                                <Box
+                                                                    component="span"
+                                                                    sx={{ display: "block", mt: 0.5 }}
+                                                                >
+                                                                    {Object.entries(activity.details).map(
+                                                                        ([key, value]) => (
+                                                                            <Box
+                                                                                key={key}
+                                                                                component="span"
+                                                                                sx={{ display: "flex", gap: 1 }}
+                                                                            >
+                                                                                <Typography
+                                                                                    component="span"
+                                                                                    sx={{ fontWeight: "bold" }}
+                                                                                >
+                                                                                    {key.replace("_", " ")}:
+                                                                                </Typography>
+                                                                                <Typography component="span">
+                                                                                    {value}
+                                                                                </Typography>
+                                                                            </Box>
+                                                                        )
+                                                                    )}
                                                                 </Box>
                                                             )}
                                                         </Box>
@@ -769,15 +1012,136 @@ const UserManagement = () => {
                                     />
                                 </>
                             )}
+
+                            {activeTab === 2 && (
+                                <>
+                                    {enrollmentsLoading ? (
+                                        <Box sx={{ display: "flex", justifyContent: "center", py: 3 }}>
+                                            <CircularProgress />
+                                        </Box>
+                                    ) : userEnrollments.length > 0 ? (
+                                        <TableContainer>
+                                            <Table>
+                                                <TableHead>
+                                                    <TableRow>
+                                                        <TableCell>Class</TableCell>
+                                                        <TableCell>Start Date</TableCell>
+                                                        <TableCell>Status</TableCell>
+                                                        <TableCell>Payment Status</TableCell>
+                                                    </TableRow>
+                                                </TableHead>
+                                                <TableBody>
+                                                    {userEnrollments.map((enrollment) => (
+                                                        <TableRow key={enrollment.id}>
+                                                            <TableCell>{enrollment.class_name}</TableCell>
+                                                            <TableCell>
+                                                                {new Date(enrollment.start_date).toLocaleDateString()}
+                                                            </TableCell>
+                                                            <TableCell>
+                                                                <Chip
+                                                                    label={enrollment.status}
+                                                                    color={
+                                                                        enrollment.status === 'active'
+                                                                            ? 'success'
+                                                                            : enrollment.status === 'completed'
+                                                                                ? 'primary'
+                                                                                : 'default'
+                                                                    }
+                                                                    size="small"
+                                                                />
+                                                            </TableCell>
+                                                            <TableCell>
+                                                                <Chip
+                                                                    label={enrollment.payment_status}
+                                                                    color={
+                                                                        enrollment.payment_status === 'paid'
+                                                                            ? 'success'
+                                                                            : enrollment.payment_status === 'pending'
+                                                                                ? 'warning'
+                                                                                : 'error'
+                                                                    }
+                                                                    size="small"
+                                                                />
+                                                            </TableCell>
+                                                        </TableRow>
+                                                    ))}
+                                                </TableBody>
+                                            </Table>
+                                        </TableContainer>
+                                    ) : (
+                                        <Box sx={{ textAlign: 'center', py: 3 }}>
+                                            <Typography color="text.secondary">
+                                                No enrollments found
+                                            </Typography>
+                                        </Box>
+                                    )}
+                                </>
+                            )}
                         </Box>
                     ) : (
-                        <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
-                            <CircularProgress />
+                        <Box sx={{ display: "flex", justifyContent: "center", py: 3 }}>
+                            <Typography color="error">Failed to load profile</Typography>
                         </Box>
                     )}
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={() => setProfileDialogOpen(false)}>Close</Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* Notification Dialog */}
+            <Dialog
+                open={notificationDialogOpen}
+                onClose={() => {
+                    setNotificationDialogOpen(false);
+                }}
+                disableEnforceFocus
+                keepMounted={false}
+            >
+                <DialogTitle>
+                    {selectedUser?.id ?
+                        `Send Notification to ${selectedUser.first_name} ${selectedUser.last_name}` :
+                        'Send Notification'
+                    }
+                </DialogTitle>
+                <DialogContent>
+                    {!selectedUser?.id ? (
+                        <Alert severity="error" sx={{ mt: 2 }}>
+                            No user selected. Please select a user first.
+                        </Alert>
+                    ) : (
+                        <TextField
+                            fullWidth
+                            multiline
+                            rows={4}
+                            label="Message"
+                            placeholder="Enter notification message..."
+                            value={selectedUser?.notificationMessage || ''}
+                            sx={{ mt: 2 }}
+                            onChange={(e) => {
+                                setSelectedUser(prev => ({
+                                    ...prev,
+                                    notificationMessage: e.target.value
+                                }));
+                            }}
+                        />
+                    )}
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => {
+                        setNotificationDialogOpen(false);
+                        setSelectedUser(prev => ({ ...prev, notificationMessage: '' }));
+                    }}>
+                        Cancel
+                    </Button>
+                    <Button
+                        variant="contained"
+                        color="primary"
+                        onClick={handleSendNotification}
+                        disabled={!selectedUser?.id || !selectedUser?.notificationMessage?.trim()}
+                    >
+                        Send
+                    </Button>
                 </DialogActions>
             </Dialog>
 
@@ -790,13 +1154,59 @@ const UserManagement = () => {
                 <Alert
                     onClose={() => setSnackbar({ ...snackbar, open: false })}
                     severity={snackbar.severity}
-                    sx={{ width: '100%' }}
+                    sx={{ width: "100%" }}
                 >
                     {snackbar.message}
                 </Alert>
             </Snackbar>
+
+            {/* Enrollment Dialog */}
+            <Dialog
+                open={enrollmentDialogOpen}
+                onClose={handleCloseEnrollmentDialog}
+                maxWidth="md"
+                fullWidth
+                disableEnforceFocus
+                keepMounted={false}
+            >
+                <DialogTitle>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Typography variant="h6">
+                            Enrollments for {selectedUser?.first_name} {selectedUser?.last_name}
+                        </Typography>
+                        <IconButton onClick={handleCloseEnrollmentDialog} size="small">
+                            <CloseIcon />
+                        </IconButton>
+                    </Box>
+                </DialogTitle>
+                <DialogContent>
+                    <TableContainer>
+                        <Table>
+                            <TableHead>
+                                <TableRow>
+                                    <TableCell>Class</TableCell>
+                                    <TableCell>Date</TableCell>
+                                    <TableCell>Status</TableCell>
+                                </TableRow>
+                            </TableHead>
+                            <TableBody>
+                                {userEnrollments.map((enrollment) => (
+                                    <TableRow key={enrollment.id}>
+                                        <TableCell>{enrollment.className}</TableCell>
+                                        <TableCell>{enrollment.date}</TableCell>
+                                        <TableCell>{enrollment.status}</TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </TableContainer>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={handleCloseEnrollmentDialog}>Close</Button>
+                </DialogActions>
+            </Dialog>
         </Box>
     );
 };
 
-export default UserManagement; 
+export default UserManagement;

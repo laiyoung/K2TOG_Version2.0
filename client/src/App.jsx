@@ -1,5 +1,6 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { SnackbarProvider } from 'notistack';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Header from './components/layout/Header';
 import AdminDashboard from './pages/AdminDashboard';
@@ -94,9 +95,17 @@ function AppContent() {
 // Main App component
 function App() {
     return (
-        <AuthProvider>
-            <AppContent />
-        </AuthProvider>
+        <SnackbarProvider
+            maxSnack={3}
+            anchorOrigin={{
+                vertical: 'top',
+                horizontal: 'right',
+            }}
+        >
+            <AuthProvider>
+                <AppContent />
+            </AuthProvider>
+        </SnackbarProvider>
     );
 }
 

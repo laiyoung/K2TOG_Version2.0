@@ -1,4 +1,4 @@
-const Settings = require('../models/settingsModel');
+const { Settings } = require('../models/settingsModel');
 const { logUserActivity } = require('../models/userModel');
 
 // @desc    Get all security settings

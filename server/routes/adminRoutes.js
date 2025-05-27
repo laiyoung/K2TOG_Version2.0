@@ -25,7 +25,8 @@ const {
   adminGetClassSessions,
   adminUpdateClassStatus,
   adminGetClassWaitlist,
-  adminUpdateWaitlistStatus
+  adminUpdateWaitlistStatus,
+  adminGetOutstandingPayments
 } = require('../controllers/dashboardController');
 
 const requireAuth = require('../middleware/auth');
@@ -39,7 +40,8 @@ const {
     updateUserProfile,
     changeUserPassword,
     deleteUserAccount,
-    getUserAccountStatus
+    getUserAccountStatus,
+    getUserProfile
 } = require('../controllers/userManagementController');
 
 // All routes are admin-only
@@ -57,14 +59,15 @@ router.delete('/classes/:classId', adminDeleteClass);
 // Enrollments
 router.get('/enrollments/stats', adminEnrollmentStats);
 router.get('/enrollments/pending', adminGetPendingEnrollments);
-router.get('/enrollments/:enrollmentId', adminGetEnrollmentDetails);
 router.post('/enrollments/:enrollmentId/approve', adminApproveEnrollment);
 router.post('/enrollments/:enrollmentId/reject', adminRejectEnrollment);
+router.get('/enrollments/:enrollmentId', adminGetEnrollmentDetails);
 
 // Financial Management
 router.get('/financial/summary', adminGetFinancialSummary);
 router.get('/financial/revenue-by-class', adminGetRevenueByClass);
 router.get('/financial/payments', adminGetAllPayments);
+router.get('/financial/payments/outstanding', adminGetOutstandingPayments);
 router.get('/financial/payments/:paymentId', adminGetPaymentDetails);
 router.post('/financial/payments/:paymentId/refund', adminProcessRefund);
 
@@ -79,11 +82,12 @@ router.put('/classes/:classId/waitlist/:waitlistId', adminUpdateWaitlistStatus);
 // User Management Routes
 router.get('/users/search', searchUsers);
 router.get('/users/role/:role', getUsersByRole);
+router.get('/users/:id/profile', getUserProfile);
 router.get('/users/:id/activity', getUserActivity);
 router.get('/users/:id/status', getUserAccountStatus);
-router.put('/users/:id/profile', updateUserProfile);
 router.put('/users/:id/role', updateUserRole);
 router.put('/users/:id/status', updateUserStatus);
+router.put('/users/:id/profile', updateUserProfile);
 router.put('/users/:id/password', changeUserPassword);
 router.delete('/users/:id', deleteUserAccount);
 

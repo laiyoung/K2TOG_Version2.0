@@ -39,7 +39,9 @@ import { useSnackbar } from "notistack";
 
 const NotificationCenter = () => {
   const { enqueueSnackbar } = useSnackbar();
+  const errorTimeoutRef = React.useRef();
 
+  const [activeTab, setActiveTab] = useState(0);
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -69,6 +71,12 @@ const NotificationCenter = () => {
 
   useEffect(() => {
     fetchNotifications();
+    return () => {
+      // Clear any pending error timeout when component unmounts
+      if (errorTimeoutRef.current) {
+        clearTimeout(errorTimeoutRef.current);
+      }
+    };
   }, []);
 
   const fetchNotifications = async () => {
@@ -199,6 +207,17 @@ const NotificationCenter = () => {
     console.error(error);
     setError(error.message || customMessage);
     enqueueSnackbar(error.message || customMessage, { variant: "error" });
+
+    // Clear any existing timeout before setting a new one
+    if (errorTimeoutRef.current) {
+      clearTimeout(errorTimeoutRef.current);
+    }
+
+    // Set new timeout and store its ID in the ref
+    errorTimeoutRef.current = setTimeout(() => {
+      setError(null);
+      errorTimeoutRef.current = null;
+    }, 5000);
   };
 
   return (
@@ -505,24 +524,41 @@ const NotificationCenter = () => {
         </List>
       )}
 
+      {/* Notification Dialog */}
+      <Dialog
+        open={notificationDialogOpen}
+        onClose={() => setNotificationDialogOpen(false)}
+        aria-labelledby="notification-dialog-title"
+        keepMounted={false}
+      >
+        <DialogTitle id="notification-dialog-title">
+          {selectedNotification?.title}
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap' }}>
+            {selectedNotification?.message}
+          </Typography>
+          {selectedNotification?.action_url && (
+            <Button
+              href={selectedNotification.action_url}
+              variant="contained"
+              sx={{ mt: 2 }}
+            >
+              View Details
+            </Button>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setNotificationDialogOpen(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
+
       {/* Send Notification Dialog */}
       <Dialog
         open={showSendDialog}
-        onClose={() => {
-          setShowSendDialog(false);
-          setSelectedRecipient("");
-          setSelectedTemplate("");
-          setBroadcastMessage("");
-        }}
-        maxWidth="sm"
-        fullWidth
-        PaperProps={{
-          sx: {
-            width: { xs: "95%", sm: "auto" },
-            maxHeight: { xs: "90vh", sm: "80vh" },
-            m: { xs: 1, sm: 2 },
-          },
-        }}
+        onClose={() => setShowSendDialog(false)}
+        aria-labelledby="send-notification-dialog-title"
+        keepMounted={false}
       >
         <DialogTitle>Send Notification</DialogTitle>
         <DialogContent>
@@ -560,41 +596,40 @@ const NotificationCenter = () => {
                 Select{" "}
                 {selectedTemplate
                   ? templates.find((t) => t.id === selectedTemplate)
-                      ?.recipientType === "user"
+                    ?.recipientType === "user"
                     ? "Student"
                     : "Class"
                   : "Recipient"}
               </InputLabel>
               <Select
                 value={selectedRecipient}
-                label={`Select ${
-                  selectedTemplate
-                    ? templates.find((t) => t.id === selectedTemplate)
-                        ?.recipientType === "user"
-                      ? "Student"
-                      : "Class"
-                    : "Recipient"
-                }`}
+                label={`Select ${selectedTemplate
+                  ? templates.find((t) => t.id === selectedTemplate)
+                    ?.recipientType === "user"
+                    ? "Student"
+                    : "Class"
+                  : "Recipient"
+                  }`}
                 onChange={(e) => setSelectedRecipient(e.target.value)}
               >
                 {selectedTemplate
                   ? templates.find((t) => t.id === selectedTemplate)
-                      ?.recipientType === "user"
+                    ?.recipientType === "user"
                     ? users.map((user) => (
-                        <MenuItem key={user.id} value={user.id}>
-                          {user.name}
-                        </MenuItem>
-                      ))
-                    : classes.map((cls) => (
-                        <MenuItem key={cls.id} value={cls.id}>
-                          {cls.title}
-                        </MenuItem>
-                      ))
-                  : [...users, ...classes].map((item) => (
-                      <MenuItem key={item.id} value={item.id}>
-                        {item.name || item.title}
+                      <MenuItem key={user.id} value={user.id}>
+                        {user.name}
                       </MenuItem>
-                    ))}
+                    ))
+                    : classes.map((cls) => (
+                      <MenuItem key={cls.id} value={cls.id}>
+                        {cls.title}
+                      </MenuItem>
+                    ))
+                  : [...users, ...classes].map((item) => (
+                    <MenuItem key={item.id} value={item.id}>
+                      {item.name || item.title}
+                    </MenuItem>
+                  ))}
               </Select>
             </FormControl>
 
@@ -608,9 +643,9 @@ const NotificationCenter = () => {
               helperText={
                 selectedTemplate
                   ? `Template variables will be replaced automatically. Available variables: ${templates
-                      .find((t) => t.id === selectedTemplate)
-                      ?.variables.map((v) => `{${v}}`)
-                      .join(", ")}`
+                    .find((t) => t.id === selectedTemplate)
+                    ?.variables.map((v) => `{${v}}`)
+                    .join(", ")}`
                   : ""
               }
             />
@@ -677,10 +712,7 @@ const NotificationCenter = () => {
                   ? templates.find((t) => t.id === selectedTemplate)?.name
                   : "Custom Notification",
                 message: broadcastMessage,
-                recipient:
-                  selectedRecipientType === "user"
-                    ? users.find((u) => u.id === selectedRecipient)?.name
-                    : classes.find((c) => c.id === selectedRecipient)?.title,
+                recipient: selectedRecipient,
                 recipientType: selectedRecipientType,
               })
             }
@@ -692,28 +724,12 @@ const NotificationCenter = () => {
         </DialogActions>
       </Dialog>
 
-      {/* Create Template Dialog */}
+      {/* Template Dialog */}
       <Dialog
         open={showTemplateDialog}
-        onClose={() => {
-          setShowTemplateDialog(false);
-          setNewTemplate({
-            name: "",
-            content: "",
-            recipientType: "user",
-            selectedRecipient: "",
-            variables: [],
-          });
-        }}
-        maxWidth="sm"
-        fullWidth
-        PaperProps={{
-          sx: {
-            width: { xs: "95%", sm: "auto" },
-            maxHeight: { xs: "90vh", sm: "80vh" },
-            m: { xs: 1, sm: 2 },
-          },
-        }}
+        onClose={() => setShowTemplateDialog(false)}
+        aria-labelledby="template-dialog-title"
+        keepMounted={false}
       >
         <DialogTitle>Create Notification Template</DialogTitle>
         <DialogContent>
@@ -747,35 +763,33 @@ const NotificationCenter = () => {
               </InputLabel>
               <Select
                 value={newTemplate.selectedRecipient}
-                label={`Select ${
-                  newTemplate.recipientType === "user" ? "Student" : "Class"
-                }`}
+                label={`Select ${newTemplate.recipientType === "user" ? "Student" : "Class"
+                  }`}
                 onChange={(e) =>
                   setNewTemplate({
                     ...newTemplate,
                     selectedRecipient: e.target.value,
                     name: e.target.value
-                      ? `${
-                          newTemplate.recipientType === "user"
-                            ? users.find((u) => u.id === e.target.value)?.name
-                            : classes.find((c) => c.id === e.target.value)
-                                ?.title
-                        } - `
+                      ? `${newTemplate.recipientType === "user"
+                        ? users.find((u) => u.id === e.target.value)?.name
+                        : classes.find((c) => c.id === e.target.value)
+                          ?.title
+                      } - `
                       : "",
                   })
                 }
               >
                 {newTemplate.recipientType === "user"
                   ? users.map((user) => (
-                      <MenuItem key={user.id} value={user.id}>
-                        {user.name}
-                      </MenuItem>
-                    ))
+                    <MenuItem key={user.id} value={user.id}>
+                      {user.name}
+                    </MenuItem>
+                  ))
                   : classes.map((cls) => (
-                      <MenuItem key={cls.id} value={cls.id}>
-                        {cls.title}
-                      </MenuItem>
-                    ))}
+                    <MenuItem key={cls.id} value={cls.id}>
+                      {cls.title}
+                    </MenuItem>
+                  ))}
               </Select>
             </FormControl>
 
@@ -787,20 +801,18 @@ const NotificationCenter = () => {
                 setNewTemplate({ ...newTemplate, name: e.target.value })
               }
               sx={{ mb: 2 }}
-              helperText={`Name for your ${
-                newTemplate.recipientType === "user" ? "student" : "class"
-              } template`}
+              helperText={`Name for your ${newTemplate.recipientType === "user" ? "student" : "class"
+                } template`}
               placeholder={
                 newTemplate.selectedRecipient
-                  ? `${
-                      newTemplate.recipientType === "user"
-                        ? users.find(
-                            (u) => u.id === newTemplate.selectedRecipient
-                          )?.name
-                        : classes.find(
-                            (c) => c.id === newTemplate.selectedRecipient
-                          )?.title
-                    } - `
+                  ? `${newTemplate.recipientType === "user"
+                    ? users.find(
+                      (u) => u.id === newTemplate.selectedRecipient
+                    )?.name
+                    : classes.find(
+                      (c) => c.id === newTemplate.selectedRecipient
+                    )?.title
+                  } - `
                   : "Enter template name"
               }
             />
@@ -840,15 +852,15 @@ const NotificationCenter = () => {
                           return newTemplate.selectedRecipient &&
                             newTemplate.recipientType === "user"
                             ? users.find(
-                                (u) => u.id === newTemplate.selectedRecipient
-                              )?.name || "{student_name}"
+                              (u) => u.id === newTemplate.selectedRecipient
+                            )?.name || "{student_name}"
                             : "{student_name}";
                         case "class_name":
                           return newTemplate.selectedRecipient &&
                             newTemplate.recipientType === "class"
                             ? classes.find(
-                                (c) => c.id === newTemplate.selectedRecipient
-                              )?.title || "{class_name}"
+                              (c) => c.id === newTemplate.selectedRecipient
+                            )?.title || "{class_name}"
                             : "{class_name}";
                         case "grade":
                           return "A+";
@@ -899,15 +911,8 @@ const NotificationCenter = () => {
       <Dialog
         open={showBroadcastDialog}
         onClose={() => setShowBroadcastDialog(false)}
-        maxWidth="sm"
-        fullWidth
-        PaperProps={{
-          sx: {
-            width: { xs: "95%", sm: "auto" },
-            maxHeight: { xs: "90vh", sm: "80vh" },
-            m: { xs: 1, sm: 2 },
-          },
-        }}
+        aria-labelledby="broadcast-dialog-title"
+        keepMounted={false}
       >
         <DialogTitle>Broadcast Message</DialogTitle>
         <DialogContent>
