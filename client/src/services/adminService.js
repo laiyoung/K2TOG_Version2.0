@@ -258,6 +258,29 @@ const adminService = {
     // Get class details with sessions
     getClassDetails: async (classId) => {
         return api.get(`/admin/classes/${classId}`);
+    },
+
+    // Get transactions
+    getTransactions: async (dateRange) => {
+        const params = new URLSearchParams();
+        if (dateRange?.startDate) params.append('startDate', dateRange.startDate);
+        if (dateRange?.endDate) params.append('endDate', dateRange.endDate);
+        const response = await api.get(`/admin/financial/transactions?${params.toString()}`);
+        return response.data || [];
+    },
+
+    // Get financial summary
+    getFinancialSummary: async (dateRange) => {
+        const params = new URLSearchParams();
+        if (dateRange?.startDate) params.append('startDate', dateRange.startDate);
+        if (dateRange?.endDate) params.append('endDate', dateRange.endDate);
+        const response = await api.get(`/admin/financial/summary?${params.toString()}`);
+        return response.data || {
+            totalRevenue: 0,
+            pendingPayments: 0,
+            monthlyRevenue: 0,
+            outstandingBalance: 0
+        };
     }
 };
 

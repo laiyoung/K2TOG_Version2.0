@@ -65,6 +65,7 @@ router.get('/enrollments/:enrollmentId', adminGetEnrollmentDetails);
 
 // Financial Management
 router.get('/financial/summary', adminGetFinancialSummary);
+router.get('/financial/transactions', adminGetAllPayments);
 router.get('/financial/revenue-by-class', adminGetRevenueByClass);
 router.get('/financial/payments', adminGetAllPayments);
 router.get('/financial/payments/outstanding', adminGetOutstandingPayments);

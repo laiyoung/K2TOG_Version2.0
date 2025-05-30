@@ -130,6 +130,9 @@ const seed = async () => {
         amount DECIMAL(10, 2),
         currency VARCHAR(10),
         status VARCHAR(50),
+        due_date TIMESTAMP WITH TIME ZONE,
+        payment_method VARCHAR(50),
+        last_four VARCHAR(4),
         refund_status VARCHAR(20),
         refund_amount DECIMAL(10, 2),
         refund_reason TEXT,
@@ -486,6 +489,9 @@ const seed = async () => {
         amount, 
         currency, 
         status,
+        due_date,
+        payment_method,
+        last_four,
         refund_status,
         refund_amount,
         refund_reason,
@@ -493,11 +499,11 @@ const seed = async () => {
         refunded_by
       )
       VALUES
-        (1, 1, 'stripe_payment_1', 30.00, 'USD', 'completed', NULL, NULL, NULL, NULL, NULL),
-        (1, 2, 'stripe_payment_2', 20.00, 'USD', 'completed', 'processed', 20.00, 'Student requested refund', CURRENT_TIMESTAMP, 3),
-        (2, 3, 'stripe_payment_3', 35.00, 'USD', 'completed', NULL, NULL, NULL, NULL, NULL),
-        (2, 1, 'stripe_payment_4', 30.00, 'USD', 'pending', NULL, NULL, NULL, NULL, NULL),
-        (1, 3, 'stripe_payment_5', 35.00, 'USD', 'completed', 'processed', 17.50, 'Partial refund due to cancellation', CURRENT_TIMESTAMP, 3);
+        (1, 1, 'stripe_payment_1', 30.00, 'USD', 'completed', CURRENT_TIMESTAMP, 'credit_card', '4242', NULL, NULL, NULL, NULL, NULL),
+        (1, 2, 'stripe_payment_2', 20.00, 'USD', 'completed', CURRENT_TIMESTAMP, 'credit_card', '5555', 'processed', 20.00, 'Student requested refund', CURRENT_TIMESTAMP, 3),
+        (2, 3, 'stripe_payment_3', 35.00, 'USD', 'completed', CURRENT_TIMESTAMP, 'credit_card', '5555', NULL, NULL, NULL, NULL, NULL),
+        (2, 1, 'stripe_payment_4', 30.00, 'USD', 'pending', CURRENT_TIMESTAMP, 'credit_card', '5555', NULL, NULL, NULL, NULL, NULL),
+        (1, 3, 'stripe_payment_5', 35.00, 'USD', 'completed', CURRENT_TIMESTAMP, 'credit_card', '4242', 'processed', 17.50, 'Partial refund due to cancellation', CURRENT_TIMESTAMP, 3);
     `);
 
     // Insert notification templates only if they don't exist

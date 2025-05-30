@@ -226,7 +226,7 @@ const FinancialManagement = () => {
 
             {/* Stats Cards */}
             <Grid container spacing={3} sx={{ mb: 4 }}>
-                <Grid item sx={{ width: { xs: '100%', sm: '50%', md: '25%' } }}>
+                <Grid sx={{ width: { xs: '100%', sm: '50%', md: '25%' } }}>
                     <Card>
                         <CardContent>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -239,7 +239,7 @@ const FinancialManagement = () => {
                         </CardContent>
                     </Card>
                 </Grid>
-                <Grid item sx={{ width: { xs: '100%', sm: '50%', md: '25%' } }}>
+                <Grid sx={{ width: { xs: '100%', sm: '50%', md: '25%' } }}>
                     <Card>
                         <CardContent>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -255,7 +255,7 @@ const FinancialManagement = () => {
                         </CardContent>
                     </Card>
                 </Grid>
-                <Grid item sx={{ width: { xs: '100%', sm: '50%', md: '25%' } }}>
+                <Grid sx={{ width: { xs: '100%', sm: '50%', md: '25%' } }}>
                     <Card>
                         <CardContent>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -276,7 +276,7 @@ const FinancialManagement = () => {
             {/* Date Range Picker */}
             <Paper sx={{ p: 2, mb: 3 }}>
                 <Grid container spacing={2} alignItems="center">
-                    <Grid item xs={12} sm={6} md={3}>
+                    <Grid sx={{ width: { xs: '100%', sm: '50%', md: '25%' } }}>
                         <TextField
                             type="date"
                             label="Start Date"
@@ -286,7 +286,7 @@ const FinancialManagement = () => {
                             size="small"
                         />
                     </Grid>
-                    <Grid item xs={12} sm={6} md={3}>
+                    <Grid sx={{ width: { xs: '100%', sm: '50%', md: '25%' } }}>
                         <TextField
                             type="date"
                             label="End Date"
