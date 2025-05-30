@@ -20,4 +20,11 @@ body {
     font-family: 'Montserrat', sans-serif;
 }
 
-/* Use Tailwind CSS for styling. Add custom styles below if needed. */ 
+/* Use Tailwind CSS for styling. Add custom styles below if needed. */
+
+/* Admin route styles */
+.admin-route {
+    width: 100%;
+    min-height: calc(100vh - 64px); /* Subtract header height if needed */
+    background-color: #f9fafb;
+} 

@@ -239,7 +239,7 @@ const FinancialManagement = () => {
                         </CardContent>
                     </Card>
                 </Grid>
-                <Grid sx={{ width: { xs: '100%', sm: '50%', md: '25%' } }}>
+                <Grid item sx={{ width: { xs: '100%', sm: '50%', md: '25%' } }}>
                     <Card>
                         <CardContent>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -255,7 +255,7 @@ const FinancialManagement = () => {
                         </CardContent>
                     </Card>
                 </Grid>
-                <Grid sx={{ width: { xs: '100%', sm: '50%', md: '25%' } }}>
+                <Grid item sx={{ width: { xs: '100%', sm: '50%', md: '25%' } }}>
                     <Card>
                         <CardContent>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>

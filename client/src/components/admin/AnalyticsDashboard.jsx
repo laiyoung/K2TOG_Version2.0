@@ -219,65 +219,103 @@ function AnalyticsDashboard() {
             {/* Summary Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="bg-white p-6 rounded-lg shadow">
-                    <h3 className="text-sm font-medium text-gray-500">Total Revenue</h3>
+                    <h3 className="text-sm font-medium text-gray-500">Monthly Revenue</h3>
                     <p className="mt-2 text-3xl font-semibold text-gray-900">
-                        ${analyticsData.summary?.totalRevenue?.toLocaleString() || 0}
+                        ${analyticsData.summary?.monthly_revenue?.toLocaleString() || 0}
                     </p>
                     <p className="mt-2 text-sm text-gray-600">
-                        {analyticsData.summary?.revenueGrowth > 0 ? '+' : ''}
-                        {analyticsData.summary?.revenueGrowth || 0}% from last month
+                        {analyticsData.summary?.recent_payments || 0} recent payments
                     </p>
                 </div>
 
                 <div className="bg-white p-6 rounded-lg shadow">
                     <h3 className="text-sm font-medium text-gray-500">Active Enrollments</h3>
                     <p className="mt-2 text-3xl font-semibold text-gray-900">
-                        {analyticsData.summary?.activeEnrollments || 0}
+                        {analyticsData.summary?.active_enrollments || 0}
                     </p>
                     <p className="mt-2 text-sm text-gray-600">
-                        {analyticsData.summary?.enrollmentGrowth > 0 ? '+' : ''}
-                        {analyticsData.summary?.enrollmentGrowth || 0}% from last month
+                        {analyticsData.summary?.enrollment_rate || 0}% enrollment rate
                     </p>
                 </div>
 
                 <div className="bg-white p-6 rounded-lg shadow">
-                    <h3 className="text-sm font-medium text-gray-500">Total Users</h3>
+                    <h3 className="text-sm font-medium text-gray-500">Active Users</h3>
                     <p className="mt-2 text-3xl font-semibold text-gray-900">
-                        {analyticsData.summary?.totalUsers || 0}
+                        {analyticsData.summary?.active_users || 0}
                     </p>
                     <p className="mt-2 text-sm text-gray-600">
-                        {analyticsData.summary?.newUsersThisMonth || 0} new this month
+                        {analyticsData.summary?.recent_certificates || 0} recent certificates
                     </p>
                 </div>
 
                 <div className="bg-white p-6 rounded-lg shadow">
                     <h3 className="text-sm font-medium text-gray-500">Active Classes</h3>
                     <p className="mt-2 text-3xl font-semibold text-gray-900">
-                        {analyticsData.summary?.activeClasses || 0}
+                        {analyticsData.summary?.active_classes || 0}
                     </p>
                     <p className="mt-2 text-sm text-gray-600">
-                        {analyticsData.summary?.classGrowth > 0 ? '+' : ''}
-                        {analyticsData.summary?.classGrowth || 0}% from last month
+                        {analyticsData.summary?.waitlist_count || 0} on waitlist
                     </p>
                 </div>
             </div>
 
             {/* Charts */}
             <Grid container spacing={3}>
-                <Grid columns={{ xs: 12, md: 6 }}>
+                <Grid item xs={12} md={6}>
                     <Paper className="p-4">
                         <Typography variant="h6" gutterBottom>
                             Enrollment Trends
                         </Typography>
                         <Line
                             data={{
-                                labels: Object.keys(analyticsData.enrollmentTrends?.monthlyEnrollments || {}),
+                                labels: analyticsData.enrollmentTrends?.map(item => new Date(item.period).toLocaleDateString()) || [],
                                 datasets: [{
-                                    label: 'Enrollments',
-                                    data: Object.values(analyticsData.enrollmentTrends?.monthlyEnrollments || {}),
+                                    label: 'Total Enrollments',
+                                    data: analyticsData.enrollmentTrends?.map(item => item.total_enrollments) || [],
                                     borderColor: 'rgba(16, 185, 129, 1)',
                                     backgroundColor: 'rgba(16, 185, 129, 0.2)',
                                     tension: 0.4
+                                }, {
+                                    label: 'Approved Enrollments',
+                                    data: analyticsData.enrollmentTrends?.map(item => item.approved_enrollments) || [],
+                                    borderColor: 'rgba(59, 130, 246, 1)',
+                                    backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                                    tension: 0.4
+                                }]
+                            }}
+                            options={{
+                                responsive: true,
+                                plugins: {
+                                    legend: {
+                                        position: 'top',
+                                    },
+                                    title: {
+                                        display: false
+                                    }
+                                },
+                                scales: {
+                                    y: {
+                                        beginAtZero: true
+                                    }
+                                }
+                            }}
+                        />
+                    </Paper>
+                </Grid>
+                <Grid item xs={12} md={6}>
+                    <Paper className="p-4">
+                        <Typography variant="h6" gutterBottom>
+                            Revenue Overview
+                        </Typography>
+                        <Bar
+                            data={{
+                                labels: analyticsData.revenue?.map(item => new Date(item.period).toLocaleDateString()) || [],
+                                datasets: [{
+                                    label: 'Net Revenue',
+                                    data: analyticsData.revenue?.map(item => item.net_revenue) || [],
+                                    backgroundColor: 'rgba(59, 130, 246, 0.5)',
+                                    borderColor: 'rgba(59, 130, 246, 1)',
+                                    borderWidth: 1
                                 }]
                             }}
                             options={{
@@ -302,42 +340,7 @@ function AnalyticsDashboard() {
                         />
                     </Paper>
                 </Grid>
-                <Grid columns={{ xs: 12, md: 6 }}>
-                    <Paper className="p-4">
-                        <Typography variant="h6" gutterBottom>
-                            Revenue Overview
-                        </Typography>
-                        <Bar
-                            data={{
-                                labels: Object.keys(analyticsData.revenue?.revenueByMonth || {}),
-                                datasets: [{
-                                    label: 'Monthly Revenue',
-                                    data: Object.values(analyticsData.revenue?.revenueByMonth || {}),
-                                    backgroundColor: 'rgba(59, 130, 246, 0.5)',
-                                    borderColor: 'rgba(59, 130, 246, 1)',
-                                    borderWidth: 1
-                                }]
-                            }}
-                            options={{
-                                responsive: true,
-                                plugins: {
-                                    legend: {
-                                        position: 'top',
-                                    },
-                                    title: {
-                                        display: false
-                                    }
-                                },
-                                scales: {
-                                    y: {
-                                        beginAtZero: true
-                                    }
-                                }
-                            }}
-                        />
-                    </Paper>
-                </Grid>
-                <Grid columns={{ xs: 12, md: 6 }}>
+                <Grid item xs={12} md={6}>
                     <Paper className="p-4">
                         <Typography variant="h6" gutterBottom>
                             Class Performance
@@ -372,7 +375,7 @@ function AnalyticsDashboard() {
                         </TableContainer>
                     </Paper>
                 </Grid>
-                <Grid columns={{ xs: 12, md: 6 }}>
+                <Grid item xs={12} md={6}>
                     <Paper className="p-4">
                         <Typography variant="h6" gutterBottom>
                             Attendance Analysis
@@ -420,17 +423,17 @@ function AnalyticsDashboard() {
 
             {/* Additional Metrics */}
             <Grid container spacing={3} sx={{ mt: 2 }}>
-                <Grid columns={{ xs: 12, md: 4 }}>
+                <Grid item xs={12} md={4}>
                     <Paper className="p-4">
                         <Typography variant="h6" gutterBottom>
                             Top Performing Classes
                         </Typography>
                         <List>
-                            {analyticsData?.enrollmentStats?.topClasses?.map((cls, index) => (
+                            {analyticsData?.classEnrollments?.map((cls, index) => (
                                 <ListItem key={index}>
                                     <ListItemText
-                                        primary={cls.name}
-                                        secondary={`${cls.enrollments} enrollments`}
+                                        primary={cls.class_name}
+                                        secondary={`${cls.total_enrollments} enrollments (${cls.enrollment_rate}% rate)`}
                                     />
                                 </ListItem>
                             )) || (
@@ -441,17 +444,17 @@ function AnalyticsDashboard() {
                         </List>
                     </Paper>
                 </Grid>
-                <Grid columns={{ xs: 12, md: 4 }}>
+                <Grid item xs={12} md={4}>
                     <Paper className="p-4">
                         <Typography variant="h6" gutterBottom>
                             Revenue by Class
                         </Typography>
                         <List>
-                            {analyticsData?.revenueStats?.byClass?.map((cls, index) => (
+                            {analyticsData?.revenueByClass?.map((cls, index) => (
                                 <ListItem key={index}>
                                     <ListItemText
-                                        primary={cls.name}
-                                        secondary={`$${cls.revenue}`}
+                                        primary={cls.class_name}
+                                        secondary={`$${cls.net_revenue.toLocaleString()} (${cls.enrollment_count} enrollments)`}
                                     />
                                 </ListItem>
                             )) || (
@@ -462,30 +465,24 @@ function AnalyticsDashboard() {
                         </List>
                     </Paper>
                 </Grid>
-                <Grid columns={{ xs: 12, md: 4 }}>
+                <Grid item xs={12} md={4}>
                     <Paper className="p-4">
                         <Typography variant="h6" gutterBottom>
-                            User Activity Summary
+                            User Engagement Summary
                         </Typography>
                         <List>
-                            <ListItem>
-                                <ListItemText
-                                    primary="Active Sessions"
-                                    secondary={analyticsData?.userActivity?.activeSessions || '0'}
-                                />
-                            </ListItem>
-                            <ListItem>
-                                <ListItemText
-                                    primary="New Registrations"
-                                    secondary={analyticsData?.userActivity?.newRegistrations || '0'}
-                                />
-                            </ListItem>
-                            <ListItem>
-                                <ListItemText
-                                    primary="Completed Classes"
-                                    secondary={analyticsData?.userActivity?.completedClasses || '0'}
-                                />
-                            </ListItem>
+                            {analyticsData?.userEngagement?.map((user, index) => (
+                                <ListItem key={index}>
+                                    <ListItemText
+                                        primary={`${user.first_name} ${user.last_name}`}
+                                        secondary={`${user.enrolled_classes} classes, ${user.activity_count} activities`}
+                                    />
+                                </ListItem>
+                            )) || (
+                                    <ListItem>
+                                        <ListItemText primary="No data available" />
+                                    </ListItem>
+                                )}
                         </List>
                     </Paper>
                 </Grid>

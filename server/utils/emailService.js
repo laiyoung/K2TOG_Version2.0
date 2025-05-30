@@ -110,7 +110,66 @@ const emailService = {
   // Send custom email (simplified version of the original sendCustomEmail)
   async sendCustomEmail(to, subject, htmlContent) {
     return sendEmail({ to, subject, html: htmlContent });
-  }
+  },
+
+  sendWaitlistOfferEmail: async (userEmail, className, classDetails) => {
+    const subject = `Spot Available: ${className}`;
+    const html = `
+        <h2>A Spot is Available!</h2>
+        <p>Good news! A spot has become available in the class you've been waiting for:</p>
+        <div style="background-color: #f5f5f5; padding: 20px; border-radius: 5px; margin: 20px 0;">
+            <h3 style="margin-top: 0;">${className}</h3>
+            <p><strong>Start Date:</strong> ${new Date(classDetails.start_date).toLocaleDateString()}</p>
+            <p><strong>End Date:</strong> ${new Date(classDetails.end_date).toLocaleDateString()}</p>
+            <p><strong>Location:</strong> ${classDetails.location_details}</p>
+        </div>
+        <p>You have 24 hours to accept this spot. Please log in to your account to confirm your enrollment.</p>
+        <p>If you no longer wish to enroll in this class, you can decline the offer from your dashboard.</p>
+        <div style="margin-top: 20px;">
+            <a href="${process.env.CLIENT_URL}/dashboard" 
+               style="background-color: #4CAF50; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">
+                View in Dashboard
+            </a>
+        </div>
+    `;
+    await sendEmail({ to: userEmail, subject, html });
+  },
+
+  sendWaitlistPositionUpdateEmail: async (userEmail, className, position, estimatedWaitTime) => {
+    const subject = `Waitlist Update: ${className}`;
+    const html = `
+        <h2>Waitlist Position Update</h2>
+        <p>Your position on the waitlist for ${className} has been updated:</p>
+        <div style="background-color: #f5f5f5; padding: 20px; border-radius: 5px; margin: 20px 0;">
+            <p><strong>Current Position:</strong> ${position}</p>
+            <p><strong>Estimated Wait Time:</strong> ${estimatedWaitTime} days</p>
+        </div>
+        <p>We'll notify you as soon as a spot becomes available.</p>
+        <div style="margin-top: 20px;">
+            <a href="${process.env.CLIENT_URL}/dashboard" 
+               style="background-color: #2196F3; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">
+                View in Dashboard
+            </a>
+        </div>
+    `;
+    await sendEmail({ to: userEmail, subject, html });
+  },
+
+  sendWaitlistExpiredEmail: async (userEmail, className) => {
+    const subject = `Waitlist Offer Expired: ${className}`;
+    const html = `
+        <h2>Waitlist Offer Expired</h2>
+        <p>The spot that was offered to you for ${className} has expired because we didn't receive your response within 24 hours.</p>
+        <p>You have been removed from the waitlist for this class. If you're still interested, you can join the waitlist again.</p>
+        <div style="margin-top: 20px;">
+            <a href="${process.env.CLIENT_URL}/classes" 
+               style="background-color: #2196F3; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">
+                Browse Classes
+            </a>
+        </div>
+    `;
+    await sendEmail({ to: userEmail, subject, html });
+  },
 };
 
 module.exports = emailService; 

@@ -1,6 +1,12 @@
 import api from './apiConfig';
 
 const enrollmentService = {
+    // Get all enrollments (admin view)
+    getEnrollments: async (filters = {}) => {
+        const queryParams = new URLSearchParams(filters).toString();
+        return api.get(`/enrollments?${queryParams}`);
+    },
+
     // Get all enrollments for the current user
     getUserEnrollments: async () => {
         return api.get('/enrollments/my');
@@ -23,7 +29,14 @@ const enrollmentService = {
 
     // Update enrollment status (admin only)
     updateEnrollmentStatus: async (enrollmentId, status) => {
-        return api.patch(`/enrollments/${enrollmentId}/status`, { status });
+        if (status === 'approved') {
+            return api.post(`/enrollments/${enrollmentId}/approve`);
+        } else if (status === 'rejected') {
+            return api.post(`/enrollments/${enrollmentId}/reject`);
+        } else if (status === 'pending') {
+            return api.post(`/enrollments/${enrollmentId}/pending`);
+        }
+        throw new Error('Invalid status');
     },
 
     // Get enrollment history
@@ -60,6 +73,33 @@ const enrollmentService = {
     // Leave waitlist
     leaveWaitlist: async (classId) => {
         return api.delete(`/enrollments/waitlist/${classId}`);
+    },
+
+    getUserWaitlistEntries: async () => {
+        try {
+            const response = await api.get('/enrollments/waitlist');
+            return response.data;
+        } catch (error) {
+            throw handleApiError(error);
+        }
+    },
+
+    acceptWaitlistOffer: async (classId) => {
+        try {
+            const response = await api.post(`/enrollments/waitlist/${classId}/accept`);
+            return response.data;
+        } catch (error) {
+            throw handleApiError(error);
+        }
+    },
+
+    declineWaitlistOffer: async (classId) => {
+        try {
+            const response = await api.post(`/enrollments/waitlist/${classId}/decline`);
+            return response.data;
+        } catch (error) {
+            throw handleApiError(error);
+        }
     }
 };
 

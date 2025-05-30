@@ -1,6 +1,7 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { createUser, getUserByEmail } = require('../models/userModel');
+const pool = require('../config/db');
 
 // Input validation middleware
 const validateRegistration = (req, res, next) => {
@@ -102,6 +103,13 @@ const loginUser = async (req, res) => {
       return res.status(400).json({ error: 'Invalid email or password' });
     }
 
+    // Update last_login timestamp
+    const updateResult = await pool.query(
+      'UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = $1',
+      [user.id]
+    );
+    console.log('last_login update result:', updateResult.rowCount, 'for user id:', user.id);
+
     const token = jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET, {
       expiresIn: '1d',
     });
@@ -119,8 +127,20 @@ const loginUser = async (req, res) => {
   }
 };
 
+const logoutUser = async (req, res) => {
+  try {
+    // Since we're using JWT tokens, we don't need to do anything server-side
+    // The client will handle removing the token
+    res.status(200).json({ message: 'Logged out successfully' });
+  } catch (err) {
+    console.error('Logout error:', err);
+    res.status(500).json({ error: 'Logout failed' });
+  }
+};
+
 module.exports = { 
   registerUser, 
   loginUser,
+  logoutUser,
   validateRegistration 
 };

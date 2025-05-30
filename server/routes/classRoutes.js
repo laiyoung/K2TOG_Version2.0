@@ -15,7 +15,8 @@ const {
   updateWaitlistEntryStatus,
   getClassWaitlistEntries,
   updateClassStatusById,
-  uploadClassImage
+  uploadClassImage,
+  getClassParticipantsList
 } = require('../controllers/classController');
 
 // Import middleware functions for authentication and authorization
@@ -72,6 +73,10 @@ router.put('/:classId/waitlist/:waitlistId', requireAuth, requireAdmin, updateWa
 
 // Upload class image (admin only)
 router.post('/:id/image', requireAuth, requireAdmin, upload.single('image'), uploadClassImage);
+
+// GET /api/classes/:id/participants
+// Protected route - only authenticated admins can view class participants
+router.get('/:id/participants', requireAuth, requireAdmin, getClassParticipantsList);
 
 // Export the router to be used in the main Express app
 module.exports = router;

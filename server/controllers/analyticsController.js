@@ -1,11 +1,19 @@
-const { Analytics } = require('../models/analyticsModel');
+const {
+    getDashboardSummary: getDashboardSummaryModel,
+    getRevenueAnalytics: getRevenueAnalyticsModel,
+    getRevenueByClass: getRevenueByClassModel,
+    getEnrollmentTrends: getEnrollmentTrendsModel,
+    getClassEnrollmentStats: getClassEnrollmentStatsModel,
+    getUserEngagementMetrics: getUserEngagementMetricsModel,
+    getUserActivityTrends: getUserActivityTrendsModel
+} = require('../models/analyticsModel');
 
 // @desc    Get dashboard summary
 // @route   GET /api/admin/analytics/summary
 // @access  Private/Admin
 const getDashboardSummary = async (req, res) => {
     try {
-        const summary = await Analytics.getDashboardSummary();
+        const summary = await getDashboardSummaryModel();
         res.json(summary);
     } catch (error) {
         console.error('Get dashboard summary error:', error);
@@ -24,7 +32,7 @@ const getRevenueAnalytics = async (req, res) => {
             return res.status(400).json({ error: 'Start date and end date are required' });
         }
 
-        const analytics = await Analytics.getRevenueAnalytics({
+        const analytics = await getRevenueAnalyticsModel({
             startDate,
             endDate,
             groupBy: groupBy || 'month'
@@ -48,7 +56,7 @@ const getRevenueByClass = async (req, res) => {
             return res.status(400).json({ error: 'Start date and end date are required' });
         }
 
-        const analytics = await Analytics.getRevenueByClass({
+        const analytics = await getRevenueByClassModel({
             startDate,
             endDate
         });
@@ -71,7 +79,7 @@ const getEnrollmentTrends = async (req, res) => {
             return res.status(400).json({ error: 'Start date and end date are required' });
         }
 
-        const trends = await Analytics.getEnrollmentTrends({
+        const trends = await getEnrollmentTrendsModel({
             startDate,
             endDate,
             groupBy: groupBy || 'month'
@@ -95,7 +103,7 @@ const getClassEnrollmentStats = async (req, res) => {
             return res.status(400).json({ error: 'Start date and end date are required' });
         }
 
-        const stats = await Analytics.getClassEnrollmentStats({
+        const stats = await getClassEnrollmentStatsModel({
             startDate,
             endDate
         });
@@ -118,7 +126,7 @@ const getUserEngagementMetrics = async (req, res) => {
             return res.status(400).json({ error: 'Start date and end date are required' });
         }
 
-        const metrics = await Analytics.getUserEngagementMetrics({
+        const metrics = await getUserEngagementMetricsModel({
             startDate,
             endDate
         });
@@ -141,7 +149,7 @@ const getUserActivityTrends = async (req, res) => {
             return res.status(400).json({ error: 'Start date and end date are required' });
         }
 
-        const trends = await Analytics.getUserActivityTrends({
+        const trends = await getUserActivityTrendsModel({
             startDate,
             endDate,
             groupBy: groupBy || 'month'

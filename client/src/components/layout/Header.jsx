@@ -1,10 +1,12 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext'; // You'll need to create this context
 
 function Header() {
     const { user, logout } = useAuth();
     const navigate = useNavigate();
+    const location = useLocation();
+    const isAdminRoute = location.pathname.startsWith('/admin');
     const [isMenuOpen, setIsMenuOpen] = useState(false);
 
     const handleLogout = async () => {
@@ -61,16 +63,18 @@ function Header() {
                     {/* Authentication Links */}
                     {user ? (
                         <div className="flex items-center space-x-4">
-                            <Link
-                                to="/profile"
-                                className="nav-button uppercase text-gray-500 hover:text-black transition-colors"
-                                style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 400, fontSize: '14px', padding: '12px 16px' }}
-                            >
-                                Profile
-                            </Link>
+                            {!isAdminRoute && (
+                                <Link
+                                    to="/profile"
+                                    className="nav-button uppercase text-gray-500 hover:text-black transition-colors"
+                                    style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 400, fontSize: '14px', padding: '12px 16px' }}
+                                >
+                                    Profile
+                                </Link>
+                            )}
                             {user.role === 'admin' && (
                                 <Link
-                                    to="/admin"
+                                    to="/admin/analytics"
                                     className="nav-button uppercase text-gray-500 hover:text-black transition-colors"
                                     style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 400, fontSize: '14px', padding: '12px 16px' }}
                                 >

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import adminService from '../../services/adminService';
 import enrollmentService from '../../services/enrollmentService';
 import { Box, TableContainer, Table, TableHead, TableBody, TableRow, TableCell, Chip, IconButton, Paper, Grid, Card, CardContent, Typography, CircularProgress, Alert, Select, MenuItem, FormControl, InputLabel, Button, Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
-import { Visibility as VisibilityIcon, Check as CheckIcon, Block, Download as DownloadIcon, Close as CloseIcon } from '@mui/icons-material';
+import { Visibility as VisibilityIcon, Check as CheckIcon, Block, Download as DownloadIcon, Close as CloseIcon, Pending as PendingIcon } from '@mui/icons-material';
 import { useNotifications } from '../../utils/notificationUtils';
 
 function EnrollmentManagement() {
@@ -53,7 +53,15 @@ function EnrollmentManagement() {
     const fetchEnrollments = async () => {
         try {
             setLoading(true);
-            const data = await enrollmentService.getEnrollments(filters);
+            const formattedFilters = {
+                ...filters,
+                startDate: filters.dateRange.start.toISOString(),
+                endDate: filters.dateRange.end.toISOString()
+            };
+            // Remove the dateRange object as we've extracted its values
+            delete formattedFilters.dateRange;
+
+            const data = await enrollmentService.getEnrollments(formattedFilters);
             setEnrollments(data);
         } catch (error) {
             handleError(error, 'Failed to fetch enrollments');
@@ -65,11 +73,14 @@ function EnrollmentManagement() {
     const handleStatusUpdate = async (enrollmentId, newStatus) => {
         try {
             setLoading(true);
-            await enrollmentService.updateEnrollmentStatus(enrollmentId, newStatus);
+            const response = await enrollmentService.updateEnrollmentStatus(enrollmentId, newStatus);
+            if (response.error) {
+                throw new Error(response.error);
+            }
             await fetchEnrollments();
-            showSuccess('Enrollment status updated successfully');
+            showSuccess(`Enrollment ${newStatus} successfully`);
         } catch (error) {
-            handleError(error, 'Failed to update enrollment status');
+            handleError(error, `Failed to ${newStatus} enrollment`);
         } finally {
             setLoading(false);
         }
@@ -284,15 +295,15 @@ function EnrollmentManagement() {
                     <TableBody>
                         {enrollments.map((enrollment) => (
                             <TableRow key={enrollment.id}>
-                                <TableCell>{enrollment.studentName}</TableCell>
-                                <TableCell>{enrollment.className}</TableCell>
+                                <TableCell>{enrollment.student_name}</TableCell>
+                                <TableCell>{enrollment.class_name}</TableCell>
                                 <TableCell>
-                                    {new Date(enrollment.enrollmentDate).toLocaleDateString()}
+                                    {new Date(enrollment.enrollment_date).toLocaleDateString()}
                                 </TableCell>
                                 <TableCell>
                                     <Chip
-                                        label={enrollment.status}
-                                        color={getStatusColor(enrollment.status)}
+                                        label={enrollment.enrollment_status}
+                                        color={getStatusColor(enrollment.enrollment_status)}
                                         size="small"
                                     />
                                 </TableCell>
@@ -303,22 +314,32 @@ function EnrollmentManagement() {
                                     >
                                         <VisibilityIcon />
                                     </IconButton>
-                                    {enrollment.status === 'pending' && (
-                                        <>
-                                            <IconButton
-                                                size="small"
-                                                onClick={() => handleStatusUpdate(enrollment.id, 'approved')}
-                                            >
-                                                <CheckIcon />
-                                            </IconButton>
-                                            <IconButton
-                                                size="small"
-                                                onClick={() => handleStatusUpdate(enrollment.id, 'rejected')}
-                                                color="error"
-                                            >
-                                                <Block />
-                                            </IconButton>
-                                        </>
+                                    {enrollment.enrollment_status !== 'pending' && (
+                                        <IconButton
+                                            size="small"
+                                            onClick={() => handleStatusUpdate(enrollment.id, 'pending')}
+                                            color="warning"
+                                        >
+                                            <PendingIcon />
+                                        </IconButton>
+                                    )}
+                                    {enrollment.enrollment_status !== 'approved' && (
+                                        <IconButton
+                                            size="small"
+                                            onClick={() => handleStatusUpdate(enrollment.id, 'approved')}
+                                            color="success"
+                                        >
+                                            <CheckIcon />
+                                        </IconButton>
+                                    )}
+                                    {enrollment.enrollment_status !== 'rejected' && (
+                                        <IconButton
+                                            size="small"
+                                            onClick={() => handleStatusUpdate(enrollment.id, 'rejected')}
+                                            color="error"
+                                        >
+                                            <Block />
+                                        </IconButton>
                                     )}
                                 </TableCell>
                             </TableRow>
@@ -346,27 +367,27 @@ function EnrollmentManagement() {
                     <DialogContent>
                         <Grid container spacing={2}>
                             <Grid item xs={12} md={6}>
-                                <Typography variant="subtitle2" color="textSecondary">User</Typography>
-                                <Typography variant="body1">{selectedEnrollment.studentName}</Typography>
+                                <Typography variant="subtitle2" color="textSecondary">Student</Typography>
+                                <Typography variant="body1">{selectedEnrollment.student_name}</Typography>
                             </Grid>
                             <Grid item xs={12} md={6}>
                                 <Typography variant="subtitle2" color="textSecondary">Class</Typography>
-                                <Typography variant="body1">{selectedEnrollment.className}</Typography>
+                                <Typography variant="body1">{selectedEnrollment.class_name}</Typography>
                             </Grid>
                             <Grid item xs={12} md={6}>
                                 <Typography variant="subtitle2" color="textSecondary">Status</Typography>
-                                <Typography variant="body1">{selectedEnrollment.status}</Typography>
+                                <Typography variant="body1">{selectedEnrollment.enrollment_status}</Typography>
                             </Grid>
                             <Grid item xs={12} md={6}>
                                 <Typography variant="subtitle2" color="textSecondary">Date</Typography>
                                 <Typography variant="body1">
-                                    {new Date(selectedEnrollment.enrollmentDate).toLocaleDateString()}
+                                    {new Date(selectedEnrollment.enrollment_date).toLocaleDateString()}
                                 </Typography>
                             </Grid>
-                            {selectedEnrollment.notes && (
+                            {selectedEnrollment.admin_notes && (
                                 <Grid item xs={12}>
                                     <Typography variant="subtitle2" color="textSecondary">Notes</Typography>
-                                    <Typography variant="body1">{selectedEnrollment.notes}</Typography>
+                                    <Typography variant="body1">{selectedEnrollment.admin_notes}</Typography>
                                 </Grid>
                             )}
                         </Grid>

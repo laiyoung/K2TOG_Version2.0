@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import AnalyticsDashboard from '../components/admin/AnalyticsDashboard';
 import UserManagement from '../components/admin/UserManagement';
@@ -10,19 +11,54 @@ import NotificationCenter from '../components/admin/NotificationCenter';
 // import SystemSettings from '../components/admin/SystemSettings';
 import mockData from '../mock/adminDashboardData.json';
 
-function AdminDashboard() {
+function AdminDashboard({ defaultSection = 'analytics' }) {
     const { user } = useAuth();
-    const [activeSection, setActiveSection] = useState('analytics');
-    const [loading, setLoading] = useState(true);
+    const navigate = useNavigate();
+    const location = useLocation();
+    const [activeSection, setActiveSection] = useState(defaultSection);
+    const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [dashboardData, setDashboardData] = useState(null);
 
-    useEffect(() => {
-        setDashboardData(mockData);
-        setLoading(false);
-    }, []);
+    // Memoize the navigation items to prevent unnecessary re-renders
+    const navigationItems = useMemo(() => [
+        { id: 'analytics', label: 'Analytics', icon: '📊' },
+        { id: 'users', label: 'User Management', icon: '👥' },
+        { id: 'classes', label: 'Class Management', icon: '🏫' },
+        { id: 'enrollments', label: 'Enrollment Management', icon: '📝' },
+        { id: 'financial', label: 'Financial Management', icon: '💵' },
+        { id: 'certificates', label: 'Certificate Management', icon: '🎓' },
+        { id: 'notifications', label: 'Notifications', icon: '🔔' },
+    ], []);
 
-    const renderSection = () => {
+    // Only load data for analytics section
+    useEffect(() => {
+        if (activeSection === 'analytics' && !dashboardData) {
+            setLoading(true);
+            // Simulate API call with timeout
+            setTimeout(() => {
+                setDashboardData(mockData);
+                setLoading(false);
+            }, 100);
+        }
+    }, [activeSection, dashboardData]);
+
+    // Update active section when route changes
+    useEffect(() => {
+        const path = location.pathname.split('/').pop();
+        if (path && path !== 'admin') {
+            setActiveSection(path);
+        }
+    }, [location]);
+
+    const handleSectionChange = (section) => {
+        if (section === activeSection) return; // Prevent unnecessary navigation
+        setActiveSection(section);
+        navigate(`/admin/${section}`);
+    };
+
+    // Memoize the rendered section to prevent unnecessary re-renders
+    const renderedSection = useMemo(() => {
         switch (activeSection) {
             case 'analytics':
                 return <AnalyticsDashboard data={dashboardData} />;
@@ -43,9 +79,9 @@ function AdminDashboard() {
             default:
                 return <div>Select a section from the sidebar</div>;
         }
-    };
+    }, [activeSection, dashboardData]);
 
-    if (loading) {
+    if (loading && activeSection === 'analytics') {
         return (
             <div className="flex items-center justify-center h-screen">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
@@ -78,19 +114,10 @@ function AdminDashboard() {
                     {/* Sidebar Navigation */}
                     <div className="w-64 flex-shrink-0">
                         <nav className="space-y-1">
-                            {[
-                                { id: 'analytics', label: 'Analytics', icon: '📊' },
-                                { id: 'users', label: 'User Management', icon: '👥' },
-                                { id: 'classes', label: 'Class Management', icon: '🏫' },
-                                { id: 'enrollments', label: 'Enrollment Management', icon: '📝' },
-                                { id: 'financial', label: 'Financial Management', icon: '💵' },
-                                { id: 'certificates', label: 'Certificate Management', icon: '🎓' },
-                                { id: 'notifications', label: 'Notifications', icon: '🔔' },
-                                // { id: 'settings', label: 'System Settings', icon: '⚙️' }
-                            ].map((item) => (
+                            {navigationItems.map((item) => (
                                 <button
                                     key={item.id}
-                                    onClick={() => setActiveSection(item.id)}
+                                    onClick={() => handleSectionChange(item.id)}
                                     className={`w-full flex items-center px-4 py-2 text-sm font-medium rounded-md ${activeSection === item.id
                                         ? 'bg-blue-100 text-blue-700'
                                         : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
@@ -107,7 +134,7 @@ function AdminDashboard() {
                     <div className="flex-1">
                         <div className="bg-white shadow rounded-lg">
                             <div className="p-6">
-                                {renderSection()}
+                                {renderedSection}
                             </div>
                         </div>
                     </div>
@@ -117,4 +144,4 @@ function AdminDashboard() {
     );
 }
 
-export default AdminDashboard; 
+export default React.memo(AdminDashboard); 

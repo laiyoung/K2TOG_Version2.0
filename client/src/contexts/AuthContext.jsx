@@ -1,7 +1,8 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import authService from '../services/authService';
 
-const AuthContext = createContext(null);
+// Create and export the context directly
+export const AuthContext = createContext(null);
 
 export const useAuth = () => {
     const context = useContext(AuthContext);
@@ -11,43 +12,64 @@ export const useAuth = () => {
     return context;
 };
 
+// Export the provider as a named export
 export const AuthProvider = ({ children }) => {
-    const [user, setUser] = useState(null);
-    const [loading, setLoading] = useState(true);
+    const [user, setUser] = useState(() => {
+        // Try to get user from sessionStorage first (faster than localStorage)
+        const savedUser = sessionStorage.getItem('user');
+        return savedUser ? JSON.parse(savedUser) : null;
+    });
+    const [loading, setLoading] = useState(false); // Start with false since we have cached user
     const [error, setError] = useState(null);
 
-    useEffect(() => {
-        // Check if user is logged in on mount
-        checkAuthStatus();
-    }, []);
+    // Memoize checkAuthStatus to prevent unnecessary recreations
+    const checkAuthStatus = useCallback(async () => {
+        const token = localStorage.getItem('token');
+        if (!token) {
+            setLoading(false);
+            return;
+        }
 
-    const checkAuthStatus = async () => {
         try {
-            const token = localStorage.getItem('token');
-            if (token) {
-                const userData = await authService.getCurrentUser();
-                setUser(userData);
-            }
+            setLoading(true);
+            const userData = await authService.getCurrentUser();
+            setUser(userData);
+            // Cache user data in sessionStorage for faster subsequent loads
+            sessionStorage.setItem('user', JSON.stringify(userData));
         } catch (error) {
             console.error('Auth status check failed:', error);
             setError(error.message);
-            // Clear invalid token
+            // Clear invalid token and cached user
             localStorage.removeItem('token');
+            sessionStorage.removeItem('user');
+            setUser(null);
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
+
+    // Only check auth status if we don't have a cached user
+    useEffect(() => {
+        if (!user) {
+            checkAuthStatus();
+        }
+    }, [user, checkAuthStatus]);
 
     const login = async (email, password) => {
         try {
             setError(null);
+            setLoading(true);
             const response = await authService.login({ email, password });
             setUser(response.user);
+            // Cache user data
+            sessionStorage.setItem('user', JSON.stringify(response.user));
             return response.user;
         } catch (error) {
             console.error('Login failed:', error);
             setError(error.message);
             throw error;
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -59,8 +81,9 @@ export const AuthProvider = ({ children }) => {
             console.error('Logout request failed:', error);
             setError(error.message);
         } finally {
-            // Clear local storage and state regardless of server response
+            // Clear all storage and state
             localStorage.removeItem('token');
+            sessionStorage.removeItem('user');
             setUser(null);
         }
     };
@@ -68,26 +91,36 @@ export const AuthProvider = ({ children }) => {
     const register = async (userData) => {
         try {
             setError(null);
+            setLoading(true);
             const response = await authService.register(userData);
             setUser(response.user);
+            // Cache user data
+            sessionStorage.setItem('user', JSON.stringify(response.user));
             return response.user;
         } catch (error) {
             console.error('Registration failed:', error);
             setError(error.message);
             throw error;
+        } finally {
+            setLoading(false);
         }
     };
 
     const updateProfile = async (profileData) => {
         try {
             setError(null);
+            setLoading(true);
             const updatedUser = await authService.updateProfile(profileData);
             setUser(updatedUser);
+            // Update cached user data
+            sessionStorage.setItem('user', JSON.stringify(updatedUser));
             return updatedUser;
         } catch (error) {
             console.error('Profile update failed:', error);
             setError(error.message);
             throw error;
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -104,9 +137,7 @@ export const AuthProvider = ({ children }) => {
 
     return (
         <AuthContext.Provider value={value}>
-            {!loading && children}
+            {children}
         </AuthContext.Provider>
     );
-};
-
-export default AuthContext; 
+}; 

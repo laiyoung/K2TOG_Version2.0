@@ -60,6 +60,11 @@ const classService = {
     // Get class statistics (admin only)
     getClassStats: async (classId) => {
         return api.get(`/classes/${classId}/stats`);
+    },
+
+    // Update class status (admin only)
+    updateClassStatus: async (classId, status) => {
+        return api.put(`/classes/${classId}/status`, { status });
     }
 };
 

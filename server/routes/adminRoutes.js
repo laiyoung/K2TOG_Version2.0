@@ -1,5 +1,7 @@
 const express = require('express');
 const router = express.Router();
+const { getUserEnrollments } = require('../models/enrollmentModel');
+const { getInstructors } = require('../controllers/adminController');
 
 const {
   adminGetUsers,
@@ -26,7 +28,8 @@ const {
   adminUpdateClassStatus,
   adminGetClassWaitlist,
   adminUpdateWaitlistStatus,
-  adminGetOutstandingPayments
+  adminGetOutstandingPayments,
+  getStats,
 } = require('../controllers/dashboardController');
 
 const requireAuth = require('../middleware/auth');
@@ -41,15 +44,14 @@ const {
     changeUserPassword,
     deleteUserAccount,
     getUserAccountStatus,
-    getUserProfile
+    getUserProfile,
 } = require('../controllers/userManagementController');
 
-// All routes are admin-only
+// Apply authentication and admin middleware to ALL routes
 router.use(requireAuth, requireAdmin);
 
 // Users
 router.get('/users', adminGetUsers);
-router.delete('/users/:userId', adminDeleteUser);
 
 // Classes
 router.get('/classes', adminGetClasses);
@@ -59,8 +61,6 @@ router.delete('/classes/:classId', adminDeleteClass);
 // Enrollments
 router.get('/enrollments/stats', adminEnrollmentStats);
 router.get('/enrollments/pending', adminGetPendingEnrollments);
-router.post('/enrollments/:enrollmentId/approve', adminApproveEnrollment);
-router.post('/enrollments/:enrollmentId/reject', adminRejectEnrollment);
 router.get('/enrollments/:enrollmentId', adminGetEnrollmentDetails);
 
 // Financial Management
@@ -83,12 +83,26 @@ router.put('/classes/:classId/waitlist/:waitlistId', adminUpdateWaitlistStatus);
 router.get('/users/search', searchUsers);
 router.get('/users/role/:role', getUsersByRole);
 router.get('/users/:id/profile', getUserProfile);
-router.get('/users/:id/activity', getUserActivity);
 router.get('/users/:id/status', getUserAccountStatus);
-router.put('/users/:id/role', updateUserRole);
-router.put('/users/:id/status', updateUserStatus);
+router.get('/users/:id/enrollments', async (req, res) => {
+    try {
+        const enrollments = await getUserEnrollments(req.params.id);
+        res.json(enrollments);
+    } catch (error) {
+        console.error('Get user enrollments error:', error);
+        res.status(500).json({ error: 'Failed to fetch user enrollments' });
+    }
+});
+router.patch('/users/:id/role', updateUserRole);
+router.patch('/users/:id/status', updateUserStatus);
+router.get('/users/:id/activity', getUserActivity);
 router.put('/users/:id/profile', updateUserProfile);
 router.put('/users/:id/password', changeUserPassword);
 router.delete('/users/:id', deleteUserAccount);
+
+router.get('/instructors', getInstructors);
+
+// Dashboard routes
+router.get('/dashboard/stats', getStats);
 
 module.exports = router;

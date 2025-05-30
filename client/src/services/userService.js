@@ -11,19 +11,41 @@ const userService = {
         return api.put('/profile/profile', profileData);
     },
 
-    // Update user preferences
-    updatePreferences: async (preferences) => {
-        return api.put('/users/preferences', preferences);
-    },
-
-    // Get user notifications
+    // Get notifications
     getNotifications: async () => {
-        return api.get('/users/notifications');
+        return api.get('/notifications');
     },
 
     // Mark notification as read
     markNotificationAsRead: async (notificationId) => {
-        return api.patch(`/users/notifications/${notificationId}/read`);
+        return api.put(`/notifications/${notificationId}/read`);
+    },
+
+    // Mark all notifications as read
+    markAllNotificationsAsRead: async () => {
+        return api.put('/notifications/read-all');
+    },
+
+    // Delete notification
+    deleteNotification: async (notificationId) => {
+        return api.delete(`/notifications/${notificationId}`);
+    },
+
+    // Update notifications (for bulk updates)
+    updateNotifications: async (notifications) => {
+        // Instead of a bulk update, we'll handle each notification individually
+        const updates = notifications.map(async (notification) => {
+            if (notification.is_read) {
+                await api.put(`/notifications/${notification.id}/read`);
+            }
+        });
+        await Promise.all(updates);
+        return { success: true };
+    },
+
+    // Update user preferences
+    updatePreferences: async (preferences) => {
+        return api.put('/users/preferences', preferences);
     },
 
     // Get user certificates

@@ -1,5 +1,5 @@
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import React, { useMemo } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { SnackbarProvider } from 'notistack';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Header from './components/layout/Header';
@@ -14,7 +14,7 @@ import ProfilePage from './components/profile/ProfilePage';
 import './App.css';
 
 // Protected Route component
-const ProtectedRoute = ({ children }) => {
+const ProtectedRoute = React.memo(({ children }) => {
     const { user, loading } = useAuth();
 
     if (loading) {
@@ -30,10 +30,10 @@ const ProtectedRoute = ({ children }) => {
     }
 
     return children;
-};
+});
 
 // Admin Route component
-const AdminRoute = ({ children }) => {
+const AdminRoute = React.memo(({ children }) => {
     const { user, loading } = useAuth();
 
     if (loading) {
@@ -49,64 +49,128 @@ const AdminRoute = ({ children }) => {
     }
 
     return children;
-};
+});
+
+// Header wrapper component to always render header
+const HeaderWrapper = React.memo(() => {
+    return <Header />;
+});
 
 // AppContent component that uses useAuth
 function AppContent() {
-    const isAdminRoute = window.location.pathname.startsWith('/admin');
+    const location = useLocation();
+    const isAdminRoute = location.pathname.startsWith('/admin');
+
+    // Memoize routes to prevent unnecessary re-renders
+    const routes = useMemo(() => (
+        <Routes>
+            {/* Public Routes */}
+            <Route path="/" element={<Landing />} />
+            <Route path="/classes" element={<Classes />} />
+            <Route path="/classes/:id" element={<ClassDetails />} />
+            <Route path="/contact" element={<Contact />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/signup" element={<Signup />} />
+
+            {/* Protected Routes */}
+            <Route path="/profile" element={
+                <ProtectedRoute>
+                    <ProfilePage />
+                </ProtectedRoute>
+            } />
+
+            {/* Admin Routes */}
+            <Route path="/admin" element={
+                <AdminRoute>
+                    <Navigate to="/admin/analytics" replace />
+                </AdminRoute>
+            } />
+            <Route path="/admin/analytics" element={
+                <AdminRoute>
+                    <div className="admin-route">
+                        <AdminDashboard defaultSection="analytics" />
+                    </div>
+                </AdminRoute>
+            } />
+            <Route path="/admin/users" element={
+                <AdminRoute>
+                    <div className="admin-route">
+                        <AdminDashboard defaultSection="users" />
+                    </div>
+                </AdminRoute>
+            } />
+            <Route path="/admin/classes" element={
+                <AdminRoute>
+                    <div className="admin-route">
+                        <AdminDashboard defaultSection="classes" />
+                    </div>
+                </AdminRoute>
+            } />
+            <Route path="/admin/enrollments" element={
+                <AdminRoute>
+                    <div className="admin-route">
+                        <AdminDashboard defaultSection="enrollments" />
+                    </div>
+                </AdminRoute>
+            } />
+            <Route path="/admin/financial" element={
+                <AdminRoute>
+                    <div className="admin-route">
+                        <AdminDashboard defaultSection="financial" />
+                    </div>
+                </AdminRoute>
+            } />
+            <Route path="/admin/certificates" element={
+                <AdminRoute>
+                    <div className="admin-route">
+                        <AdminDashboard defaultSection="certificates" />
+                    </div>
+                </AdminRoute>
+            } />
+            <Route path="/admin/notifications" element={
+                <AdminRoute>
+                    <div className="admin-route">
+                        <AdminDashboard defaultSection="notifications" />
+                    </div>
+                </AdminRoute>
+            } />
+
+            {/* Fallback Route */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+    ), []);
 
     return (
-        <Router>
-            <div className="min-h-screen bg-gray-50">
-                {!isAdminRoute && <Header />}
-                <main className={`container mx-auto px-4 py-8 ${isAdminRoute ? 'p-0' : ''}`}>
-                    <Routes>
-                        {/* Public Routes */}
-                        <Route path="/" element={<Landing />} />
-                        <Route path="/classes" element={<Classes />} />
-                        <Route path="/classes/:id" element={<ClassDetails />} />
-                        <Route path="/contact" element={<Contact />} />
-                        <Route path="/login" element={<Login />} />
-                        <Route path="/signup" element={<Signup />} />
-
-                        {/* Protected Routes */}
-                        <Route path="/profile" element={
-                            <ProtectedRoute>
-                                <ProfilePage />
-                            </ProtectedRoute>
-                        } />
-
-                        {/* Admin Routes */}
-                        <Route path="/admin" element={
-                            <AdminRoute>
-                                <AdminDashboard />
-                            </AdminRoute>
-                        } />
-
-                        {/* Fallback Route */}
-                        <Route path="*" element={<Navigate to="/" replace />} />
-                    </Routes>
+        <div className="min-h-screen bg-gray-50">
+            <HeaderWrapper />
+            {isAdminRoute ? (
+                routes
+            ) : (
+                <main className="container mx-auto px-4 py-8">
+                    {routes}
                 </main>
-            </div>
-        </Router>
+            )}
+        </div>
     );
 }
 
 // Main App component
-function App() {
+const App = React.memo(() => {
     return (
-        <SnackbarProvider
-            maxSnack={3}
-            anchorOrigin={{
-                vertical: 'top',
-                horizontal: 'right',
-            }}
-        >
-            <AuthProvider>
-                <AppContent />
-            </AuthProvider>
-        </SnackbarProvider>
+        <Router>
+            <SnackbarProvider
+                maxSnack={3}
+                anchorOrigin={{
+                    vertical: 'top',
+                    horizontal: 'right',
+                }}
+            >
+                <AuthProvider>
+                    <AppContent />
+                </AuthProvider>
+            </SnackbarProvider>
+        </Router>
     );
-}
+});
 
 export default App;

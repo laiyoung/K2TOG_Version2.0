@@ -52,6 +52,21 @@ const rejectEnrollment = async (enrollmentId, adminId, adminNotes = null) => {
   return result.rows[0];
 };
 
+// Set enrollment to pending
+const setEnrollmentPending = async (enrollmentId, adminId, adminNotes = null) => {
+  const result = await pool.query(
+    `UPDATE enrollments 
+     SET enrollment_status = 'pending',
+         admin_notes = $1,
+         reviewed_at = CURRENT_TIMESTAMP,
+         reviewed_by = $2
+     WHERE id = $3
+     RETURNING *`,
+    [adminNotes, adminId, enrollmentId]
+  );
+  return result.rows[0];
+};
+
 // Get pending enrollments (for admin)
 const getPendingEnrollments = async () => {
   const result = await pool.query(`
@@ -112,13 +127,16 @@ const cancelEnrollment = async (userId, classId) => {
 // Get all enrollments for a specific user
 const getUserEnrollments = async (userId) => {
   const result = await pool.query(
-    `SELECT classes.*, 
-            enrollments.payment_status, 
-            enrollments.enrollment_status,
-            enrollments.enrolled_at,
-            enrollments.admin_notes,
-            enrollments.reviewed_at,
-            users.name as reviewer_name
+    `SELECT 
+      classes.id as class_id,
+      classes.title as class_title,
+      TO_CHAR(classes.date, 'MM/DD/YY') as formatted_date,
+      enrollments.payment_status, 
+      enrollments.enrollment_status,
+      enrollments.enrolled_at,
+      enrollments.admin_notes,
+      enrollments.reviewed_at,
+      users.name as reviewer_name
      FROM enrollments
      JOIN classes ON classes.id = enrollments.class_id
      LEFT JOIN users ON users.id = enrollments.reviewed_by
@@ -139,19 +157,64 @@ const isUserAlreadyEnrolled = async (userId, classId) => {
 };
 
 // Get all enrollments (admin view)
-const getAllEnrollments = async () => {
-  const result = await pool.query(`
-    SELECT users.name AS user_name, 
-           users.email, 
-           classes.title AS class_title,
-           enrollments.*,
-           reviewer.name as reviewer_name
-    FROM enrollments
-    JOIN users ON users.id = enrollments.user_id
-    JOIN classes ON classes.id = enrollments.class_id
-    LEFT JOIN users reviewer ON reviewer.id = enrollments.reviewed_by
-    ORDER BY enrollments.enrolled_at DESC
-  `);
+const getAllEnrollments = async (filters = {}) => {
+  const { status, class_id, user_id, start_date, end_date } = filters;
+  
+  let query = `
+    SELECT 
+      e.*,
+      u.name as student_name,
+      u.email as student_email,
+      c.title as class_name,
+      c.date as class_date,
+      c.start_time,
+      c.end_time,
+      c.location_details,
+      reviewer.name as reviewer_name,
+      TO_CHAR(e.enrolled_at, 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as enrollment_date
+    FROM enrollments e
+    JOIN users u ON u.id = e.user_id
+    JOIN classes c ON c.id = e.class_id
+    LEFT JOIN users reviewer ON reviewer.id = e.reviewed_by
+    WHERE 1=1
+  `;
+  
+  const queryParams = [];
+  let paramCount = 1;
+
+  if (status && status !== 'all') {
+    query += ` AND e.enrollment_status = $${paramCount}`;
+    queryParams.push(status);
+    paramCount++;
+  }
+
+  if (class_id && class_id !== 'all') {
+    query += ` AND e.class_id = $${paramCount}`;
+    queryParams.push(class_id);
+    paramCount++;
+  }
+
+  if (user_id && user_id !== 'all') {
+    query += ` AND e.user_id = $${paramCount}`;
+    queryParams.push(user_id);
+    paramCount++;
+  }
+
+  if (start_date) {
+    query += ` AND e.enrolled_at >= $${paramCount}`;
+    queryParams.push(start_date);
+    paramCount++;
+  }
+
+  if (end_date) {
+    query += ` AND e.enrolled_at <= $${paramCount}`;
+    queryParams.push(end_date);
+    paramCount++;
+  }
+
+  query += ` ORDER BY e.enrolled_at DESC`;
+
+  const result = await pool.query(query, queryParams);
   return result.rows;
 };
 
@@ -159,6 +222,7 @@ module.exports = {
   enrollUserInClass,
   approveEnrollment,
   rejectEnrollment,
+  setEnrollmentPending,
   getPendingEnrollments,
   getEnrollmentById,
   cancelEnrollment,

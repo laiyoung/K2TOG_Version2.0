@@ -4,11 +4,13 @@ import { useAuth } from '../contexts/AuthContext';
 import Footer from '../components/layout/Footer';
 import classService from '../services/classService';
 import enrollmentService from '../services/enrollmentService';
+import { useNotifications } from '../utils/notificationUtils';
 
 function ClassDetails() {
     const { id } = useParams();
     const navigate = useNavigate();
     const { user } = useAuth();
+    const { showSuccess, showError } = useNotifications();
     const [classData, setClassData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -16,6 +18,8 @@ function ClassDetails() {
     const [enrollLoading, setEnrollLoading] = useState(false);
     const [enrollError, setEnrollError] = useState('');
     const [selectedDateIndex, setSelectedDateIndex] = useState(null);
+    const [waitlistStatus, setWaitlistStatus] = useState(null);
+    const [waitlistLoading, setWaitlistLoading] = useState(false);
 
     useEffect(() => {
         const fetchClassDetails = async () => {
@@ -24,11 +28,22 @@ function ClassDetails() {
             try {
                 const data = await classService.getClassById(id);
                 setClassData(data);
-                // Only check enrollment status if user is logged in
+                // Only check enrollment and waitlist status if user is logged in
                 if (user) {
                     const enrollments = await enrollmentService.getUserEnrollments();
                     const isUserEnrolled = enrollments.some(enrollment => enrollment.class_id === id);
                     setIsEnrolled(isUserEnrolled);
+
+                    // Check waitlist status
+                    try {
+                        const waitlistData = await enrollmentService.getWaitlistStatus(id);
+                        setWaitlistStatus(waitlistData);
+                    } catch (waitlistErr) {
+                        // If error is 404, user is not on waitlist
+                        if (waitlistErr.response?.status !== 404) {
+                            console.error('Error checking waitlist status:', waitlistErr);
+                        }
+                    }
                 }
             } catch (err) {
                 setError(err.message || 'Failed to load class details');
@@ -77,6 +92,30 @@ function ClassDetails() {
         }
         setSelectedDateIndex(index);
         setEnrollError('');
+    };
+
+    const handleWaitlistAction = async () => {
+        if (!user) {
+            navigate('/login', { state: { from: `/classes/${id}` } });
+            return;
+        }
+
+        setWaitlistLoading(true);
+        try {
+            if (waitlistStatus) {
+                await enrollmentService.leaveWaitlist(id);
+                setWaitlistStatus(null);
+                showSuccess('Removed from waitlist');
+            } else {
+                const result = await enrollmentService.joinWaitlist(id);
+                setWaitlistStatus(result);
+                showSuccess('Added to waitlist');
+            }
+        } catch (err) {
+            showError(err.message || 'Failed to update waitlist status');
+        } finally {
+            setWaitlistLoading(false);
+        }
     };
 
     if (loading) {
@@ -168,67 +207,58 @@ function ClassDetails() {
                                         const days = getDaysInRange(dateRange.start_date, dateRange.end_date);
 
                                         return (
-                                            <div key={rangeIndex} className="border rounded-lg p-6 bg-white">
-                                                <div className="mb-4">
-                                                    <h3 className="text-lg font-medium text-gray-900 mb-2">
-                                                        {formatDate(dateRange.start_date)} - {formatDate(dateRange.end_date)}
-                                                    </h3>
-                                                    <p className="text-gray-600 text-sm">
-                                                        <span className="font-medium">Time:</span> {dateRange.time}
-                                                    </p>
-                                                    <p className="text-gray-600 text-sm">
-                                                        <span className="font-medium">Days:</span> {dateRange.days}
-                                                    </p>
-                                                </div>
-
-                                                <div className="space-y-3">
+                                            <div key={rangeIndex} className="border rounded-lg p-4">
+                                                <h3 className="font-medium mb-2">
+                                                    {new Date(dateRange.start_date).toLocaleDateString()} - {new Date(dateRange.end_date).toLocaleDateString()}
+                                                </h3>
+                                                <div className="space-y-2">
                                                     {days.map((day, dayIndex) => {
-                                                        const dayId = `day-${rangeIndex}-${dayIndex}`;
-                                                        const isSelected = selectedDateIndex === `${rangeIndex}-${dayIndex}`;
-
+                                                        const index = `${rangeIndex}-${dayIndex}`;
                                                         return (
-                                                            <div
-                                                                key={dayId}
-                                                                className={`flex items-center p-3 rounded-lg border transition-colors ${isSelected
-                                                                    ? 'border-blue-500 bg-blue-50'
-                                                                    : 'border-gray-200 hover:border-gray-300'
-                                                                    } ${isFull ? 'opacity-60' : ''}`}
+                                                            <button
+                                                                key={day.toISOString()}
+                                                                onClick={() => handleDateSelection(index)}
+                                                                className={`w-full text-left p-2 rounded ${selectedDateIndex === index
+                                                                    ? 'bg-black text-white'
+                                                                    : 'hover:bg-gray-100'
+                                                                    }`}
+                                                                disabled={isFull && !waitlistStatus}
                                                             >
-                                                                <input
-                                                                    type="radio"
-                                                                    id={dayId}
-                                                                    name="class-day"
-                                                                    value={`${rangeIndex}-${dayIndex}`}
-                                                                    checked={isSelected}
-                                                                    onChange={() => handleDateSelection(`${rangeIndex}-${dayIndex}`)}
-                                                                    disabled={isFull}
-                                                                    className="mr-3"
-                                                                />
-                                                                <label
-                                                                    htmlFor={dayId}
-                                                                    className={`flex-1 cursor-pointer ${isFull ? 'cursor-not-allowed' : ''}`}
-                                                                >
-                                                                    <div className="flex justify-between items-center">
-                                                                        <span className="text-gray-900">
-                                                                            {formatDate(day)}
-                                                                        </span>
-                                                                        {isSelected && (
-                                                                            <span className="text-blue-600 text-sm font-medium">
-                                                                                Selected
-                                                                            </span>
-                                                                        )}
-                                                                    </div>
-                                                                </label>
-                                                            </div>
+                                                                {day.toLocaleDateString()} ({dateRange.sessions[dayIndex].start_time} - {dateRange.sessions[dayIndex].end_time})
+                                                            </button>
                                                         );
                                                     })}
                                                 </div>
-
-                                                <div className="mt-4 text-right">
-                                                    <p className={`text-sm font-medium ${isFull ? 'text-red-600' : 'text-green-600'}`}>
-                                                        {isFull ? 'Class Full' : `${availableSpots} spots available`}
-                                                    </p>
-                                                </div>
+                                                {isFull && (
+                                                    <div className="mt-2 text-sm text-gray-600">
+                                                        {classData.waitlist_enabled ? (
+                                                            <div className="mt-2">
+                                                                {waitlistStatus ? (
+                                                                    <div className="flex items-center justify-between">
+                                                                        <span>You are on the waitlist</span>
+                                                                        <button
+                                                                            onClick={handleWaitlistAction}
+                                                                            disabled={waitlistLoading}
+                                                                            className="text-red-600 hover:text-red-800"
+                                                                        >
+                                                                            {waitlistLoading ? 'Processing...' : 'Leave Waitlist'}
+                                                                        </button>
+                                                                    </div>
+                                                                ) : (
+                                                                    <button
+                                                                        onClick={handleWaitlistAction}
+                                                                        disabled={waitlistLoading}
+                                                                        className="text-blue-600 hover:text-blue-800"
+                                                                    >
+                                                                        {waitlistLoading ? 'Processing...' : 'Join Waitlist'}
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                        ) : (
+                                                            <span>This class is full and waitlist is not available</span>
+                                                        )}
+                                                    </div>
+                                                )}
                                             </div>
                                         );
                                     })}
@@ -278,14 +308,34 @@ function ClassDetails() {
                             {enrollError && <div className="mb-4 p-2 bg-red-50 border border-red-200 text-red-700 rounded">{enrollError}</div>}
 
                             {user ? (
-                                <div>
-                                    <button
-                                        onClick={handleEnroll}
-                                        disabled={enrollLoading || (isEnrolled && !enrollmentService.canUnenroll)}
-                                        className="bg-black text-white px-6 py-3 rounded disabled:bg-gray-400"
-                                    >
-                                        {enrollLoading ? 'Processing...' : isEnrolled ? 'Unenroll' : 'Enroll'}
-                                    </button>
+                                <div className="mt-8">
+                                    <div className="space-y-4">
+                                        {!isFull ? (
+                                            <button
+                                                onClick={handleEnroll}
+                                                disabled={enrollLoading || (isEnrolled && !enrollmentService.canUnenroll)}
+                                                className="bg-black text-white px-6 py-3 rounded disabled:bg-gray-400"
+                                            >
+                                                {enrollLoading ? 'Processing...' : isEnrolled ? 'Unenroll' : 'Enroll'}
+                                            </button>
+                                        ) : waitlistStatus ? (
+                                            <div className="text-gray-700">
+                                                You are on the waitlist for this class. We will notify you if a spot becomes available.
+                                            </div>
+                                        ) : classData.waitlist_enabled ? (
+                                            <button
+                                                onClick={handleWaitlistAction}
+                                                disabled={waitlistLoading}
+                                                className="bg-blue-600 text-white px-6 py-3 rounded hover:bg-blue-700 disabled:bg-blue-400"
+                                            >
+                                                {waitlistLoading ? 'Processing...' : 'Join Waitlist'}
+                                            </button>
+                                        ) : (
+                                            <div className="text-gray-700">
+                                                This class is full and waitlist is not available.
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             ) : (
                                 <div className="space-y-4">

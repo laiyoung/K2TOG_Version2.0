@@ -95,6 +95,7 @@ const UserManagement = () => {
     const [passwordError, setPasswordError] = useState('');
     const [updatingRole, setUpdatingRole] = useState(false);
     const [enrollmentsLoading, setEnrollmentsLoading] = useState(false);
+    const [updatingStatus, setUpdatingStatus] = useState(false);
 
     useEffect(() => {
         fetchUsers();
@@ -111,7 +112,13 @@ const UserManagement = () => {
             });
             setUsers(Array.isArray(response) ? response : response.data || []);
             if (response.pagination) {
-                setPagination(response.pagination);
+                setPagination(prev => {
+                    const same =
+                        prev.page === response.pagination.page &&
+                        prev.limit === response.pagination.limit &&
+                        prev.total === response.pagination.total;
+                    return same ? prev : { ...prev, ...response.pagination };
+                });
             }
         } catch (error) {
             handleError(error, "Failed to fetch users");
@@ -372,6 +379,20 @@ const UserManagement = () => {
         }
     };
 
+    const handleStatusUpdate = async () => {
+        try {
+            setUpdatingStatus(true);
+            await adminService.updateUserStatus(selectedUser.id, selectedUser.status);
+            await fetchUsers(); // Refresh the user list
+            showSuccess('User status updated successfully');
+            setStatusDialogOpen(false);
+        } catch (error) {
+            handleError(error, 'Failed to update user status');
+        } finally {
+            setUpdatingStatus(false);
+        }
+    };
+
     return (
         <Box sx={{ p: 3 }}>
             <Typography variant="h5" component="h2" gutterBottom>
@@ -381,7 +402,7 @@ const UserManagement = () => {
             {/* Filters */}
             <Paper sx={{ p: 2, mb: 3 }}>
                 <Grid container spacing={2} alignItems="center">
-                    <Grid columns={{ xs: 12, sm: 6, md: 5 }}>
+                    <Grid item xs={12} sm={6} md={5}>
                         <TextField
                             fullWidth
                             placeholder="Search users..."
@@ -398,7 +419,7 @@ const UserManagement = () => {
                             }}
                         />
                     </Grid>
-                    <Grid columns={{ xs: 12, sm: 6, md: 4 }}>
+                    <Grid item xs={12} sm={6} md={4}>
                         <FormControl fullWidth>
                             <InputLabel>Role</InputLabel>
                             <Select
@@ -657,6 +678,14 @@ const UserManagement = () => {
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={() => setStatusDialogOpen(false)}>Cancel</Button>
+                    <Button
+                        variant="contained"
+                        color="primary"
+                        onClick={handleStatusUpdate}
+                        disabled={updatingStatus}
+                    >
+                        {updatingStatus ? 'Saving...' : 'Save Changes'}
+                    </Button>
                 </DialogActions>
             </Dialog>
 
@@ -784,7 +813,7 @@ const UserManagement = () => {
                             {activeTab === 0 && (
                                 <>
                                     <Grid container spacing={3}>
-                                        <Grid columns={{ xs: 12, md: 6 }}>
+                                        <Grid item xs={12} md={6}>
                                             <Typography variant="subtitle1" gutterBottom>
                                                 Personal Information
                                             </Typography>
@@ -814,14 +843,6 @@ const UserManagement = () => {
                                             </Box>
                                             <Box sx={{ mb: 2 }}>
                                                 <Typography variant="body2" color="text.secondary">
-                                                    Emergency Contact
-                                                </Typography>
-                                                <Typography variant="body1">
-                                                    {userProfile.emergency_contact || "Not provided"}
-                                                </Typography>
-                                            </Box>
-                                            <Box sx={{ mb: 2 }}>
-                                                <Typography variant="body2" color="text.secondary">
                                                     Role
                                                 </Typography>
                                                 <Box
@@ -843,7 +864,7 @@ const UserManagement = () => {
                                                 {getStatusChip(userProfile.status)}
                                             </Box>
                                         </Grid>
-                                        <Grid columns={{ xs: 12, md: 6 }}>
+                                        <Grid item xs={12} md={6}>
                                             <Typography variant="subtitle1" gutterBottom>
                                                 Account Information
                                             </Typography>
@@ -1025,44 +1046,16 @@ const UserManagement = () => {
                                                 <TableHead>
                                                     <TableRow>
                                                         <TableCell>Class</TableCell>
-                                                        <TableCell>Start Date</TableCell>
+                                                        <TableCell>Date</TableCell>
                                                         <TableCell>Status</TableCell>
-                                                        <TableCell>Payment Status</TableCell>
                                                     </TableRow>
                                                 </TableHead>
                                                 <TableBody>
                                                     {userEnrollments.map((enrollment) => (
-                                                        <TableRow key={enrollment.id}>
-                                                            <TableCell>{enrollment.class_name}</TableCell>
-                                                            <TableCell>
-                                                                {new Date(enrollment.start_date).toLocaleDateString()}
-                                                            </TableCell>
-                                                            <TableCell>
-                                                                <Chip
-                                                                    label={enrollment.status}
-                                                                    color={
-                                                                        enrollment.status === 'active'
-                                                                            ? 'success'
-                                                                            : enrollment.status === 'completed'
-                                                                                ? 'primary'
-                                                                                : 'default'
-                                                                    }
-                                                                    size="small"
-                                                                />
-                                                            </TableCell>
-                                                            <TableCell>
-                                                                <Chip
-                                                                    label={enrollment.payment_status}
-                                                                    color={
-                                                                        enrollment.payment_status === 'paid'
-                                                                            ? 'success'
-                                                                            : enrollment.payment_status === 'pending'
-                                                                                ? 'warning'
-                                                                                : 'error'
-                                                                    }
-                                                                    size="small"
-                                                                />
-                                                            </TableCell>
+                                                        <TableRow key={enrollment.id || (enrollment.class_id + '-' + enrollment.formatted_date)}>
+                                                            <TableCell>{enrollment.class_title}</TableCell>
+                                                            <TableCell>{enrollment.formatted_date}</TableCell>
+                                                            <TableCell>{enrollment.enrollment_status}</TableCell>
                                                         </TableRow>
                                                     ))}
                                                 </TableBody>
@@ -1191,10 +1184,10 @@ const UserManagement = () => {
                             </TableHead>
                             <TableBody>
                                 {userEnrollments.map((enrollment) => (
-                                    <TableRow key={enrollment.id}>
-                                        <TableCell>{enrollment.className}</TableCell>
-                                        <TableCell>{enrollment.date}</TableCell>
-                                        <TableCell>{enrollment.status}</TableCell>
+                                    <TableRow key={enrollment.id || (enrollment.class_id + '-' + enrollment.formatted_date)}>
+                                        <TableCell>{enrollment.class_title}</TableCell>
+                                        <TableCell>{enrollment.formatted_date}</TableCell>
+                                        <TableCell>{enrollment.enrollment_status}</TableCell>
                                     </TableRow>
                                 ))}
                             </TableBody>

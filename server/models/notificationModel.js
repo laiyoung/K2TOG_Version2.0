@@ -7,24 +7,31 @@ async function getUserNotifications(userId) {
 }
 
 // Mark a notification as read
-async function markNotificationRead(notificationId) {
-  const result = await pool.query('UPDATE user_notifications SET is_read = true WHERE id = $1 RETURNING *', [notificationId]);
+async function markNotificationRead(notificationId, userId) {
+  const result = await pool.query(
+    'UPDATE user_notifications SET is_read = true WHERE id = $1 AND user_id = $2 RETURNING *',
+    [notificationId, userId]
+  );
   return result.rows[0];
 }
 
 // Create a notification
 async function createNotification(data) {
-  const { user_id, type, title, message, action_url, metadata } = data;
+  const { user_id, type, title, message, action_url, metadata, sender_id } = data;
   const result = await pool.query(
-    'INSERT INTO user_notifications (user_id, type, title, message, action_url, metadata) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
-    [user_id, type, title, message, action_url, metadata]
+    'INSERT INTO user_notifications (user_id, type, title, message, action_url, metadata, sender_id) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
+    [user_id, type, title, message, action_url, metadata, sender_id]
   );
   return result.rows[0];
 }
 
 // Delete a notification
-async function deleteNotification(id) {
-  await pool.query('DELETE FROM user_notifications WHERE id = $1', [id]);
+async function deleteNotification(id, userId) {
+  const result = await pool.query(
+    'DELETE FROM user_notifications WHERE id = $1 AND (user_id = $2 OR sender_id = $2) RETURNING *',
+    [id, userId]
+  );
+  return result.rows[0];
 }
 
 // Get notification template by name
@@ -34,7 +41,7 @@ async function getTemplateByName(name) {
 }
 
 // Create bulk notifications from template
-async function createBulkFromTemplate(templateName, userIds, variables = {}, actionUrl = null) {
+async function createBulkFromTemplate(templateName, userIds, variables = {}, actionUrl = null, senderId = null) {
   // Get the template
   const template = await getTemplateByName(templateName);
   if (!template) {
@@ -64,7 +71,8 @@ async function createBulkFromTemplate(templateName, userIds, variables = {}, act
         title,
         message,
         action_url: actionUrl,
-        metadata: template.metadata
+        metadata: template.metadata,
+        sender_id: senderId
       });
       notifications.push(notification);
     } catch (error) {
@@ -80,11 +88,24 @@ async function createBulkFromTemplate(templateName, userIds, variables = {}, act
   };
 }
 
+// Get notifications sent by an admin
+async function getNotificationsSentByAdmin(adminId) {
+  const result = await pool.query(`
+    SELECT n.*, u.name as recipient_name 
+    FROM user_notifications n
+    JOIN users u ON n.user_id = u.id
+    WHERE n.sender_id = $1
+    ORDER BY n.created_at DESC
+  `, [adminId]);
+  return result.rows;
+}
+
 module.exports = {
   getUserNotifications,
   markNotificationRead,
   createNotification,
   deleteNotification,
   getTemplateByName,
-  createBulkFromTemplate
+  createBulkFromTemplate,
+  getNotificationsSentByAdmin
 }; 

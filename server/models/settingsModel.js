@@ -111,6 +111,47 @@ async function updateIntegrationSettings(settings, updated_by) {
   return updated;
 }
 
+// Get system usage statistics
+async function getSystemUsageStats(startDate, endDate) {
+    const query = `
+        WITH api_stats AS (
+            SELECT 
+                DATE_TRUNC('hour', created_at) as time_period,
+                COUNT(*) as total_requests,
+                COUNT(DISTINCT api_key_id) as active_keys,
+                COUNT(DISTINCT endpoint) as unique_endpoints,
+                COUNT(CASE WHEN status_code >= 400 THEN 1 END) as error_count,
+                AVG(response_time) as avg_response_time
+            FROM api_requests
+            WHERE created_at BETWEEN $1 AND $2
+            GROUP BY DATE_TRUNC('hour', created_at)
+        ),
+        user_stats AS (
+            SELECT 
+                DATE_TRUNC('hour', created_at) as time_period,
+                COUNT(DISTINCT user_id) as active_users,
+                COUNT(*) as total_actions
+            FROM user_activity_log
+            WHERE created_at BETWEEN $1 AND $2
+            GROUP BY DATE_TRUNC('hour', created_at)
+        )
+        SELECT 
+            COALESCE(a.time_period, u.time_period) as time_period,
+            a.total_requests,
+            a.active_keys,
+            a.unique_endpoints,
+            a.error_count,
+            a.avg_response_time,
+            u.active_users,
+            u.total_actions
+        FROM api_stats a
+        FULL OUTER JOIN user_stats u ON a.time_period = u.time_period
+        ORDER BY time_period DESC
+    `;
+    const result = await pool.query(query, [startDate, endDate]);
+    return result.rows;
+}
+
 module.exports = {
   getAllSettings,
   getSettingById,
@@ -125,4 +166,5 @@ module.exports = {
   updateSecuritySettings,
   getIntegrationSettings,
   updateIntegrationSettings,
+  getSystemUsageStats
 }; 

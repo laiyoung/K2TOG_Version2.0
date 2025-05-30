@@ -8,7 +8,8 @@ const {
   getPendingEnrollmentsList,
   getEnrollmentDetails,
   approveEnrollmentRequest,
-  rejectEnrollmentRequest
+  rejectEnrollmentRequest,
+  setEnrollmentToPending
 } = require('../controllers/enrollmentController');
 
 const requireAuth = require('../middleware/auth');
@@ -26,7 +27,8 @@ router.get('/my', requireAuth, getMyEnrollments);
 router.get('/', requireAuth, requireAdmin, getAllEnrollmentsAdmin);
 router.get('/pending', requireAuth, requireAdmin, getPendingEnrollmentsList);
 router.get('/:id', requireAuth, requireAdmin, getEnrollmentDetails);
-router.put('/:id/approve', requireAuth, requireAdmin, approveEnrollmentRequest);
-router.put('/:id/reject', requireAuth, requireAdmin, rejectEnrollmentRequest);
+router.post('/:id/approve', requireAuth, requireAdmin, approveEnrollmentRequest);
+router.post('/:id/reject', requireAuth, requireAdmin, rejectEnrollmentRequest);
+router.post('/:id/pending', requireAuth, requireAdmin, setEnrollmentToPending);
 
 module.exports = router;

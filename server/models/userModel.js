@@ -52,14 +52,28 @@ async function searchUsers({ searchTerm = '', role = null, sortBy = 'created_at'
 }
 
 // Update user role
-async function updateUserRole(userId, newRole) {
+async function updateUserRole(userId, newRole, updatedBy) {
   const result = await pool.query('UPDATE users SET role = $1 WHERE id = $2 RETURNING *', [newRole, userId]);
+  if (result.rows[0]) {
+    await logUserActivity(userId, 'role_update', {
+      old_role: result.rows[0].role,
+      new_role: newRole,
+      updated_by: updatedBy
+    });
+  }
   return result.rows[0];
 }
 
 // Update user status
-async function updateUserStatus(userId, status) {
+async function updateUserStatus(userId, status, updatedBy) {
   const result = await pool.query('UPDATE users SET status = $1 WHERE id = $2 RETURNING *', [status, userId]);
+  if (result.rows[0]) {
+    await logUserActivity(userId, 'status_update', {
+      old_status: result.rows[0].status,
+      new_status: status,
+      updated_by: updatedBy
+    });
+  }
   return result.rows[0];
 }
 
@@ -162,6 +176,7 @@ async function getProfileWithDetails(userId) {
     const userResult = await pool.query(`
       SELECT 
         u.*,
+        u.last_login,
         COUNT(DISTINCT e.id) as total_enrollments,
         COUNT(DISTINCT CASE WHEN e.enrollment_status = 'approved' THEN e.id END) as active_enrollments,
         COUNT(DISTINCT p.id) as total_payments,
@@ -200,16 +215,16 @@ async function getProfileWithDetails(userId) {
                c.description as class_description,
                c.location_details as location,
                c.capacity,
-               cs.session_date as start_date,
-               cs.start_time,
-               cs.end_time,
+               COALESCE(cs.session_date, c.date) as start_date,
+               COALESCE(cs.start_time, c.start_time) as start_time,
+               COALESCE(cs.end_time, c.end_time) as end_time,
                u.name as instructor_name
         FROM enrollments e
         JOIN classes c ON c.id = e.class_id
         LEFT JOIN class_sessions cs ON cs.id = e.session_id
         LEFT JOIN users u ON u.id = c.instructor_id
         WHERE e.user_id = $1
-        ORDER BY c.date DESC
+        ORDER BY e.enrolled_at DESC
       `, [userId]);
       profile.enrollments = enrollmentsResult.rows;
     } catch (err) {
@@ -261,6 +276,15 @@ async function getProfileWithDetails(userId) {
   }
 }
 
+// Update user password
+async function updatePassword(userId, hashedPassword) {
+  const result = await pool.query(
+    'UPDATE users SET password = $1, updated_at = NOW() WHERE id = $2 RETURNING id, email, role',
+    [hashedPassword, userId]
+  );
+  return result.rows[0];
+}
+
 module.exports = {
   getAllUsers,
   getUserById,
@@ -276,5 +300,6 @@ module.exports = {
   getUsersByIds,
   getUsersByStatus,
   getUserByEmail,
-  getProfileWithDetails
+  getProfileWithDetails,
+  updatePassword
 };

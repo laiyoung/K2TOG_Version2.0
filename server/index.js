@@ -52,6 +52,12 @@ app.use('/api/profile', profileRoutes);
 app.use(devLogger);
 app.use(errorHandler); // place this last!
 
+app.use((req, res, next) => {
+  res.setHeader('Cache-Control', 'no-store');
+  next();
+});
+
+
 // Root endpoint
 app.get('/', (req, res) => {
   res.send('Education API is running...');

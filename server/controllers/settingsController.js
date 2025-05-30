@@ -146,23 +146,8 @@ const getApiKeyUsage = async (req, res) => {
 // @access  Private/Admin
 const getAllApiKeys = async (req, res) => {
     try {
-        const query = `
-            SELECT 
-                id,
-                name,
-                permissions,
-                created_at,
-                expires_at,
-                status,
-                last_used_at,
-                created_by,
-                revoked_at,
-                revoked_by
-            FROM api_keys
-            ORDER BY created_at DESC
-        `;
-        const { rows } = await pool.query(query);
-        res.json(rows);
+        const apiKeys = await Settings.getAllApiKeys();
+        res.json(apiKeys);
     } catch (error) {
         console.error('Get all API keys error:', error);
         res.status(500).json({ error: 'Failed to get API keys' });
@@ -182,43 +167,8 @@ const getSystemUsageStats = async (req, res) => {
             });
         }
 
-        const query = `
-            WITH api_stats AS (
-                SELECT 
-                    DATE_TRUNC('hour', created_at) as time_period,
-                    COUNT(*) as total_requests,
-                    COUNT(DISTINCT api_key_id) as active_keys,
-                    COUNT(DISTINCT endpoint) as unique_endpoints,
-                    COUNT(CASE WHEN status_code >= 400 THEN 1 END) as error_count,
-                    AVG(response_time) as avg_response_time
-                FROM api_requests
-                WHERE created_at BETWEEN $1 AND $2
-                GROUP BY DATE_TRUNC('hour', created_at)
-            ),
-            user_stats AS (
-                SELECT 
-                    DATE_TRUNC('hour', created_at) as time_period,
-                    COUNT(DISTINCT user_id) as active_users,
-                    COUNT(*) as total_actions
-                FROM user_activity_log
-                WHERE created_at BETWEEN $1 AND $2
-                GROUP BY DATE_TRUNC('hour', created_at)
-            )
-            SELECT 
-                COALESCE(a.time_period, u.time_period) as time_period,
-                a.total_requests,
-                a.active_keys,
-                a.unique_endpoints,
-                a.error_count,
-                a.avg_response_time,
-                u.active_users,
-                u.total_actions
-            FROM api_stats a
-            FULL OUTER JOIN user_stats u ON a.time_period = u.time_period
-            ORDER BY time_period DESC
-        `;
-        const { rows } = await pool.query(query, [startDate, endDate]);
-        res.json(rows);
+        const stats = await Settings.getSystemUsageStats(startDate, endDate);
+        res.json(stats);
     } catch (error) {
         console.error('Get system usage stats error:', error);
         res.status(500).json({ error: 'Failed to get system usage statistics' });

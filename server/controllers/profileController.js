@@ -1,4 +1,4 @@
-const {User} = require('../models/userModel');
+const { getProfileWithDetails: getUserProfileWithDetails, updateProfile: updateUserProfile, getUserById, updatePassword: updateUserPassword } = require('../models/userModel');
 const {Certificate} = require('../models/certificateModel');
 const {PaymentMethod} = require('../models/paymentMethodModel');
 const {ActivityLog} = require('../models/activityLogModel');
@@ -8,7 +8,7 @@ const bcrypt = require('bcrypt');
 // Get user profile with all details
 const getProfileWithDetails = async (req, res) => {
     try {
-        const profile = await User.getProfileWithDetails(req.user.id);
+        const profile = await getUserProfileWithDetails(req.user.id);
         if (!profile) {
             return res.status(404).json({ message: 'Profile not found' });
         }
@@ -22,7 +22,7 @@ const getProfileWithDetails = async (req, res) => {
 const updateProfile = async (req, res) => {
     try {
         const { first_name, last_name, phone_number, profile_picture_url, email_notifications, sms_notifications } = req.body;
-        const updatedProfile = await User.updateProfile(req.user.id, {
+        const updatedProfile = await updateUserProfile(req.user.id, {
             first_name,
             last_name,
             phone_number,
@@ -46,7 +46,7 @@ const updatePassword = async (req, res) => {
     console.log('DEBUG: updatePassword controller called');
     try {
         const { currentPassword, newPassword } = req.body;
-        const user = await User.getUserById(req.user.id);
+        const user = await getUserById(req.user.id);
         
         if (!user) {
             return res.status(404).json({ message: 'User not found' });
@@ -58,7 +58,7 @@ const updatePassword = async (req, res) => {
         }
 
         const hashedPassword = await bcrypt.hash(newPassword, 10);
-        await User.updatePassword(req.user.id, hashedPassword);
+        await updateUserPassword(req.user.id, hashedPassword);
         
         await ActivityLog.createActivityLog(req.user.id, 'update_password', {
             timestamp: new Date()

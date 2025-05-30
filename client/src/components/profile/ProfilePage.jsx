@@ -80,6 +80,22 @@ const ProfilePage = () => {
         }
     };
 
+    const handleNotificationsUpdate = async (updatedNotifications) => {
+        try {
+            // Update the profile state with the new notifications
+            setProfile(prevProfile => ({
+                ...prevProfile,
+                notifications: updatedNotifications
+            }));
+
+            // Call the API to update notifications on the server
+            await userService.updateNotifications(updatedNotifications);
+        } catch (error) {
+            console.error('Failed to update notifications:', error);
+            setError('Failed to update notifications. Please try again.');
+        }
+    };
+
     if (loading) {
         return (
             <div className="profile-page loading">
@@ -145,7 +161,10 @@ const ProfilePage = () => {
                         <ActivityLogSection activities={profile.recent_activity} />
                     )}
                     {activeSection === 'notifications' && (
-                        <NotificationsSection notifications={profile.notifications} />
+                        <NotificationsSection
+                            notifications={profile.notifications}
+                            onNotificationsUpdate={handleNotificationsUpdate}
+                        />
                     )}
                     {activeSection === 'enrollments' && (
                         <EnrollmentsSection enrollments={profile.enrollments} />

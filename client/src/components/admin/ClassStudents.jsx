@@ -17,7 +17,9 @@ import {
     DialogActions,
     Chip,
     TextField,
-    InputAdornment
+    InputAdornment,
+    CircularProgress,
+    Alert
 } from '@mui/material';
 import {
     Delete as DeleteIcon,
@@ -26,9 +28,11 @@ import {
     Email as EmailIcon,
     CalendarToday as CalendarIcon,
     CheckCircle as ActiveIcon,
-    Cancel as InactiveIcon
+    Cancel as InactiveIcon,
+    Payment as PaymentIcon
 } from '@mui/icons-material';
-import mockData from '../../mock/adminDashboardData.json';
+import classService from '../../services/classService';
+import { useNotifications } from '../../utils/notificationUtils';
 import './ClassStudents.css';
 
 const ClassStudents = ({ classId, className }) => {
@@ -37,32 +41,44 @@ const ClassStudents = ({ classId, className }) => {
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [studentToDelete, setStudentToDelete] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+    const { showSuccess, showError } = useNotifications();
 
     useEffect(() => {
-        // Simulate API call to fetch students
-        const fetchStudents = () => {
-            setLoading(true);
-            try {
-                const classData = mockData.classStudents.find(c => c.class_id === classId);
-                setStudents(classData?.students || []);
-            } catch (error) {
-                console.error('Error fetching students:', error);
-            }
-            setLoading(false);
-        };
-
         fetchStudents();
     }, [classId]);
+
+    const fetchStudents = async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            const response = await classService.getClassParticipants(classId);
+            setStudents(Array.isArray(response) ? response : []);
+        } catch (error) {
+            console.error('Error fetching students:', error);
+            setError('Failed to load students. Please try again.');
+            showError('Failed to load students');
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const handleDeleteClick = (student) => {
         setStudentToDelete(student);
         setDeleteDialogOpen(true);
     };
 
-    const handleDeleteConfirm = () => {
+    const handleDeleteConfirm = async () => {
         if (studentToDelete) {
-            // In a real application, this would be an API call
-            setStudents(students.filter(s => s.id !== studentToDelete.id));
+            try {
+                // TODO: Implement API call to remove student from class
+                // await classService.removeStudentFromClass(classId, studentToDelete.enrollment_id);
+                setStudents(students.filter(s => s.enrollment_id !== studentToDelete.enrollment_id));
+                showSuccess('Student removed from class successfully');
+            } catch (error) {
+                console.error('Error removing student:', error);
+                showError('Failed to remove student from class');
+            }
             setDeleteDialogOpen(false);
             setStudentToDelete(null);
         }
@@ -79,19 +95,39 @@ const ClassStudents = ({ classId, className }) => {
     );
 
     const getStatusChip = (status) => {
-        return status === 'active' ? (
+        const statusConfig = {
+            'approved': { color: 'success', icon: <ActiveIcon />, label: 'Active' },
+            'pending': { color: 'warning', icon: <CalendarIcon />, label: 'Pending' },
+            'rejected': { color: 'error', icon: <InactiveIcon />, label: 'Rejected' }
+        };
+
+        const config = statusConfig[status] || statusConfig.pending;
+
+        return (
             <Chip
-                icon={<ActiveIcon />}
-                label="Active"
-                color="success"
+                icon={config.icon}
+                label={config.label}
+                color={config.color}
                 size="small"
                 variant="outlined"
             />
-        ) : (
+        );
+    };
+
+    const getPaymentChip = (status) => {
+        const statusConfig = {
+            'paid': { color: 'success', icon: <PaymentIcon />, label: 'Paid' },
+            'pending': { color: 'warning', icon: <PaymentIcon />, label: 'Pending' },
+            'failed': { color: 'error', icon: <PaymentIcon />, label: 'Failed' }
+        };
+
+        const config = statusConfig[status] || statusConfig.pending;
+
+        return (
             <Chip
-                icon={<InactiveIcon />}
-                label="Inactive"
-                color="error"
+                icon={config.icon}
+                label={config.label}
+                color={config.color}
                 size="small"
                 variant="outlined"
             />
@@ -100,8 +136,18 @@ const ClassStudents = ({ classId, className }) => {
 
     if (loading) {
         return (
-            <Box className="class-students-container">
-                <Typography>Loading students...</Typography>
+            <Box className="class-students-container" sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
+                <CircularProgress />
+            </Box>
+        );
+    }
+
+    if (error) {
+        return (
+            <Box className="class-students-container" sx={{ p: 2 }}>
+                <Alert severity="error" onClose={() => setError(null)}>
+                    {error}
+                </Alert>
             </Box>
         );
     }
@@ -133,16 +179,17 @@ const ClassStudents = ({ classId, className }) => {
                         <TableRow>
                             <TableCell>Name</TableCell>
                             <TableCell>Email</TableCell>
+                            <TableCell>Phone</TableCell>
                             <TableCell>Enrollment Date</TableCell>
                             <TableCell>Status</TableCell>
-                            <TableCell>Attendance</TableCell>
-                            <TableCell>Last Attended</TableCell>
+                            <TableCell>Payment</TableCell>
+                            <TableCell>Session</TableCell>
                             <TableCell align="right">Actions</TableCell>
                         </TableRow>
                     </TableHead>
                     <TableBody>
                         {filteredStudents.map((student) => (
-                            <TableRow key={student.id}>
+                            <TableRow key={student.enrollment_id || student.id}>
                                 <TableCell>
                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                         <PersonIcon color="action" fontSize="small" />
@@ -155,22 +202,27 @@ const ClassStudents = ({ classId, className }) => {
                                         {student.email}
                                     </Box>
                                 </TableCell>
+                                <TableCell>{student.phone_number || 'N/A'}</TableCell>
                                 <TableCell>
                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                         <CalendarIcon color="action" fontSize="small" />
-                                        {new Date(student.enrollment_date).toLocaleDateString()}
+                                        {new Date(student.enrolled_at).toLocaleDateString()}
                                     </Box>
                                 </TableCell>
-                                <TableCell>{getStatusChip(student.status)}</TableCell>
-                                <TableCell>{student.attendance}%</TableCell>
+                                <TableCell>{getStatusChip(student.enrollment_status)}</TableCell>
+                                <TableCell>{getPaymentChip(student.payment_status)}</TableCell>
                                 <TableCell>
-                                    {new Date(student.last_attended).toLocaleDateString()}
+                                    {student.session_date ? (
+                                        `${new Date(student.session_date).toLocaleDateString()} ${student.start_time.substring(0, 5)
+                                        }-${student.end_time.substring(0, 5)}`
+                                    ) : 'Not assigned'}
                                 </TableCell>
                                 <TableCell align="right">
                                     <IconButton
                                         color="error"
                                         onClick={() => handleDeleteClick(student)}
                                         size="small"
+                                        title="Remove Student"
                                     >
                                         <DeleteIcon />
                                     </IconButton>
@@ -179,7 +231,7 @@ const ClassStudents = ({ classId, className }) => {
                         ))}
                         {filteredStudents.length === 0 && (
                             <TableRow>
-                                <TableCell colSpan={7} align="center">
+                                <TableCell colSpan={8} align="center">
                                     No students found
                                 </TableCell>
                             </TableRow>

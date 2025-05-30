@@ -12,10 +12,51 @@ const seed = async () => {
       DROP TABLE IF EXISTS payments CASCADE;
       DROP TABLE IF EXISTS enrollments CASCADE;
       DROP TABLE IF EXISTS classes CASCADE;
+      DROP TABLE IF EXISTS user_notifications CASCADE;
     `);
 
-    // Create only class-related tables
+    // Create all tables
     await pool.query(`
+      -- Create users table
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        email VARCHAR(255) NOT NULL UNIQUE,
+        password VARCHAR(255) NOT NULL,
+        role VARCHAR(50) NOT NULL CHECK (role IN ('admin', 'instructor', 'user')),
+        status VARCHAR(50) NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'inactive', 'suspended')),
+        first_name VARCHAR(100),
+        last_name VARCHAR(100),
+        phone_number VARCHAR(20),
+        email_notifications BOOLEAN DEFAULT true,
+        sms_notifications BOOLEAN DEFAULT false,
+        last_login TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+
+      -- Create indexes for users table
+      CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+      CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
+      CREATE INDEX IF NOT EXISTS idx_users_status ON users(status);
+      CREATE INDEX IF NOT EXISTS idx_users_created_at ON users(created_at);
+
+      -- Create trigger for users updated_at
+      DROP TRIGGER IF EXISTS update_users_updated_at ON users;
+      CREATE OR REPLACE FUNCTION update_users_updated_at()
+      RETURNS TRIGGER AS $$
+      BEGIN
+          NEW.updated_at = CURRENT_TIMESTAMP;
+          RETURN NEW;
+      END;
+      $$ language 'plpgsql';
+
+      CREATE TRIGGER update_users_updated_at
+          BEFORE UPDATE ON users
+          FOR EACH ROW
+          EXECUTE FUNCTION update_users_updated_at();
+
+      -- Create classes table
       CREATE TABLE classes (
         id SERIAL PRIMARY KEY,
         title VARCHAR(100) NOT NULL,
@@ -35,7 +76,7 @@ const seed = async () => {
         status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('in_progress', 'cancelled', 'completed', 'scheduled')),
         prerequisites TEXT,
         materials_needed TEXT,
-        instructor_id INTEGER REFERENCES users(id),
+        instructor_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
         waitlist_enabled BOOLEAN DEFAULT false,
         waitlist_capacity INTEGER DEFAULT 0,
         image_url VARCHAR(255),
@@ -43,6 +84,7 @@ const seed = async () => {
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       );
 
+      -- Create class sessions table
       CREATE TABLE class_sessions (
         id SERIAL PRIMARY KEY,
         class_id INTEGER REFERENCES classes(id) ON DELETE CASCADE,
@@ -53,6 +95,7 @@ const seed = async () => {
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       );
 
+      -- Create class waitlist table
       CREATE TABLE class_waitlist (
         id SERIAL PRIMARY KEY,
         class_id INTEGER REFERENCES classes(id) ON DELETE CASCADE,
@@ -64,6 +107,7 @@ const seed = async () => {
         UNIQUE(class_id, user_id)
       );
 
+      -- Create enrollments table
       CREATE TABLE enrollments (
         id SERIAL PRIMARY KEY,
         user_id INTEGER REFERENCES users(id),
@@ -77,6 +121,7 @@ const seed = async () => {
         enrolled_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
 
+      -- Create payments table
       CREATE TABLE payments (
         id SERIAL PRIMARY KEY,
         user_id INTEGER REFERENCES users(id),
@@ -92,6 +137,35 @@ const seed = async () => {
         refunded_by INTEGER REFERENCES users(id),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+
+      -- Create user notifications table
+      CREATE TABLE user_notifications (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        sender_id INTEGER REFERENCES users(id),
+        type VARCHAR(50) NOT NULL,
+        title VARCHAR(255) NOT NULL,
+        message TEXT NOT NULL,
+        is_read BOOLEAN DEFAULT false,
+        action_url VARCHAR(255),
+        metadata JSONB,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+
+      -- Create user activity log table
+      CREATE TABLE IF NOT EXISTS user_activity_log (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        action VARCHAR(50) NOT NULL,
+        details JSONB,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+
+      -- Create indexes for user activity log
+      CREATE INDEX IF NOT EXISTS idx_user_activity_log_user_id ON user_activity_log(user_id);
+      CREATE INDEX IF NOT EXISTS idx_user_activity_log_action ON user_activity_log(action);
+      CREATE INDEX IF NOT EXISTS idx_user_activity_log_created_at ON user_activity_log(created_at);
 
       -- Create updated_at trigger function if it doesn't exist
       CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -115,6 +189,13 @@ const seed = async () => {
           FOR EACH ROW
           EXECUTE FUNCTION update_updated_at_column();
 
+      -- Create trigger for user_notifications updated_at
+      DROP TRIGGER IF EXISTS update_user_notifications_updated_at ON user_notifications;
+      CREATE TRIGGER update_user_notifications_updated_at
+          BEFORE UPDATE ON user_notifications
+          FOR EACH ROW
+          EXECUTE FUNCTION update_updated_at_column();
+
       -- Create indexes for better query performance
       CREATE INDEX IF NOT EXISTS idx_class_sessions_class_id ON class_sessions(class_id);
       CREATE INDEX IF NOT EXISTS idx_class_sessions_session_date ON class_sessions(session_date);
@@ -122,6 +203,14 @@ const seed = async () => {
       CREATE INDEX IF NOT EXISTS idx_class_waitlist_user_id ON class_waitlist(user_id);
       CREATE INDEX IF NOT EXISTS idx_class_waitlist_status ON class_waitlist(status);
       CREATE INDEX IF NOT EXISTS idx_enrollments_session_id ON enrollments(session_id);
+      -- Create indexes for user_notifications
+      CREATE INDEX IF NOT EXISTS idx_user_notifications_user_id ON user_notifications(user_id);
+      CREATE INDEX IF NOT EXISTS idx_user_notifications_sender_id ON user_notifications(sender_id);
+      CREATE INDEX IF NOT EXISTS idx_user_notifications_type ON user_notifications(type);
+      CREATE INDEX IF NOT EXISTS idx_user_notifications_created_at ON user_notifications(created_at);
+
+      -- Add comment to explain the sender_id column
+      COMMENT ON COLUMN user_notifications.sender_id IS 'ID of the user who sent the notification. NULL for system-generated notifications.';
     `);
 
     // Create test users only if they don't exist
@@ -357,13 +446,35 @@ const seed = async () => {
         (2, 'payment_method_added', '{"payment_type": "credit_card", "last_four": "5555"}');
     `);
 
-    // Insert sample notifications
+    // Insert sample notifications with sender_id
     await pool.query(`
-      INSERT INTO user_notifications (user_id, type, title, message, is_read, action_url)
+      INSERT INTO user_notifications (user_id, type, title, message, is_read, action_url, sender_id, metadata)
       VALUES
-        (1, 'class_reminder', 'Upcoming Class', 'Your painting class starts in 1 hour', false, '/classes/1'),
-        (1, 'certificate_ready', 'Certificate Available', 'Your yoga certificate is ready to download', false, '/certificates/2'),
-        (2, 'payment_due', 'Payment Reminder', 'Payment for Cooking with Spices is due soon', false, '/payments/3');
+        -- System notifications (sender_id is NULL)
+        (1, 'class_reminder', 'Upcoming Class', 'Your painting class starts in 1 hour', false, '/classes/1', NULL, '{"category": "class", "priority": "high"}'::jsonb),
+        (1, 'certificate_ready', 'Certificate Available', 'Your yoga certificate is ready to download', false, '/certificates/2', NULL, '{"category": "certificate", "priority": "medium"}'::jsonb),
+        
+        -- Admin sent notifications (sender_id = 3, which is Admin User)
+        (1, 'custom_notification', 'Welcome to YJ Child Care Plus!', 'We are excited to have you join our community. Feel free to explore our classes and programs.', false, '/dashboard', 3, '{"category": "welcome", "priority": "high"}'::jsonb),
+        (2, 'custom_notification', 'Payment Overdue', 'Your payment for the CPR class is overdue. Please process the payment to maintain your enrollment.', false, '/payments/3', 3, '{"category": "payment", "priority": "high"}'::jsonb),
+        (1, 'custom_notification', 'Class Schedule Change', 'Your CDA class schedule has been updated. Please check the new timings.', false, '/classes/1', 3, '{"category": "class", "priority": "high"}'::jsonb),
+        
+        -- Instructor sent notifications (sender_id = 4 or 5, which are instructors)
+        (1, 'custom_notification', 'Class Preparation', 'Please bring your art supplies for tomorrow''s class. We will be working on watercolor techniques.', false, '/classes/1', 4, '{"category": "class", "priority": "medium"}'::jsonb),
+        (2, 'custom_notification', 'Assignment Reminder', 'Don''t forget to submit your child development observation report by Friday.', false, '/assignments/1', 4, '{"category": "assignment", "priority": "medium"}'::jsonb),
+        (1, 'custom_notification', 'Class Feedback', 'Thank you for your participation in today''s class. Your insights were valuable!', false, '/classes/2', 5, '{"category": "feedback", "priority": "low"}'::jsonb),
+        
+        -- Multiple recipients for the same notification
+        (1, 'custom_notification', 'Holiday Schedule', 'The center will be closed on December 25th for Christmas.', false, '/announcements/1', 3, '{"category": "announcement", "priority": "medium"}'::jsonb),
+        (2, 'custom_notification', 'Holiday Schedule', 'The center will be closed on December 25th for Christmas.', false, '/announcements/1', 3, '{"category": "announcement", "priority": "medium"}'::jsonb),
+        
+        -- Class-specific notifications
+        (1, 'class_update', 'Class Cancelled', 'The CPR class scheduled for tomorrow has been cancelled due to instructor illness.', false, '/classes/3', 3, '{"category": "class", "priority": "high"}'::jsonb),
+        (2, 'class_update', 'Class Rescheduled', 'Your Development and Operations class has been rescheduled to next week.', false, '/classes/2', 3, '{"category": "class", "priority": "high"}'::jsonb),
+        
+        -- Payment notifications
+        (1, 'payment_due', 'Payment Reminder', 'Payment for CDA class is due in 3 days.', false, '/payments/1', 3, '{"category": "payment", "priority": "high"}'::jsonb),
+        (2, 'payment_due', 'Payment Confirmation', 'Your payment for CPR class has been received. Thank you!', false, '/payments/2', 3, '{"category": "payment", "priority": "medium"}'::jsonb);
     `);
 
     // Insert sample payments with refunds
@@ -473,6 +584,9 @@ const seed = async () => {
       )::jsonb
       WHERE metadata IS NULL;
     `);
+
+    // Set instructor_id to NULL for all classes where the instructor will be deleted
+    await pool.query(`UPDATE classes SET instructor_id = NULL WHERE instructor_id NOT IN (SELECT id FROM users);`);
 
     console.log('Database seeded successfully!');
     pool.end();

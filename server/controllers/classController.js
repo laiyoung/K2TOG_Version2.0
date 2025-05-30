@@ -9,7 +9,8 @@ const {
     updateClassStatus,
     getClassWithDetails,
     updateClass,
-    deleteClass
+    deleteClass,
+    getClassParticipants
 } = require('../models/classModel');
 
 const { validateDate, validateTime, validatePrice, validateCapacity } = require('../utils/validators');
@@ -309,6 +310,19 @@ const uploadClassImage = async (req, res) => {
     }
 };
 
+// @desc    Get class participants
+// @route   GET /api/classes/:id/participants
+// @access  Admin
+const getClassParticipantsList = async (req, res) => {
+    try {
+        const participants = await getClassParticipants(req.params.id);
+        res.json(participants);
+    } catch (err) {
+        console.error('Get class participants error:', err);
+        res.status(500).json({ error: 'Failed to load class participants' });
+    }
+};
+
 module.exports = {
     getAllClasses,
     getSingleClass,
@@ -320,6 +334,7 @@ module.exports = {
     updateWaitlistEntryStatus,
     getClassWaitlistEntries,
     updateClassStatusById,
-    uploadClassImage
+    uploadClassImage,
+    getClassParticipantsList
 };
   

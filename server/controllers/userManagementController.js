@@ -257,6 +257,7 @@ const deleteUserAccount = async (req, res) => {
 
     const client = await pool.connect();
     try {
+        console.log('Attempting to delete user:', id);
         await client.query('BEGIN');
 
         // First, check if user exists and get their details
@@ -269,6 +270,7 @@ const deleteUserAccount = async (req, res) => {
 
         if (userRows.length === 0) {
             await client.query('ROLLBACK');
+            console.log('User not found:', id);
             return res.status(404).json({ error: 'User not found' });
         }
 
@@ -282,9 +284,9 @@ const deleteUserAccount = async (req, res) => {
             AND enrollment_status = 'approved'
         `;
         const { rows: enrollmentRows } = await client.query(enrollmentQuery, [id]);
-        
         if (parseInt(enrollmentRows[0].count) > 0) {
             await client.query('ROLLBACK');
+            console.log('User has active enrollments:', id);
             return res.status(400).json({ 
                 error: 'Cannot delete user with active enrollments. Please handle enrollments first.' 
             });
@@ -298,9 +300,9 @@ const deleteUserAccount = async (req, res) => {
             AND status = 'pending'
         `;
         const { rows: paymentRows } = await client.query(paymentQuery, [id]);
-        
         if (parseInt(paymentRows[0].count) > 0) {
             await client.query('ROLLBACK');
+            console.log('User has pending payments:', id);
             return res.status(400).json({ 
                 error: 'Cannot delete user with pending payments. Please handle payments first.' 
             });
@@ -313,7 +315,18 @@ const deleteUserAccount = async (req, res) => {
             reason: reason || 'No reason provided'
         });
 
+        // If user is an instructor, set instructor_id to NULL in classes
+        if (user.role === 'instructor') {
+            console.log('Setting instructor_id to NULL for classes taught by user:', id);
+            await client.query('UPDATE classes SET instructor_id = NULL WHERE instructor_id = $1', [id]);
+        }
+
+        // Set sender_id to NULL in notifications where this user is the sender
+        console.log('Setting sender_id to NULL for notifications sent by user:', id);
+        await client.query('UPDATE user_notifications SET sender_id = NULL WHERE sender_id = $1', [id]);
+
         // Delete user's data from related tables
+        console.log('Deleting related data for user:', id);
         await client.query('DELETE FROM user_notifications WHERE user_id = $1', [id]);
         await client.query('DELETE FROM user_activity_log WHERE user_id = $1', [id]);
         await client.query('DELETE FROM user_payment_methods WHERE user_id = $1', [id]);
@@ -322,10 +335,11 @@ const deleteUserAccount = async (req, res) => {
         await client.query('DELETE FROM enrollments WHERE user_id = $1', [id]);
         
         // Finally, delete the user
+        console.log('Deleting user row:', id);
         await client.query('DELETE FROM users WHERE id = $1', [id]);
 
         await client.query('COMMIT');
-
+        console.log('User deleted successfully:', id);
         res.json({ 
             message: 'User account deleted successfully',
             user: {
@@ -336,7 +350,7 @@ const deleteUserAccount = async (req, res) => {
         });
     } catch (error) {
         await client.query('ROLLBACK');
-        console.error('Delete user error:', error);
+        console.error('Delete user error:', error.stack || error);
         res.status(500).json({ error: 'Failed to delete user account' });
     } finally {
         client.release();

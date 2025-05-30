@@ -43,6 +43,7 @@ const NotificationCenter = () => {
 
   const [activeTab, setActiveTab] = useState(0);
   const [notifications, setNotifications] = useState([]);
+  const [sentNotifications, setSentNotifications] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [templates, setTemplates] = useState(
@@ -71,21 +72,41 @@ const NotificationCenter = () => {
 
   useEffect(() => {
     fetchNotifications();
+    if (activeTab === 1) { // If on sent notifications tab
+      fetchSentNotifications();
+    }
     return () => {
       // Clear any pending error timeout when component unmounts
       if (errorTimeoutRef.current) {
         clearTimeout(errorTimeoutRef.current);
       }
     };
-  }, []);
+  }, [activeTab]); // Add activeTab as dependency
 
   const fetchNotifications = async () => {
     try {
       setLoading(true);
-      const data = await adminService.getNotifications();
-      setNotifications(data);
+      const response = await adminService.getNotifications();
+      setNotifications(Array.isArray(response) ? response : []);
     } catch (error) {
-      handleError(error, "Failed to fetch notifications");
+      console.error('Failed to fetch notifications:', error);
+      setError(error.message || 'Failed to fetch notifications');
+      setNotifications([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchSentNotifications = async () => {
+    try {
+      setLoading(true);
+      const response = await adminService.getSentNotifications();
+      console.log('Fetched from /admin/sent:', response);
+      setSentNotifications(Array.isArray(response) ? response : []);
+    } catch (error) {
+      console.error('Failed to fetch sent notifications:', error);
+      setError(error.message || 'Failed to fetch sent notifications');
+      setSentNotifications([]);
     } finally {
       setLoading(false);
     }
@@ -123,6 +144,21 @@ const NotificationCenter = () => {
       setLoading(true);
       await adminService.deleteNotification(notificationId);
       await fetchNotifications();
+      enqueueSnackbar("Notification deleted successfully", {
+        variant: "success",
+      });
+    } catch (error) {
+      handleError(error, "Failed to delete notification");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteSentNotification = async (notificationId) => {
+    try {
+      setLoading(true);
+      await adminService.deleteNotification(notificationId);
+      await fetchSentNotifications();
       enqueueSnackbar("Notification deleted successfully", {
         variant: "success",
       });
@@ -316,7 +352,8 @@ const NotificationCenter = () => {
           scrollButtons="auto"
           allowScrollButtonsMobile
         >
-          <Tab label="All Notifications" />
+          <Tab label="Received Notifications" />
+          <Tab label="Sent Notifications" />
           <Tab label="Templates" />
         </Tabs>
       </Paper>
@@ -439,6 +476,73 @@ const NotificationCenter = () => {
       )}
 
       {activeTab === 1 && (
+        <List sx={{ width: "100%" }}>
+          {sentNotifications.map((notification) => (
+            <React.Fragment key={notification.id}>
+              <ListItem
+                sx={{
+                  flexDirection: { xs: "column", sm: "row" },
+                  alignItems: { xs: "flex-start", sm: "center" },
+                  gap: 1,
+                  py: 2,
+                  bgcolor: notification.is_read ? 'inherit' : 'action.hover',
+                  borderLeft: notification.is_read ? 'none' : '4px solid #3498db',
+                }}
+                secondaryAction={
+                  <Box
+                    sx={{
+                      display: "flex",
+                      gap: 1,
+                      mt: { xs: 1, sm: 0 },
+                    }}
+                  >
+                    <IconButton
+                      edge="end"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteSentNotification(notification.id);
+                      }}
+                      size="small"
+                    >
+                      <DeleteIcon />
+                    </IconButton>
+                  </Box>
+                }
+              >
+                <ListItemIcon>
+                  <NotificationIcon color={notification.is_read ? "action" : "primary"} />
+                </ListItemIcon>
+                <ListItemText
+                  primary={
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Typography variant="subtitle1" component="div">
+                        {notification.title}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary" component="span">
+                        {new Date(notification.created_at).toLocaleDateString()}
+                      </Typography>
+                    </Box>
+                  }
+                  secondary={
+                    <Box component="div" sx={{ mt: 0.5 }}>
+                      <Typography variant="body2" color="text.secondary" component="span" sx={{ display: 'block', mb: 1 }}>
+                        {notification.message}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary" component="span">
+                        Sent to: {notification.recipient_name || 'Multiple recipients'}
+                      </Typography>
+                    </Box>
+                  }
+                  secondaryTypographyProps={{ component: 'div' }}
+                />
+              </ListItem>
+              <Divider />
+            </React.Fragment>
+          ))}
+        </List>
+      )}
+
+      {activeTab === 2 && (
         <List sx={{ width: "100%" }}>
           {templates.map((template) => (
             <ListItem
@@ -713,7 +817,9 @@ const NotificationCenter = () => {
                   : "Custom Notification",
                 message: broadcastMessage,
                 recipient: selectedRecipient,
-                recipientType: selectedRecipientType,
+                recipientType: selectedTemplate
+                  ? templates.find((t) => t.id === selectedTemplate)?.recipientType
+                  : selectedRecipientType
               })
             }
             variant="contained"

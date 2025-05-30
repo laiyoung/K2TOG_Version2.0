@@ -32,9 +32,9 @@ const getUnreadCount = async (req, res) => {
 // @access  Private
 const markAsRead = async (req, res) => {
     try {
-        const notification = await Notification.markNotificationRead(req.params.id);
+        const notification = await Notification.markNotificationRead(req.params.id, req.user.id);
         if (!notification) {
-            return res.status(404).json({ error: 'Notification not found' });
+            return res.status(404).json({ error: 'Notification not found or unauthorized' });
         }
         res.json(notification);
     } catch (error) {
@@ -61,7 +61,10 @@ const markAllAsRead = async (req, res) => {
 // @access  Private
 const deleteNotification = async (req, res) => {
     try {
-        await Notification.deleteNotification(req.params.id);
+        const notification = await Notification.deleteNotification(req.params.id, req.user.id);
+        if (!notification) {
+            return res.status(404).json({ error: 'Notification not found or unauthorized' });
+        }
         res.json({ message: 'Notification deleted successfully' });
     } catch (error) {
         console.error('Delete notification error:', error);
@@ -133,7 +136,8 @@ const sendBulkNotification = async (req, res) => {
             template_name,
             user_ids,
             variables,
-            action_url
+            action_url,
+            req.user.id
         );
 
         res.status(201).json({
@@ -171,7 +175,8 @@ const broadcastNotification = async (req, res) => {
             template_name,
             user_ids,
             variables,
-            action_url
+            action_url,
+            req.user.id
         );
 
         res.status(201).json({
@@ -189,6 +194,20 @@ const broadcastNotification = async (req, res) => {
     }
 };
 
+// @desc    Get notifications sent by admin
+// @route   GET /api/admin/notifications/sent
+// @access  Private/Admin
+const getSentNotifications = async (req, res) => {
+    try {
+        const notifications = await Notification.getNotificationsSentByAdmin(req.user.id);
+        console.log('Sent notifications returned:', notifications)
+        res.json(notifications);
+    } catch (error) {
+        console.error('Get sent notifications error:', error);
+        res.status(500).json({ error: 'Failed to get sent notifications' });
+    }
+};
+
 module.exports = {
     getUserNotifications,
     getUnreadCount,
@@ -198,5 +217,6 @@ module.exports = {
     createTemplate,
     getTemplates,
     sendBulkNotification,
-    broadcastNotification
+    broadcastNotification,
+    getSentNotifications
 }; 

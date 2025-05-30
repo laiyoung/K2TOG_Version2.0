@@ -6,6 +6,7 @@ const {
   getAllEnrollments,
   approveEnrollment,
   rejectEnrollment,
+  setEnrollmentPending,
   getPendingEnrollments,
   getEnrollmentById
 } = require("../models/enrollmentModel");
@@ -165,8 +166,15 @@ const getMyEnrollments = async (req, res) => {
 // @access  Admin
 const getAllEnrollmentsAdmin = async (req, res) => {
   try {
-    const { status, class_id, user_id, start_date, end_date } = req.query;
-    const enrollments = await getAllEnrollments({ status, class_id, user_id, start_date, end_date });
+    const filters = {
+      status: req.query.status,
+      class_id: req.query.classId,
+      user_id: req.query.userId,
+      start_date: req.query.startDate,
+      end_date: req.query.endDate
+    };
+
+    const enrollments = await getAllEnrollments(filters);
     res.json(enrollments);
   } catch (err) {
     console.error("Admin fetch error:", err);
@@ -293,6 +301,49 @@ const rejectEnrollmentRequest = async (req, res) => {
   }
 };
 
+// @desc    Set enrollment to pending (admin)
+// @route   POST /api/enrollments/:id/pending
+// @access  Admin
+const setEnrollmentToPending = async (req, res) => {
+  const { id } = req.params;
+  const { adminNotes } = req.body;
+  const adminId = req.user.id;
+
+  try {
+    const enrollment = await getEnrollmentById(id);
+    if (!enrollment) {
+      return res.status(404).json({ error: "Enrollment not found" });
+    }
+
+    if (enrollment.enrollment_status === 'pending') {
+      return res.status(400).json({ error: "Enrollment is already pending" });
+    }
+
+    const pendingEnrollment = await setEnrollmentPending(id, adminId, adminNotes);
+
+    // Send notification email
+    try {
+      await sendEmail({
+        to: enrollment.user_email,
+        subject: "Enrollment Status Update",
+        html: `
+          <h2>Enrollment Status Update</h2>
+          <p>Your enrollment in "${enrollment.class_title}" has been set to pending.</p>
+          ${adminNotes ? `<p>Notes: ${adminNotes}</p>` : ''}
+          <p>We will review your enrollment and update you soon.</p>
+        `
+      });
+    } catch (emailError) {
+      console.error("Email sending failed:", emailError);
+    }
+
+    res.json(pendingEnrollment);
+  } catch (err) {
+    console.error("Set enrollment pending error:", err);
+    res.status(500).json({ error: "Failed to set enrollment to pending" });
+  }
+};
+
 module.exports = {
   enrollInClass,
   cancelClassEnrollment,
@@ -301,5 +352,6 @@ module.exports = {
   getPendingEnrollmentsList,
   getEnrollmentDetails,
   approveEnrollmentRequest,
-  rejectEnrollmentRequest
+  rejectEnrollmentRequest,
+  setEnrollmentToPending
 };

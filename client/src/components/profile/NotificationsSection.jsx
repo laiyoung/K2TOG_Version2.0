@@ -1,29 +1,45 @@
 import React from 'react';
+import userService from '../../services/userService';
 import './NotificationsSection.css';
 
 const NotificationsSection = ({ notifications, onNotificationsUpdate }) => {
-    const handleMarkAsRead = (notificationId) => {
-        const updatedNotifications = notifications.map(notification =>
-            notification.id === notificationId
-                ? { ...notification, is_read: true }
-                : notification
-        );
-        onNotificationsUpdate(updatedNotifications);
+    const handleMarkAsRead = async (notificationId) => {
+        try {
+            await userService.markNotificationAsRead(notificationId);
+            const updatedNotifications = notifications.map(notification =>
+                notification.id === notificationId
+                    ? { ...notification, is_read: true }
+                    : notification
+            );
+            onNotificationsUpdate(updatedNotifications);
+        } catch (error) {
+            console.error('Failed to mark notification as read:', error);
+        }
     };
 
-    const handleMarkAllAsRead = () => {
-        const updatedNotifications = notifications.map(notification => ({
-            ...notification,
-            is_read: true
-        }));
-        onNotificationsUpdate(updatedNotifications);
+    const handleMarkAllAsRead = async () => {
+        try {
+            await userService.markAllNotificationsAsRead();
+            const updatedNotifications = notifications.map(notification => ({
+                ...notification,
+                is_read: true
+            }));
+            onNotificationsUpdate(updatedNotifications);
+        } catch (error) {
+            console.error('Failed to mark all notifications as read:', error);
+        }
     };
 
-    const handleDelete = (notificationId) => {
-        const updatedNotifications = notifications.filter(
-            notification => notification.id !== notificationId
-        );
-        onNotificationsUpdate(updatedNotifications);
+    const handleDelete = async (notificationId) => {
+        try {
+            await userService.deleteNotification(notificationId);
+            const updatedNotifications = notifications.filter(
+                notification => notification.id !== notificationId
+            );
+            onNotificationsUpdate(updatedNotifications);
+        } catch (error) {
+            console.error('Failed to delete notification:', error);
+        }
     };
 
     const getNotificationIcon = (type) => {

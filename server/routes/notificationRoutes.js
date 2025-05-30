@@ -10,7 +10,8 @@ const {
     createTemplate,
     getTemplates,
     sendBulkNotification,
-    broadcastNotification
+    broadcastNotification,
+    getSentNotifications
 } = require('../controllers/notificationController');
 
 // User routes
@@ -21,8 +22,11 @@ router.put('/:id/read', markAsRead);
 router.put('/read-all', markAllAsRead);
 router.delete('/:id', deleteNotification);
 
-// Admin routes
-router.use('/admin', requireAdmin); // Admin routes require admin privileges
+// Admin routes - combine auth and admin middleware
+router.use('/admin', [requireAuth, requireAdmin]);
+
+// Admin notification routes
+router.get('/admin/sent', getSentNotifications);
 router.post('/admin/templates', createTemplate);
 router.get('/admin/templates', getTemplates);
 router.post('/admin/bulk', sendBulkNotification);

@@ -86,11 +86,19 @@ const adminService = {
         return api.post('/admin/certificates', { action, ...data });
     },
 
-    getOutstandingPayments: async (dateRange) => {
-        const params = new URLSearchParams();
-        if (dateRange?.startDate) params.append('startDate', dateRange.startDate);
-        if (dateRange?.endDate) params.append('endDate', dateRange.endDate);
-        return api.get(`/admin/financial/payments/outstanding?${params.toString()}`);
+    // Update transaction status
+    updateTransactionStatus: async (transactionId, status) => {
+        const response = await api.patch(`/admin/financial/transactions/${transactionId}`, { status });
+        return response.data;
+    },
+
+    // Export transactions to CSV
+    exportTransactions: async (filters = {}) => {
+        const params = new URLSearchParams(filters).toString();
+        const response = await api.get(`/admin/financial/transactions/export?${params}`, {
+            responseType: 'blob' // Important for file downloads
+        });
+        return response.data;
     },
 
     // Export analytics report
@@ -119,8 +127,25 @@ const adminService = {
 
     // Notification management
     getNotifications: async () => {
-        const response = await api.get('/notifications');
-        return response.data;
+        try {
+            const response = await api.get('/notifications');
+            // Return the notifications array from the response
+            return response.notifications || response.data || [];
+        } catch (error) {
+            console.error('Error fetching notifications:', error);
+            throw error;
+        }
+    },
+
+    getSentNotifications: async () => {
+        try {
+            const notifications = await api.get('/notifications/admin/sent');
+            console.log('Sent notifications response:', notifications);
+            return notifications;
+        } catch (error) {
+            console.error('Error fetching sent notifications:', error);
+            throw error;
+        }
     },
 
     markNotificationAsRead: async (notificationId) => {
@@ -139,15 +164,31 @@ const adminService = {
     },
 
     sendNotification: async (notificationData) => {
-        const response = await api.post('/notifications/admin/bulk', {
-            template_name: 'custom_notification',
-            user_ids: [Number(notificationData.recipient)],
-            variables: {
-                title: notificationData.title,
-                message: notificationData.message
-            }
-        });
-        return response.data;
+        const { recipientType, recipient, title, message } = notificationData;
+        
+        if (recipientType === 'class') {
+            // Send notification to all users in a class
+            const response = await api.post('/notifications/admin/class', {
+                template_name: 'class_notification',
+                class_id: Number(recipient),
+                variables: {
+                    title,
+                    message
+                }
+            });
+            return response.data;
+        } else {
+            // Send notification to specific user(s)
+            const response = await api.post('/notifications/admin/bulk', {
+                template_name: 'custom_notification',
+                user_ids: [Number(recipient)],
+                variables: {
+                    title,
+                    message
+                }
+            });
+            return response.data;
+        }
     },
 
     sendBroadcast: async (broadcastData) => {
@@ -158,6 +199,65 @@ const adminService = {
             }
         });
         return response.data;
+    },
+
+    // Send payment reminder email
+    sendPaymentReminderEmail: async (paymentId) => {
+        const response = await api.post('/admin/financial/payments/reminder', {
+            payment_id: paymentId
+        });
+        return response.data;
+    },
+
+    // Send payment notification to user's profile
+    sendPaymentNotification: async (paymentId, notificationData) => {
+        const response = await api.post('/admin/financial/payments/notify', {
+            payment_id: paymentId,
+            title: notificationData.title,
+            message: notificationData.message,
+            user_id: notificationData.userId
+        });
+        return response.data;
+    },
+
+    // Get outstanding payments
+    getOutstandingPayments: async (dateRange) => {
+        const params = new URLSearchParams();
+        if (dateRange?.startDate) params.append('startDate', dateRange.startDate);
+        if (dateRange?.endDate) params.append('endDate', dateRange.endDate);
+        return api.get(`/admin/financial/payments/outstanding?${params.toString()}`);
+    },
+
+    updateUserStatus: async (userId, status) => {
+        return api.patch(`/admin/users/${userId}/status`, { status });
+    },
+
+    resetUserPassword: async (userId, newPassword) => {
+        return api.put(`/admin/users/${userId}/password`, { newPassword });
+    },
+
+    deleteUser: async (userId) => {
+        return api.delete(`/admin/users/${userId}`);
+    },
+
+    // Get class sessions
+    getClassSessions: async (classId) => {
+        return api.get(`/classes/${classId}/sessions`);
+    },
+
+    // Get class waitlist
+    getClassWaitlist: async (classId) => {
+        return api.get(`/admin/classes/${classId}/waitlist`);
+    },
+
+    // Get all instructors
+    getInstructors: async () => {
+        return api.get('/admin/instructors');
+    },
+
+    // Get class details with sessions
+    getClassDetails: async (classId) => {
+        return api.get(`/admin/classes/${classId}`);
     }
 };
 

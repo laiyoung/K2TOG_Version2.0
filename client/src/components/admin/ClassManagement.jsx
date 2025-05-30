@@ -27,6 +27,12 @@ import {
   Alert,
   Snackbar,
   TextField,
+  InputAdornment,
+  Chip,
+  FormControl,
+  InputLabel,
+  Select,
+  Stack,
 } from "@mui/material";
 import {
   Edit as EditIcon,
@@ -39,19 +45,33 @@ import {
   Schedule as ScheduleIcon,
   Queue as QueueIcon,
   Update as UpdateIcon,
+  Add as AddIcon,
 } from "@mui/icons-material";
+
+// Add a helper function for date formatting
+const formatDate = (dateString) => {
+  if (!dateString) return 'N/A';
+  const date = new Date(dateString);
+  return date.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric'
+  });
+};
 
 function ClassManagement() {
   const [classes, setClasses] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [editClass, setEditClass] = useState(null);
+  const [instructors, setInstructors] = useState([]);
   const [form, setForm] = useState({
     title: "",
-    instructor: "",
-    date: "",
+    instructor_id: "",
+    description: "",
+    dates: [{ date: "", start_time: "", end_time: "" }],
     location: "",
     capacity: "",
-    enrolled: "",
+    price: "",
   });
   const [sessionsClass, setSessionsClass] = useState(null);
   const [waitlistClass, setWaitlistClass] = useState(null);
@@ -69,6 +89,11 @@ function ClassManagement() {
     fetchClasses();
   }, []);
 
+  // Fetch instructors on component mount
+  useEffect(() => {
+    fetchInstructors();
+  }, []);
+
   const fetchClasses = async () => {
     try {
       setLoading(true);
@@ -81,25 +106,86 @@ function ClassManagement() {
     }
   };
 
+  const fetchInstructors = async () => {
+    try {
+      const response = await adminService.getInstructors();
+      setInstructors(response || []);  // Remove .data since response is already the array
+    } catch (error) {
+      console.error('Failed to fetch instructors:', error);
+      setInstructors([]);  // Set empty array on error
+      handleError(error, "Failed to fetch instructors");
+    }
+  };
+
   const handleAdd = () => {
     setError(null);
     setEditClass(null);
     setForm({
       title: "",
-      instructor: "",
-      date: "",
+      instructor_id: "",
+      description: "",
+      dates: [{ date: "", start_time: "", end_time: "" }],
       location: "",
       capacity: "",
-      enrolled: "",
+      price: "",
     });
     setShowModal(true);
   };
 
-  const handleEdit = (cls) => {
-    setError(null);
-    setEditClass(cls);
-    setForm({ ...cls });
-    setShowModal(true);
+  const handleEdit = async (cls) => {
+    try {
+      setError(null);
+      setLoading(true);
+      console.log('Fetching class details for class:', cls);
+      // Fetch complete class details including sessions using admin endpoint
+      const response = await adminService.getClassDetails(cls.id);
+      console.log('Class details response:', response);
+      const classDetails = response;  // Remove .data since response is already the class details
+      console.log('Class details data:', classDetails);
+
+      if (!classDetails) {
+        console.error('No class details found in response');
+        throw new Error('Class details not found');
+      }
+
+      // Initialize with empty dates array if no sessions exist
+      let formattedDates = [{ date: "", start_time: "", end_time: "" }];
+
+      // Only try to format dates if sessions exist and are in the expected format
+      if (Array.isArray(classDetails.sessions) && classDetails.sessions.length > 0) {
+        console.log('Found sessions:', classDetails.sessions);
+        formattedDates = classDetails.sessions.map(session => ({
+          date: session.session_date ? new Date(session.session_date).toISOString().split('T')[0] : "",
+          start_time: session.start_time ? session.start_time.substring(0, 5) : "",
+          end_time: session.end_time ? session.end_time.substring(0, 5) : ""
+        }));
+      } else {
+        console.log('No sessions found or sessions is not an array');
+      }
+
+      setForm({
+        ...classDetails,
+        instructor_id: classDetails.instructor_id || "",
+        description: classDetails.description || "",
+        dates: formattedDates,
+        location: classDetails.location_details || "",
+        capacity: classDetails.capacity || "",
+        price: classDetails.price || "",
+        // Remove enrolled from form data since it's managed by the system
+        enrolled: undefined
+      });
+      setEditClass({
+        ...classDetails,
+        enrolled_count: classDetails.total_enrollments || 0  // Use total_enrollments from the query
+      });
+      setShowModal(true);
+    } catch (error) {
+      console.error('Error in handleEdit:', error);
+      handleError(error, "Failed to fetch class details");
+      setShowModal(false); // Close modal on error
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleDelete = async (id) => {
@@ -118,7 +204,44 @@ function ClassManagement() {
   };
 
   const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    if (name === 'date') {
+      // Convert the date to YYYY-MM-DD format
+      const date = new Date(value);
+      const formattedDate = date.toISOString().split('T')[0];
+      setForm({ ...form, [name]: formattedDate });
+    } else if (name === 'start_time' || name === 'end_time') {
+      // Ensure time is in HH:mm format
+      const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
+      if (value === '' || timeRegex.test(value)) {
+        setForm({ ...form, [name]: value });
+      }
+    } else {
+      setForm({ ...form, [name]: value });
+    }
+  };
+
+  const handleAddDate = () => {
+    setForm(prev => ({
+      ...prev,
+      dates: [...prev.dates, { date: "", start_time: "", end_time: "" }]
+    }));
+  };
+
+  const handleRemoveDate = (index) => {
+    setForm(prev => ({
+      ...prev,
+      dates: prev.dates.filter((_, i) => i !== index)
+    }));
+  };
+
+  const handleDateChange = (index, field, value) => {
+    setForm(prev => ({
+      ...prev,
+      dates: prev.dates.map((date, i) =>
+        i === index ? { ...date, [field]: value } : date
+      )
+    }));
   };
 
   const handleSave = async () => {
@@ -127,14 +250,25 @@ function ClassManagement() {
       setError(null);
 
       // Validate form
-      if (
-        !form.title ||
-        !form.instructor ||
-        !form.date ||
-        !form.location ||
-        !form.capacity
-      ) {
+      if (!form.title || !form.instructor_id || !form.description ||
+        !form.location || !form.capacity || !form.price ||
+        form.dates.length === 0) {
         throw new Error("Please fill in all required fields");
+      }
+
+      // Validate dates
+      for (const date of form.dates) {
+        if (!date.date || !date.start_time || !date.end_time) {
+          throw new Error("Please fill in all date fields");
+        }
+      }
+
+      // Validate time format
+      const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
+      for (const date of form.dates) {
+        if (!timeRegex.test(date.start_time) || !timeRegex.test(date.end_time)) {
+          throw new Error("Invalid time format. Use HH:mm format (e.g., 09:30)");
+        }
       }
 
       // Validate numeric fields
@@ -142,22 +276,22 @@ function ClassManagement() {
         throw new Error("Capacity must be a positive number");
       }
 
-      if (
-        form.enrolled &&
-        (isNaN(Number(form.enrolled)) || Number(form.enrolled) < 0)
-      ) {
-        throw new Error("Enrolled count must be a non-negative number");
+      if (isNaN(Number(form.price)) || Number(form.price) < 0) {
+        throw new Error("Price must be a non-negative number");
       }
 
-      if (form.enrolled && Number(form.enrolled) > Number(form.capacity)) {
-        throw new Error("Enrolled count cannot exceed capacity");
-      }
+      // Format the data before sending
+      const formattedData = {
+        ...form,
+        price: Number(form.price),
+        capacity: Number(form.capacity)
+      };
 
       if (editClass) {
-        await classService.updateClass(editClass.id, form);
+        await classService.updateClass(editClass.id, formattedData);
         showSuccess("Class updated successfully");
       } else {
-        await classService.createClass(form);
+        await classService.createClass(formattedData);
         showSuccess("Class created successfully");
       }
       await fetchClasses(); // Refresh the list
@@ -313,7 +447,7 @@ function ClassManagement() {
                   <TableCell>
                     <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                       <EventIcon color="action" fontSize="small" />
-                      {cls.date}
+                      {formatDate(cls.date)}
                     </Box>
                   </TableCell>
                   <TableCell>
@@ -323,7 +457,17 @@ function ClassManagement() {
                     </Box>
                   </TableCell>
                   <TableCell>{cls.capacity}</TableCell>
-                  <TableCell>{cls.enrolled}</TableCell>
+                  <TableCell>
+                    <Box sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 1,
+                      color: cls.enrolled_count >= cls.capacity ? 'error.main' : 'inherit'
+                    }}>
+                      <PeopleIcon color="action" fontSize="small" />
+                      {cls.enrolled_count || 0} / {cls.capacity}
+                    </Box>
+                  </TableCell>
                   <TableCell align="right">
                     <IconButton
                       color="primary"
@@ -398,45 +542,105 @@ function ClassManagement() {
         <Dialog
           open={showModal}
           onClose={() => !loading && setShowModal(false)}
-          maxWidth="sm"
+          maxWidth="md"
           fullWidth
         >
           <DialogTitle>
             {editClass ? "Edit Class" : "Add New Class"}
           </DialogTitle>
           <DialogContent>
-            <Box
-              sx={{ mt: 2, display: "flex", flexDirection: "column", gap: 2 }}
-            >
+            <Box sx={{ mt: 2, display: "flex", flexDirection: "column", gap: 2 }}>
               <TextField
                 name="title"
                 label="Class Title"
                 value={form.title}
                 onChange={handleChange}
                 fullWidth
+                required
               />
+              <FormControl fullWidth required>
+                <InputLabel>Instructor</InputLabel>
+                <Select
+                  name="instructor_id"
+                  value={form.instructor_id}
+                  onChange={handleChange}
+                  label="Instructor"
+                >
+                  {Array.isArray(instructors) && instructors.map((instructor) => (
+                    <MenuItem key={instructor.id} value={instructor.id}>
+                      {instructor.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
               <TextField
-                name="instructor"
-                label="Instructor"
-                value={form.instructor}
+                name="description"
+                label="Description"
+                value={form.description}
                 onChange={handleChange}
+                multiline
+                rows={4}
                 fullWidth
+                required
               />
-              <TextField
-                name="date"
-                label="Date"
-                type="date"
-                value={form.date}
-                onChange={handleChange}
-                InputLabelProps={{ shrink: true }}
-                fullWidth
-              />
+              <Typography variant="subtitle1" sx={{ mt: 2 }}>
+                Class Dates and Times
+              </Typography>
+              {form.dates.map((date, index) => (
+                <Stack key={index} direction="row" spacing={2} alignItems="center">
+                  <TextField
+                    label="Date"
+                    type="date"
+                    value={date.date}
+                    onChange={(e) => handleDateChange(index, 'date', e.target.value)}
+                    InputLabelProps={{ shrink: true }}
+                    required
+                  />
+                  <TextField
+                    label="Start Time"
+                    type="time"
+                    value={date.start_time}
+                    onChange={(e) => handleDateChange(index, 'start_time', e.target.value)}
+                    InputLabelProps={{ shrink: true }}
+                    inputProps={{ step: 300 }}
+                    required
+                  />
+                  <TextField
+                    label="End Time"
+                    type="time"
+                    value={date.end_time}
+                    onChange={(e) => handleDateChange(index, 'end_time', e.target.value)}
+                    InputLabelProps={{ shrink: true }}
+                    inputProps={{ step: 300 }}
+                    required
+                  />
+                  {form.dates.length > 1 && (
+                    <IconButton
+                      color="error"
+                      onClick={() => handleRemoveDate(index)}
+                      size="small"
+                    >
+                      <DeleteIcon />
+                    </IconButton>
+                  )}
+                </Stack>
+              ))}
+              <Button
+                startIcon={<AddIcon />}
+                onClick={handleAddDate}
+                variant="outlined"
+                size="small"
+                sx={{ alignSelf: 'flex-start' }}
+              >
+                Add Another Date
+              </Button>
               <TextField
                 name="location"
                 label="Location"
                 value={form.location}
                 onChange={handleChange}
                 fullWidth
+                required
               />
               <TextField
                 name="capacity"
@@ -445,14 +649,37 @@ function ClassManagement() {
                 value={form.capacity}
                 onChange={handleChange}
                 fullWidth
+                required
+                inputProps={{ min: 1 }}
               />
+              {editClass && (
+                <TextField
+                  label="Currently Enrolled"
+                  value={`${editClass.enrolled_count || 0} / ${editClass.capacity}`}
+                  fullWidth
+                  disabled
+                  InputProps={{
+                    readOnly: true,
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <PeopleIcon color="action" />
+                      </InputAdornment>
+                    ),
+                  }}
+                />
+              )}
               <TextField
-                name="enrolled"
-                label="Enrolled"
+                name="price"
+                label="Price"
                 type="number"
-                value={form.enrolled}
+                value={form.price}
                 onChange={handleChange}
+                InputProps={{
+                  startAdornment: <InputAdornment position="start">$</InputAdornment>,
+                }}
                 fullWidth
+                required
+                inputProps={{ min: 0, step: 0.01 }}
               />
             </Box>
           </DialogContent>
@@ -490,29 +717,71 @@ function ClassManagement() {
       </Dialog>
 
       {sessionsClass && (
-        <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h3 className="text-lg font-medium mb-4">
+        <Dialog
+          open={!!sessionsClass}
+          onClose={() => setSessionsClass(null)}
+          maxWidth="sm"
+          fullWidth
+        >
+          <DialogTitle>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <ScheduleIcon color="primary" />
               Sessions for {sessionsClass.title}
-            </h3>
-            <ul className="mb-4">
-              {sessionsClass.sessions?.map((s, idx) => (
-                <li key={idx} className="mb-1 text-sm">
-                  {s.date} {s.startTime}-{s.endTime}{" "}
-                  <span className="text-gray-400">({s.status})</span>
-                </li>
-              ))}
-            </ul>
-            <div className="flex justify-end">
-              <button
-                className="px-4 py-2 border rounded"
-                onClick={() => setSessionsClass(null)}
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
+            </Box>
+          </DialogTitle>
+          <DialogContent>
+            {loading ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
+                <CircularProgress />
+              </Box>
+            ) : sessionsClass.sessions?.length > 0 ? (
+              <TableContainer>
+                <Table size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Date</TableCell>
+                      <TableCell>Time</TableCell>
+                      <TableCell>Status</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {sessionsClass.sessions.map((session, idx) => (
+                      <TableRow key={idx}>
+                        <TableCell>
+                          {new Date(session.session_date).toLocaleDateString('en-US', {
+                            weekday: 'short',
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric'
+                          })}
+                        </TableCell>
+                        <TableCell>
+                          {session.start_time} - {session.end_time}
+                        </TableCell>
+                        <TableCell>
+                          <Chip
+                            label={session.status || 'Scheduled'}
+                            color={session.status === 'completed' ? 'success' :
+                              session.status === 'cancelled' ? 'error' :
+                                'primary'}
+                            size="small"
+                          />
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            ) : (
+              <Typography color="text.secondary" sx={{ py: 2, textAlign: 'center' }}>
+                No sessions found for this class
+              </Typography>
+            )}
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setSessionsClass(null)}>Close</Button>
+          </DialogActions>
+        </Dialog>
       )}
 
       {waitlistClass && (
