@@ -33,6 +33,7 @@ import {
   InputLabel,
   Select,
   Stack,
+  Tooltip,
 } from "@mui/material";
 import {
   Edit as EditIcon,
@@ -469,66 +470,33 @@ function ClassManagement() {
                     </Box>
                   </TableCell>
                   <TableCell align="right">
-                    <IconButton
-                      color="primary"
-                      onClick={(e) => handleMenuClick(e, cls)}
-                      size="small"
-                      title="More Actions"
-                    >
-                      <MoreVertIcon />
-                    </IconButton>
-                    <Menu
-                      anchorEl={anchorEl}
-                      open={Boolean(anchorEl)}
-                      onClose={handleMenuClose}
-                      slotProps={{
-                        paper: {
-                          elevation: 3,
-                          sx: { minWidth: 180 },
-                        },
-                      }}
-                    >
-                      <MenuItem onClick={() => handleMenuAction("edit")}>
-                        <ListItemIcon>
-                          <EditIcon fontSize="small" />
-                        </ListItemIcon>
-                        <ListItemText>Edit Class</ListItemText>
-                      </MenuItem>
-                      <MenuItem onClick={() => handleMenuAction("sessions")}>
-                        <ListItemIcon>
-                          <ScheduleIcon fontSize="small" />
-                        </ListItemIcon>
-                        <ListItemText>View Sessions</ListItemText>
-                      </MenuItem>
-                      <MenuItem onClick={() => handleMenuAction("waitlist")}>
-                        <ListItemIcon>
-                          <QueueIcon fontSize="small" />
-                        </ListItemIcon>
-                        <ListItemText>View Waitlist</ListItemText>
-                      </MenuItem>
-                      <MenuItem onClick={() => handleMenuAction("status")}>
-                        <ListItemIcon>
-                          <UpdateIcon fontSize="small" />
-                        </ListItemIcon>
-                        <ListItemText>Update Status</ListItemText>
-                      </MenuItem>
-                    </Menu>
-                    <IconButton
-                      color="info"
-                      onClick={() => handleViewStudents(cls)}
-                      size="small"
-                      title="View Students"
-                    >
-                      <PeopleIcon />
-                    </IconButton>
-                    <IconButton
-                      color="error"
-                      onClick={() => handleDelete(cls.id)}
-                      size="small"
-                      title="Delete Class"
-                    >
-                      <DeleteIcon />
-                    </IconButton>
+                    <Tooltip title={<Typography sx={{ fontSize: '1rem', fontWeight: 400 }}>More Actions</Typography>} placement="top" arrow sx={{ '& .MuiTooltip-tooltip': { fontSize: '1rem', fontWeight: 400 } }}>
+                      <IconButton
+                        color="primary"
+                        onClick={(e) => handleMenuClick(e, cls)}
+                        size="small"
+                      >
+                        <MoreVertIcon />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title={<Typography sx={{ fontSize: '1rem', fontWeight: 400 }}>View Students</Typography>} placement="top" arrow sx={{ '& .MuiTooltip-tooltip': { fontSize: '1rem', fontWeight: 400 } }}>
+                      <IconButton
+                        color="info"
+                        onClick={() => handleViewStudents(cls)}
+                        size="small"
+                      >
+                        <PeopleIcon />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title={<Typography sx={{ fontSize: '1rem', fontWeight: 400 }}>Delete Class</Typography>} placement="top" arrow sx={{ '& .MuiTooltip-tooltip': { fontSize: '1rem', fontWeight: 400 } }}>
+                      <IconButton
+                        color="error"
+                        onClick={() => handleDelete(cls.id)}
+                        size="small"
+                      >
+                        <DeleteIcon />
+                      </IconButton>
+                    </Tooltip>
                   </TableCell>
                 </TableRow>
               ))}

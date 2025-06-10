@@ -631,6 +631,7 @@ const UserManagement = () => {
                             }}
                         >
                             <MenuItem value="user">User</MenuItem>
+                            <MenuItem value="student">Student</MenuItem>
                             <MenuItem value="instructor">Instructor</MenuItem>
                             <MenuItem value="admin">Admin</MenuItem>
                         </Select>
@@ -839,6 +840,14 @@ const UserManagement = () => {
                                                 </Typography>
                                                 <Typography variant="body1">
                                                     {userProfile.address || "Not provided"}
+                                                </Typography>
+                                            </Box>
+                                            <Box sx={{ mb: 2 }}>
+                                                <Typography variant="body2" color="text.secondary">
+                                                    Emergency Contact
+                                                </Typography>
+                                                <Typography variant="body1">
+                                                    {userProfile.emergency_contact || "Not provided"}
                                                 </Typography>
                                             </Box>
                                             <Box sx={{ mb: 2 }}>

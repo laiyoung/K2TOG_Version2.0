@@ -59,27 +59,20 @@ const generateClassCertificates = async (req, res) => {
 };
 
 // @desc    Download certificate
-// @route   GET /api/admin/certificates/:id/download
+// @route   GET /api/certificates/:id/download
 // @access  Private/Admin
 const downloadCertificate = async (req, res) => {
     try {
         const { id } = req.params;
-        const certificate = await Certificate.getCertificateById(id);
-        
-        if (!certificate) {
-            return res.status(404).json({ error: 'Certificate not found' });
-        }
-
-        if (!certificate.certificate_url) {
-            // Generate certificate if it doesn't exist
-            await Certificate.generateCertificate(id);
-        }
-
-        const certificatePath = path.join(__dirname, '..', certificate.certificate_url);
-        res.download(certificatePath, `${certificate.certificate_name}.pdf`);
+        const downloadUrl = await Certificate.getDownloadUrl(id);
+        res.redirect(downloadUrl);
     } catch (error) {
         console.error('Download certificate error:', error);
-        res.status(500).json({ error: 'Failed to download certificate' });
+        if (error.message === 'Certificate not found or no file attached') {
+            res.status(404).json({ error: error.message });
+        } else {
+            res.status(500).json({ error: 'Failed to download certificate' });
+        }
     }
 };
 
@@ -133,21 +126,34 @@ const getUserCertificates = async (req, res) => {
 const deleteCertificate = async (req, res) => {
     try {
         const { id } = req.params;
+        console.log('Attempting to delete certificate with ID:', id);
+        
         const certificate = await Certificate.getCertificateById(id);
+        console.log('Found certificate:', certificate ? 'yes' : 'no');
         
         if (!certificate) {
+            console.log('Certificate not found in database');
             return res.status(404).json({ error: 'Certificate not found' });
         }
 
-        // Delete the PDF file if it exists
-        if (certificate.certificate_url) {
-            const certificatePath = path.join(__dirname, '..', certificate.certificate_url);
-            if (fs.existsSync(certificatePath)) {
-                fs.unlinkSync(certificatePath);
+        // Delete from Cloudinary if it exists
+        if (certificate.cloudinary_id) {
+            console.log('Attempting to delete from Cloudinary, cloudinary_id:', certificate.cloudinary_id);
+            try {
+                await cloudinary.uploader.destroy(certificate.cloudinary_id);
+                console.log('Successfully deleted from Cloudinary');
+            } catch (cloudinaryError) {
+                console.error('Error deleting from Cloudinary:', cloudinaryError);
+                // Continue with database deletion even if Cloudinary deletion fails
             }
+        } else {
+            console.log('No cloudinary_id found, skipping Cloudinary deletion');
         }
 
-        await Certificate.deleteCertificate(id, certificate.user_id);
+        console.log('Attempting to delete from database');
+        await Certificate.deleteCertificate(id);
+        console.log('Successfully deleted from database');
+        
         res.json({ message: 'Certificate deleted successfully' });
     } catch (error) {
         console.error('Delete certificate error:', error);
@@ -162,23 +168,67 @@ const deleteCertificate = async (req, res) => {
  */
 const uploadStudentCertificate = async (req, res) => {
     try {
+        console.log('Starting certificate upload...');
         const { studentId } = req.params;
+        const { classId } = req.body;
         const file = req.file;
-        if (!file) return res.status(400).json({ error: 'No file uploaded' });
 
-        const cert = await Certificate.uploadCertificate({
+        if (!file) {
+            return res.status(400).json({ message: 'No file uploaded' });
+        }
+
+        // Log the complete file object to see what Cloudinary returns
+        console.log('Complete Cloudinary upload result:', {
+            originalname: file.originalname,
+            mimetype: file.mimetype,
+            size: file.size,
+            path: file.path,
+            filename: file.filename,
+            public_id: file.public_id,
+            secure_url: file.secure_url,
+            url: file.url,
+            resource_type: file.resource_type,
+            format: file.format,
+            version: file.version,
+            // Log the entire file object to see all available properties
+            fullFileObject: JSON.stringify(file, null, 2)
+        });
+
+        // Extract the public_id from the Cloudinary URL
+        const urlParts = file.path.split('/');
+        const publicId = urlParts[urlParts.length - 1].split('.')[0];
+        
+        console.log('Extracted public_id:', publicId);
+
+        console.log('Upload request studentId:', studentId, 'classId:', classId);
+        const certificate = await Certificate.uploadCertificate({
             user_id: studentId,
-            class_id: req.body.class_id || null,
+            class_id: classId,
             certificate_name: file.originalname,
             file_path: file.path,
             file_type: file.mimetype,
             file_size: file.size,
-            uploaded_by: req.user.id
+            uploaded_by: req.user.id,
+            cloudinary_id: publicId
         });
 
-        res.status(201).json({ message: 'Certificate uploaded', certificate: cert });
+        console.log('Created certificate:', certificate);
+        // Fetch the full certificate info with joins
+        const fullCertificate = await Certificate.getCertificateById(certificate.id);
+        console.log('Fetched full certificate from DB:', fullCertificate);
+
+        // Map to include student_name and class_name for frontend compatibility
+        const mappedCertificate = {
+            ...fullCertificate,
+            student_name: `${fullCertificate.first_name || ''} ${fullCertificate.last_name || ''}`.trim(),
+            class_name: fullCertificate.class_title || ''
+        };
+
+        console.log('Certificate uploaded successfully (mapped):', mappedCertificate);
+        res.status(201).json(mappedCertificate);
     } catch (error) {
-        res.status(500).json({ error: 'Upload failed', details: error.message });
+        console.error('Error uploading certificate:', error);
+        res.status(500).json({ message: 'Error uploading certificate', error: error.message });
     }
 };
 
@@ -252,10 +302,18 @@ const viewStudentCertificate = async (req, res) => {
 // Get all certificates
 const getAllCertificates = async (req, res) => {
     try {
+        console.log('Fetching all certificates...');
         const certs = await Certificate.getAllCertificates();
+        console.log('Successfully fetched certificates:', certs.length);
         res.json(certs);
     } catch (error) {
-        res.status(500).json({ error: 'Failed to fetch certificates', details: error.message });
+        console.error('Error in getAllCertificates:', error);
+        console.error('Error stack:', error.stack);
+        res.status(500).json({ 
+            error: 'Failed to fetch certificates', 
+            details: error.message,
+            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        });
     }
 };
 

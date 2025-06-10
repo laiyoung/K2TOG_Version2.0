@@ -111,7 +111,7 @@ const validateName = (name) => {
  * @returns {boolean} - True if valid, false otherwise
  */
 const validateRole = (role) => {
-    const validRoles = ['admin', 'instructor', 'parent', 'student'];
+    const validRoles = ['admin', 'instructor', 'student'];
     return validRoles.includes(role);
 };
 

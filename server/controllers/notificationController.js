@@ -161,21 +161,21 @@ const sendBulkNotification = async (req, res) => {
 // @access  Private/Admin
 const broadcastNotification = async (req, res) => {
     try {
-        const { template_name, variables, action_url } = req.body;
+        const { title, message, type } = req.body;
 
-        if (!template_name) {
-            return res.status(400).json({ error: 'Template name is required' });
+        if (!title || !message) {
+            return res.status(400).json({ error: 'Title and message are required' });
         }
 
         // Get all active users
         const users = await getUsersByStatus('active');
         const user_ids = users.map(user => user.id);
 
-        const result = await Notification.createBulkFromTemplate(
-            template_name,
+        // Create a direct broadcast notification
+        const result = await Notification.createDirectBroadcast(
+            title,
+            message,
             user_ids,
-            variables,
-            action_url,
             req.user.id
         );
 
@@ -186,11 +186,7 @@ const broadcastNotification = async (req, res) => {
         });
     } catch (error) {
         console.error('Broadcast notification error:', error);
-        if (error.message === 'Notification template not found') {
-            res.status(404).json({ error: error.message });
-        } else {
-            res.status(500).json({ error: 'Failed to send broadcast notification' });
-        }
+        res.status(500).json({ error: 'Failed to send broadcast notification' });
     }
 };
 

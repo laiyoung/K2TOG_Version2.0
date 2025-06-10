@@ -58,13 +58,13 @@ const createCertificate = async ({ user_id, class_id, certificate_name, certific
 };
 
 // Delete certificate
-const deleteCertificate = async (id, userId) => {
+const deleteCertificate = async (id) => {
     const certificate = await getCertificateById(id);
     if (certificate && certificate.cloudinary_id) {
         // Delete from Cloudinary if exists
         await cloudinary.uploader.destroy(certificate.cloudinary_id);
     }
-    await pool.query('DELETE FROM certificates WHERE id = $1 AND user_id = $2', [id, userId]);
+    await pool.query('DELETE FROM certificates WHERE id = $1', [id]);
 };
 
 // Verify certificate
@@ -163,41 +163,104 @@ const generateClassCertificates = async (classId) => {
 };
 
 // Upload certificate
-const uploadCertificate = async ({ user_id, class_id, certificate_name, file_path, file_type, file_size, uploaded_by }) => {
-    const uploadResult = await cloudinary.uploader.upload(file_path, {
-        resource_type: 'auto',
-        folder: 'certificates'
-    });
+const uploadCertificate = async ({ user_id, class_id, certificate_name, file_path, file_type, file_size, uploaded_by, cloudinary_id }) => {
+    try {
+        console.log('Starting certificate upload to database...', {
+            user_id,
+            class_id,
+            certificate_name,
+            file_path,
+            file_type,
+            file_size,
+            cloudinary_id
+        });
 
-    const result = await pool.query(
-        `INSERT INTO certificates (
-            user_id, class_id, certificate_name, certificate_url, 
-            cloudinary_id, file_type, file_size, uploaded_by, status
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'active') 
-        RETURNING *`,
-        [
-            user_id, class_id, certificate_name, uploadResult.secure_url,
-            uploadResult.public_id, file_type, file_size, uploaded_by
-        ]
-    );
-    return result.rows[0];
+        // Use the secure_url directly from Cloudinary
+        const certificateUrl = file_path;
+
+        console.log('Using certificate URL:', certificateUrl);
+
+        const result = await pool.query(
+            `INSERT INTO certificates (
+                user_id, class_id, certificate_name, certificate_url, 
+                cloudinary_id, file_type, file_size, uploaded_by, status
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'approved') 
+            RETURNING *`,
+            [
+                user_id, 
+                class_id, 
+                certificate_name, 
+                certificateUrl,
+                cloudinary_id,
+                file_type, 
+                file_size, 
+                uploaded_by
+            ]
+        );
+
+        console.log('Certificate record created successfully:', result.rows[0]);
+        return result.rows[0];
+    } catch (error) {
+        console.error('Error creating certificate record:', error);
+        throw error;
+    }
 };
 
 // Get all certificates
 const getAllCertificates = async () => {
-    const result = await pool.query(`
-        SELECT c.*, 
-               u.first_name, u.last_name,
-               cls.title as class_title,
-               up.first_name as uploaded_by_first_name,
-               up.last_name as uploaded_by_last_name
-        FROM certificates c
-        LEFT JOIN users u ON c.user_id = u.id
-        LEFT JOIN classes cls ON c.class_id = cls.id
-        LEFT JOIN users up ON c.uploaded_by = up.id
-        ORDER BY c.created_at DESC
-    `);
-    return result.rows;
+    try {
+        console.log('Executing getAllCertificates query...');
+        const result = await pool.query(`
+            SELECT 
+                c.*,
+                CONCAT(u.first_name, ' ', u.last_name) as student_name,
+                cls.title as class_name,
+                c.created_at as upload_date,
+                c.file_size,
+                c.file_type,
+                c.cloudinary_id,
+                c.status,
+                CONCAT(up.first_name, ' ', up.last_name) as uploaded_by_name
+            FROM certificates c
+            LEFT JOIN users u ON c.user_id = u.id
+            LEFT JOIN classes cls ON c.class_id = cls.id
+            LEFT JOIN users up ON c.uploaded_by = up.id
+            ORDER BY c.created_at DESC
+        `);
+
+        // Always use the stored Cloudinary URL
+        const transformedRows = result.rows.map(cert => {
+            if (cert.certificate_url) {
+                return {
+                    ...cert,
+                    certificate_url: cert.certificate_url
+                };
+            }
+            // If for some reason the URL is missing, return null
+            return {
+                ...cert,
+                certificate_url: null
+            };
+        });
+
+        console.log('Query executed successfully, found', transformedRows.length, 'certificates');
+        return transformedRows;
+    } catch (error) {
+        console.error('Database error in getAllCertificates:', error);
+        console.error('SQL State:', error.code);
+        console.error('Error stack:', error.stack);
+        throw error;
+    }
+};
+
+// Get authenticated download URL for a certificate
+const getDownloadUrl = async (certificateId) => {
+    const certificate = await getCertificateById(certificateId);
+    if (!certificate || !certificate.certificate_url) {
+        throw new Error('Certificate not found or no file attached');
+    }
+    // Always use the stored Cloudinary URL
+    return certificate.certificate_url;
 };
 
 module.exports = {
@@ -211,5 +274,6 @@ module.exports = {
     generateClassCertificates,
     uploadCertificate,
     getAllCertificates,
+    getDownloadUrl,
     generateVerificationCode
 }; 

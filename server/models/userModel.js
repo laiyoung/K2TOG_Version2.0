@@ -1,10 +1,49 @@
 const pool = require('../config/db');
 
 // Get all users
-async function getAllUsers() {
-  const result = await pool.query('SELECT * FROM users');
-  return result.rows;
-}
+const getAllUsers = async () => {
+  try {
+    console.log('Executing getAllUsers query...');
+    const query = `
+      SELECT 
+        id,
+        email,
+        first_name,
+        last_name,
+        phone_number,
+        role,
+        status,
+        created_at,
+        updated_at,
+        CONCAT(first_name, ' ', last_name) as display_name
+      FROM users
+      ORDER BY first_name, last_name
+    `;
+    
+    console.log('SQL Query:', query);
+    const result = await pool.query(query);
+    console.log('Raw database result:', {
+      rowCount: result.rowCount,
+      rows: result.rows.map(row => ({
+        id: row.id,
+        email: row.email,
+        name: `${row.first_name} ${row.last_name}`,
+        role: row.role,
+        status: row.status
+      }))
+    });
+    
+    if (!result.rows || result.rows.length === 0) {
+      console.log('No users found in database');
+      return [];
+    }
+
+    return result.rows;
+  } catch (error) {
+    console.error('Error in getAllUsers:', error);
+    throw error;
+  }
+};
 
 // Get user by ID
 async function getUserById(id) {
@@ -28,27 +67,63 @@ async function deleteUser(id) {
 }
 
 // Search users
-async function searchUsers({ searchTerm = '', role = null, sortBy = 'created_at', sortOrder = 'DESC', limit = 50, offset = 0, includeInactive = false }) {
-  let query = `SELECT * FROM users WHERE 1=1`;
+async function searchUsers({ searchTerm = '', role = null, sortBy = 'id', sortOrder = 'ASC', limit = 50, offset = 0, includeInactive = false }) {
+  let query = `
+    SELECT 
+      u.*,
+      COALESCE(u.first_name || ' ' || u.last_name, u.email) as display_name
+    FROM users u 
+    WHERE 1=1
+  `;
   const params = [];
   let idx = 1;
+  
   if (searchTerm) {
-    query += ` AND (email ILIKE $${idx} OR first_name ILIKE $${idx} OR last_name ILIKE $${idx} OR phone_number ILIKE $${idx})`;
+    query += ` AND (
+      u.email ILIKE $${idx} 
+      OR u.first_name ILIKE $${idx} 
+      OR u.last_name ILIKE $${idx} 
+      OR u.phone_number ILIKE $${idx}
+      OR COALESCE(u.first_name || ' ' || u.last_name, u.email) ILIKE $${idx}
+    )`;
     params.push(`%${searchTerm}%`);
     idx++;
   }
+  
   if (role) {
-    query += ` AND role = $${idx}`;
+    query += ` AND u.role = $${idx}`;
     params.push(role);
     idx++;
   }
+  
   if (!includeInactive) {
-    query += ` AND status = 'active'`;
+    query += ` AND u.status = 'active'`;
   }
-  query += ` ORDER BY ${sortBy} ${sortOrder} LIMIT $${idx} OFFSET $${idx + 1}`;
+
+  // Always sort by id first to maintain consistent order
+  query += ` ORDER BY u.id ASC, ${sortBy} ${sortOrder} LIMIT $${idx} OFFSET $${idx + 1}`;
   params.push(limit, offset);
+
   const result = await pool.query(query, params);
-  return { users: result.rows, total: result.rows.length };
+  
+  // Get total count for pagination
+  const countQuery = `
+    SELECT COUNT(*) 
+    FROM users u 
+    WHERE 1=1
+    ${searchTerm ? `AND (u.email ILIKE $1 OR u.first_name ILIKE $1 OR u.last_name ILIKE $1 OR u.phone_number ILIKE $1 OR COALESCE(u.first_name || ' ' || u.last_name, u.email) ILIKE $1)` : ''}
+    ${role ? `AND u.role = $${searchTerm ? '2' : '1'}` : ''}
+    ${!includeInactive ? 'AND u.status = \'active\'' : ''}
+  `;
+  const countParams = searchTerm ? [`%${searchTerm}%`] : [];
+  if (role) countParams.push(role);
+  
+  const countResult = await pool.query(countQuery, countParams);
+  
+  return { 
+    users: result.rows, 
+    total: parseInt(countResult.rows[0].count)
+  };
 }
 
 // Update user role

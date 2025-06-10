@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     Container,
     Typography,
@@ -18,7 +18,8 @@ import {
     Select,
     MenuItem,
     Alert,
-    IconButton
+    IconButton,
+    CircularProgress
 } from '@mui/material';
 import {
     Search as SearchIcon,
@@ -28,19 +29,77 @@ import {
 } from '@mui/icons-material';
 import CertificateViewer from '../../components/CertificateViewer';
 import CertificateUpload from '../../components/CertificateUpload';
-import { mockData } from '../../mockData/adminDashboardData';
+import { getAllCertificates, uploadCertificate, downloadCertificate, deleteCertificate } from '../../services/certificateService';
+import { getUsersByRole } from '../../services/userService';
+import classService from '../../services/classService';
 
 const CertificateManagementPage = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [showUploadDialog, setShowUploadDialog] = useState(false);
     const [selectedStudent, setSelectedStudent] = useState('');
+    const [selectedClass, setSelectedClass] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
     const [showFilters, setShowFilters] = useState(false);
     const [alert, setAlert] = useState(null);
+    const [loading, setLoading] = useState(false);
+    const [certificates, setCertificates] = useState([]);
+    const [students, setStudents] = useState([]);
+    const [classes, setClasses] = useState([]);
 
-    // Mock data - replace with actual API calls later
-    const certificates = mockData.certificates;
-    const students = mockData.users;
+    // Fetch certificates, students, and classes on component mount
+    useEffect(() => {
+        fetchCertificates();
+        fetchStudents();
+        fetchClasses();
+    }, []);
+
+    const fetchCertificates = async () => {
+        try {
+            setLoading(true);
+            const data = await getAllCertificates();
+            setCertificates(data);
+        } catch (error) {
+            console.error('Error fetching certificates:', error);
+            if (error.message !== 'Unauthorized') {
+                setAlert({
+                    type: 'error',
+                    message: 'Failed to fetch certificates'
+                });
+            }
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const fetchStudents = async () => {
+        try {
+            const data = await getUsersByRole('user');
+            setStudents(data);
+        } catch (error) {
+            console.error('Error fetching students:', error);
+            if (error.message !== 'Unauthorized') {
+                setAlert({
+                    type: 'error',
+                    message: 'Failed to fetch students'
+                });
+            }
+        }
+    };
+
+    const fetchClasses = async () => {
+        try {
+            const data = await classService.getAllClasses();
+            setClasses(data);
+        } catch (error) {
+            console.error('Error fetching classes:', error);
+            if (error.message !== 'Unauthorized') {
+                setAlert({
+                    type: 'error',
+                    message: 'Failed to fetch classes'
+                });
+            }
+        }
+    };
 
     const handleSearch = (event) => {
         setSearchQuery(event.target.value);
@@ -53,41 +112,115 @@ const CertificateManagementPage = () => {
     const handleUploadClose = () => {
         setShowUploadDialog(false);
         setSelectedStudent('');
+        setSelectedClass('');
     };
 
-    const handleUpload = (file) => {
-        // This will be replaced with actual API call
-        console.log('Uploading file for student:', selectedStudent, file);
-        setAlert({
-            type: 'success',
-            message: 'Certificate uploaded successfully'
-        });
-        handleUploadClose();
+    const handleUpload = async (file) => {
+        try {
+            setLoading(true);
+            await uploadCertificate(selectedStudent, file, selectedClass);
+
+            setAlert({
+                type: 'success',
+                message: 'Certificate uploaded successfully'
+            });
+
+            await fetchCertificates();
+            handleUploadClose();
+        } catch (error) {
+            console.error('Error uploading certificate:', error);
+            if (error.message !== 'Unauthorized') {
+                setAlert({
+                    type: 'error',
+                    message: 'Failed to upload certificate'
+                });
+            }
+        } finally {
+            setLoading(false);
+        }
     };
 
-    const handleDownload = (certificate) => {
-        // This will be replaced with actual API call
-        console.log('Downloading certificate:', certificate);
+    const handleDownload = async (certificate) => {
+        try {
+            // Use the full Cloudinary URL from the database
+            const link = document.createElement('a');
+            link.href = certificate.certificate_url;
+            link.setAttribute('download', certificate.certificate_name);
+            link.setAttribute('target', '_blank');
+            link.setAttribute('rel', 'noopener noreferrer');
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+        } catch (error) {
+            console.error('Error downloading certificate:', error);
+            if (error.message !== 'Unauthorized') {
+                setAlert({
+                    type: 'error',
+                    message: 'Failed to download certificate'
+                });
+            }
+        }
     };
 
-    const handleDelete = (certificate) => {
-        // This will be replaced with actual API call
-        console.log('Deleting certificate:', certificate);
-        setAlert({
-            type: 'success',
-            message: 'Certificate deleted successfully'
-        });
+    const handleDelete = async (certificate) => {
+        try {
+            await deleteCertificate(certificate.id);
+            setAlert({
+                type: 'success',
+                message: 'Certificate deleted successfully'
+            });
+            await fetchCertificates();
+        } catch (error) {
+            console.error('Error deleting certificate:', error);
+            if (error.message !== 'Unauthorized') {
+                setAlert({
+                    type: 'error',
+                    message: error.message || 'Failed to delete certificate'
+                });
+            }
+        }
     };
 
-    const handleStatusChange = (certificate) => {
-        // This will be replaced with actual API call
+    const handleBulkDelete = async (certificateIds) => {
+        try {
+            // Delete certificates sequentially to avoid overwhelming the server
+            for (const id of certificateIds) {
+                await deleteCertificate(id);
+            }
+
+            setAlert({
+                type: 'success',
+                message: `${certificateIds.length} certificate(s) deleted successfully`
+            });
+            await fetchCertificates();
+        } catch (error) {
+            console.error('Error deleting certificates:', error);
+            if (error.message !== 'Unauthorized') {
+                setAlert({
+                    type: 'error',
+                    message: error.message || 'Failed to delete some certificates'
+                });
+            }
+        }
+    };
+
+    const handleStatusChange = async (certificate) => {
+        // Implement status change functionality if needed
         console.log('Changing status for certificate:', certificate);
     };
 
     const filteredCertificates = certificates.filter(cert => {
-        const matchesSearch = cert.certificate_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            cert.student_name.toLowerCase().includes(searchQuery.toLowerCase());
-        const matchesStatus = statusFilter === 'all' || cert.status === statusFilter;
+        if (!cert) return false;
+
+        const studentName = cert.first_name && cert.last_name
+            ? `${cert.first_name} ${cert.last_name}`.toLowerCase()
+            : '';
+        const certName = cert.certificate_name ? cert.certificate_name.toLowerCase() : '';
+
+        const matchesSearch = certName.includes(searchQuery.toLowerCase()) ||
+            studentName.includes(searchQuery.toLowerCase());
+        const matchesStatus = statusFilter === 'all' || (cert.status === statusFilter);
+
         return matchesSearch && matchesStatus;
     });
 
@@ -174,13 +307,23 @@ const CertificateManagementPage = () => {
                     )}
                 </Paper>
 
+                {/* Loading State */}
+                {loading && (
+                    <Box sx={{ display: 'flex', justifyContent: 'center', my: 4 }}>
+                        <CircularProgress />
+                    </Box>
+                )}
+
                 {/* Certificate Viewer */}
-                <CertificateViewer
-                    certificates={filteredCertificates}
-                    onDownload={handleDownload}
-                    onDelete={handleDelete}
-                    onStatusChange={handleStatusChange}
-                />
+                {!loading && (
+                    <CertificateViewer
+                        certificates={filteredCertificates}
+                        onDownload={handleDownload}
+                        onDelete={handleDelete}
+                        onBulkDelete={handleBulkDelete}
+                        onStatusChange={handleStatusChange}
+                    />
+                )}
 
                 {/* Upload Dialog */}
                 <Dialog
@@ -205,7 +348,7 @@ const CertificateManagementPage = () => {
                     </DialogTitle>
                     <DialogContent>
                         <Box sx={{ mb: 3, mt: 2 }}>
-                            <FormControl fullWidth>
+                            <FormControl fullWidth sx={{ mb: 2 }}>
                                 <InputLabel>Select Student</InputLabel>
                                 <Select
                                     value={selectedStudent}
@@ -214,7 +357,21 @@ const CertificateManagementPage = () => {
                                 >
                                     {students.map((student) => (
                                         <MenuItem key={student.id} value={student.id}>
-                                            {student.name}
+                                            {student.first_name} {student.last_name}
+                                        </MenuItem>
+                                    ))}
+                                </Select>
+                            </FormControl>
+                            <FormControl fullWidth>
+                                <InputLabel>Select Class</InputLabel>
+                                <Select
+                                    value={selectedClass}
+                                    label="Select Class"
+                                    onChange={(e) => setSelectedClass(e.target.value)}
+                                >
+                                    {classes.map((classItem) => (
+                                        <MenuItem key={classItem.id} value={classItem.id}>
+                                            {classItem.title}
                                         </MenuItem>
                                     ))}
                                 </Select>
@@ -223,7 +380,7 @@ const CertificateManagementPage = () => {
                         <CertificateUpload
                             onUpload={handleUpload}
                             studentId={selectedStudent}
-                            disabled={!selectedStudent}
+                            disabled={!selectedStudent || !selectedClass}
                         />
                     </DialogContent>
                 </Dialog>

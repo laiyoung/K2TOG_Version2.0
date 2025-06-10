@@ -1,6 +1,6 @@
 // Base API configuration and utility functions
 
-const API_BASE_URL = import.meta.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+const API_BASE_URL = '/api'; // Remove the environment variable since we're using a proxy
 
 // Common headers for all requests
 const getHeaders = (includeAuth = true) => {
@@ -43,20 +43,18 @@ const fetchApi = async (endpoint, options = {}) => {
     }
 
     try {
+        console.log('Making API request to:', `${API_BASE_URL}${endpoint}`); // Add logging
         const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
-        const data = await response.json();
+        console.log('API response status:', response.status); // Add logging
 
         if (!response.ok) {
-            // Handle specific error cases
-            if (response.status === 401) {
-                // Handle unauthorized access
-                localStorage.removeItem('token');
-                window.location.href = '/login';
-                throw new Error('Unauthorized access');
-            }
-            throw new Error(data.error || data.message || 'Something went wrong');
+            const errorData = await response.json().catch(() => ({}));
+            console.error('API Error Response:', errorData); // Add logging
+            throw new Error(errorData.error || errorData.message || 'Something went wrong');
         }
 
+        const data = await response.json();
+        console.log('API response data:', data); // Add logging
         return data;
     } catch (error) {
         console.error('API Error:', error);

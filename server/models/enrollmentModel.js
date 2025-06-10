@@ -8,6 +8,11 @@ const enrollUserInClass = async (userId, classId, sessionId, paymentStatus = 'pa
      RETURNING *`,
     [userId, classId, sessionId, paymentStatus]
   );
+  // Automatically convert user to student if not already
+  await pool.query(
+    `UPDATE users SET role = 'student' WHERE id = $1 AND role != 'student'`,
+    [userId]
+  );
   return result.rows[0];
 };
 

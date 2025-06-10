@@ -7,9 +7,31 @@ const adminService = {
     },
 
     // Get all users
-    getAllUsers: async (filters = {}) => {
-        const queryParams = new URLSearchParams(filters).toString();
-        return api.get(`/admin/users?${queryParams}`);
+    getAllUsers: async (params = {}) => {
+        try {
+            let url = '/admin/users';
+            const queryParams = new URLSearchParams();
+            if (params.page) queryParams.append('page', params.page);
+            if (params.limit) queryParams.append('limit', params.limit);
+            if (params.search) queryParams.append('search', params.search);
+            if (params.role && params.role !== 'all') queryParams.append('role', params.role);
+            if ([...queryParams].length > 0) url += `?${queryParams.toString()}`;
+            console.log('Fetching users from', url); // Add logging
+            const response = await api.get(url);
+            console.log('getAllUsers response:', response); // Add logging
+            if (!Array.isArray(response)) {
+                // If the response is paginated, use response.users
+                if (response && Array.isArray(response.users)) {
+                    return response.users;
+                }
+                console.error('Invalid response format:', response);
+                throw new Error('Invalid response format from server');
+            }
+            return response;
+        } catch (error) {
+            console.error('Error in getAllUsers:', error);
+            throw error;
+        }
     },
 
     // Get user details
@@ -180,7 +202,7 @@ const adminService = {
         } else {
             // Send notification to specific user(s)
             const response = await api.post('/notifications/admin/bulk', {
-                template_name: 'custom_notification',
+                template_name: 'custom_notification', // Use custom notification type
                 user_ids: [Number(recipient)],
                 variables: {
                     title,
@@ -193,10 +215,9 @@ const adminService = {
 
     sendBroadcast: async (broadcastData) => {
         const response = await api.post('/notifications/admin/broadcast', {
-            template_name: 'broadcast_notification',
-            variables: {
-                message: broadcastData.message
-            }
+            title: 'Broadcast Message',
+            message: broadcastData.message,
+            type: 'broadcast'  // Specify this is a direct broadcast
         });
         return response.data;
     },
@@ -281,6 +302,36 @@ const adminService = {
             monthlyRevenue: 0,
             outstandingBalance: 0
         };
+    },
+
+    getTemplates: async () => {
+        try {
+            const response = await api.get('/notifications/admin/templates');
+            return response.data;
+        } catch (error) {
+            console.error('Error fetching templates:', error);
+            throw error;
+        }
+    },
+
+    createTemplate: async (templateData) => {
+        try {
+            const response = await api.post('/notifications/admin/templates', templateData);
+            return response.data;
+        } catch (error) {
+            console.error('Error creating template:', error);
+            throw error;
+        }
+    },
+
+    getAllClasses: async () => {
+        try {
+            const response = await api.get('/admin/classes');
+            return response.data;
+        } catch (error) {
+            console.error('Error fetching classes:', error);
+            throw error;
+        }
     }
 };
 

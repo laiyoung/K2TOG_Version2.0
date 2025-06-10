@@ -96,4 +96,55 @@ const userService = {
     }
 };
 
+// Helper function to handle fetch requests
+const fetchWithAuth = async (url, options = {}) => {
+    const token = localStorage.getItem('token');
+    const headers = {
+        'Content-Type': 'application/json',
+        ...(token && { 'Authorization': `Bearer ${token}` }),
+        ...options.headers
+    };
+
+    const response = await fetch(`/api${url}`, {
+        ...options,
+        headers
+    });
+
+    if (response.status === 401) {
+        window.location.href = '/login';
+        throw new Error('Unauthorized');
+    }
+
+    if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    return response.json();
+};
+
+// Get all users with a specific role
+export const getUsersByRole = async (role) => {
+    return fetchWithAuth(`/admin/users?role=${role}`);
+};
+
+// Get user by ID
+export const getUserById = async (userId) => {
+    return fetchWithAuth(`/admin/users/${userId}`);
+};
+
+// Update user
+export const updateUser = async (userId, userData) => {
+    return fetchWithAuth(`/admin/users/${userId}`, {
+        method: 'PUT',
+        body: JSON.stringify(userData)
+    });
+};
+
+// Delete user
+export const deleteUser = async (userId) => {
+    return fetchWithAuth(`/admin/users/${userId}`, {
+        method: 'DELETE'
+    });
+};
+
 export default userService; 

@@ -5,216 +5,7 @@ const bcrypt = require('bcrypt');
 
 const seed = async () => {
   try {
-    // Drop only class-related tables
-    await pool.query(`
-      DROP TABLE IF EXISTS class_waitlist CASCADE;
-      DROP TABLE IF EXISTS class_sessions CASCADE;
-      DROP TABLE IF EXISTS payments CASCADE;
-      DROP TABLE IF EXISTS enrollments CASCADE;
-      DROP TABLE IF EXISTS classes CASCADE;
-      DROP TABLE IF EXISTS user_notifications CASCADE;
-    `);
-
-    // Create all tables
-    await pool.query(`
-      -- Create users table
-      CREATE TABLE IF NOT EXISTS users (
-        id SERIAL PRIMARY KEY,
-        name VARCHAR(255) NOT NULL,
-        email VARCHAR(255) NOT NULL UNIQUE,
-        password VARCHAR(255) NOT NULL,
-        role VARCHAR(50) NOT NULL CHECK (role IN ('admin', 'instructor', 'user')),
-        status VARCHAR(50) NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'inactive', 'suspended')),
-        first_name VARCHAR(100),
-        last_name VARCHAR(100),
-        phone_number VARCHAR(20),
-        email_notifications BOOLEAN DEFAULT true,
-        sms_notifications BOOLEAN DEFAULT false,
-        last_login TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-      );
-
-      -- Create indexes for users table
-      CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
-      CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
-      CREATE INDEX IF NOT EXISTS idx_users_status ON users(status);
-      CREATE INDEX IF NOT EXISTS idx_users_created_at ON users(created_at);
-
-      -- Create trigger for users updated_at
-      DROP TRIGGER IF EXISTS update_users_updated_at ON users;
-      CREATE OR REPLACE FUNCTION update_users_updated_at()
-      RETURNS TRIGGER AS $$
-      BEGIN
-          NEW.updated_at = CURRENT_TIMESTAMP;
-          RETURN NEW;
-      END;
-      $$ language 'plpgsql';
-
-      CREATE TRIGGER update_users_updated_at
-          BEFORE UPDATE ON users
-          FOR EACH ROW
-          EXECUTE FUNCTION update_users_updated_at();
-
-      -- Create classes table
-      CREATE TABLE classes (
-        id SERIAL PRIMARY KEY,
-        title VARCHAR(100) NOT NULL,
-        description TEXT,
-        date TIMESTAMP NOT NULL,
-        start_time TIME,
-        end_time TIME,
-        duration_minutes INTEGER,
-        location_type VARCHAR(20) CHECK (location_type IN ('zoom', 'in-person')),
-        location_details TEXT,
-        price DECIMAL(10,2) NOT NULL,
-        capacity INTEGER NOT NULL,
-        enrolled_count INTEGER DEFAULT 0,
-        is_recurring BOOLEAN DEFAULT false,
-        recurrence_pattern JSONB,
-        min_enrollment INTEGER DEFAULT 1,
-        status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('in_progress', 'cancelled', 'completed', 'scheduled')),
-        prerequisites TEXT,
-        materials_needed TEXT,
-        instructor_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
-        waitlist_enabled BOOLEAN DEFAULT false,
-        waitlist_capacity INTEGER DEFAULT 0,
-        image_url VARCHAR(255),
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-      );
-
-      -- Create class sessions table
-      CREATE TABLE class_sessions (
-        id SERIAL PRIMARY KEY,
-        class_id INTEGER REFERENCES classes(id) ON DELETE CASCADE,
-        session_date DATE NOT NULL,
-        start_time TIME NOT NULL,
-        end_time TIME NOT NULL,
-        status VARCHAR(20) DEFAULT 'scheduled' CHECK (status IN ('scheduled', 'cancelled', 'completed')),
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-      );
-
-      -- Create class waitlist table
-      CREATE TABLE class_waitlist (
-        id SERIAL PRIMARY KEY,
-        class_id INTEGER REFERENCES classes(id) ON DELETE CASCADE,
-        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-        position INTEGER NOT NULL,
-        status VARCHAR(20) DEFAULT 'waiting' CHECK (status IN ('pending', 'approved', 'rejected', 'cancelled')),
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE(class_id, user_id)
-      );
-
-      -- Create enrollments table
-      CREATE TABLE enrollments (
-        id SERIAL PRIMARY KEY,
-        user_id INTEGER REFERENCES users(id),
-        class_id INTEGER REFERENCES classes(id),
-        session_id INTEGER REFERENCES class_sessions(id),
-        payment_status VARCHAR(20),
-        enrollment_status VARCHAR(20) DEFAULT 'pending' CHECK (enrollment_status IN ('pending', 'approved', 'rejected')),
-        admin_notes TEXT,
-        reviewed_at TIMESTAMP WITH TIME ZONE,
-        reviewed_by INTEGER REFERENCES users(id),
-        enrolled_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
-
-      -- Create payments table
-      CREATE TABLE payments (
-        id SERIAL PRIMARY KEY,
-        user_id INTEGER REFERENCES users(id),
-        class_id INTEGER REFERENCES classes(id),
-        stripe_payment_id VARCHAR(255) NOT NULL,
-        amount DECIMAL(10, 2),
-        currency VARCHAR(10),
-        status VARCHAR(50),
-        due_date TIMESTAMP WITH TIME ZONE,
-        payment_method VARCHAR(50),
-        last_four VARCHAR(4),
-        refund_status VARCHAR(20),
-        refund_amount DECIMAL(10, 2),
-        refund_reason TEXT,
-        refunded_at TIMESTAMP WITH TIME ZONE,
-        refunded_by INTEGER REFERENCES users(id),
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
-
-      -- Create user notifications table
-      CREATE TABLE user_notifications (
-        id SERIAL PRIMARY KEY,
-        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-        sender_id INTEGER REFERENCES users(id),
-        type VARCHAR(50) NOT NULL,
-        title VARCHAR(255) NOT NULL,
-        message TEXT NOT NULL,
-        is_read BOOLEAN DEFAULT false,
-        action_url VARCHAR(255),
-        metadata JSONB,
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-      );
-
-      -- Create user activity log table
-      CREATE TABLE IF NOT EXISTS user_activity_log (
-        id SERIAL PRIMARY KEY,
-        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-        action VARCHAR(50) NOT NULL,
-        details JSONB,
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-      );
-
-      -- Create indexes for user activity log
-      CREATE INDEX IF NOT EXISTS idx_user_activity_log_user_id ON user_activity_log(user_id);
-      CREATE INDEX IF NOT EXISTS idx_user_activity_log_action ON user_activity_log(action);
-      CREATE INDEX IF NOT EXISTS idx_user_activity_log_created_at ON user_activity_log(created_at);
-
-      -- Create updated_at trigger function if it doesn't exist
-      CREATE OR REPLACE FUNCTION update_updated_at_column()
-      RETURNS TRIGGER AS $$
-      BEGIN
-          NEW.updated_at = CURRENT_TIMESTAMP;
-          RETURN NEW;
-      END;
-      $$ language 'plpgsql';
-
-      -- Create triggers for updated_at
-      DROP TRIGGER IF EXISTS update_classes_updated_at ON classes;
-      CREATE TRIGGER update_classes_updated_at
-          BEFORE UPDATE ON classes
-          FOR EACH ROW
-          EXECUTE FUNCTION update_updated_at_column();
-
-      DROP TRIGGER IF EXISTS update_class_waitlist_updated_at ON class_waitlist;
-      CREATE TRIGGER update_class_waitlist_updated_at
-          BEFORE UPDATE ON class_waitlist
-          FOR EACH ROW
-          EXECUTE FUNCTION update_updated_at_column();
-
-      -- Create trigger for user_notifications updated_at
-      DROP TRIGGER IF EXISTS update_user_notifications_updated_at ON user_notifications;
-      CREATE TRIGGER update_user_notifications_updated_at
-          BEFORE UPDATE ON user_notifications
-          FOR EACH ROW
-          EXECUTE FUNCTION update_updated_at_column();
-
-      -- Create indexes for better query performance
-      CREATE INDEX IF NOT EXISTS idx_class_sessions_class_id ON class_sessions(class_id);
-      CREATE INDEX IF NOT EXISTS idx_class_sessions_session_date ON class_sessions(session_date);
-      CREATE INDEX IF NOT EXISTS idx_class_waitlist_class_id ON class_waitlist(class_id);
-      CREATE INDEX IF NOT EXISTS idx_class_waitlist_user_id ON class_waitlist(user_id);
-      CREATE INDEX IF NOT EXISTS idx_class_waitlist_status ON class_waitlist(status);
-      CREATE INDEX IF NOT EXISTS idx_enrollments_session_id ON enrollments(session_id);
-      -- Create indexes for user_notifications
-      CREATE INDEX IF NOT EXISTS idx_user_notifications_user_id ON user_notifications(user_id);
-      CREATE INDEX IF NOT EXISTS idx_user_notifications_sender_id ON user_notifications(sender_id);
-      CREATE INDEX IF NOT EXISTS idx_user_notifications_type ON user_notifications(type);
-      CREATE INDEX IF NOT EXISTS idx_user_notifications_created_at ON user_notifications(created_at);
-
-      -- Add comment to explain the sender_id column
-      COMMENT ON COLUMN user_notifications.sender_id IS 'ID of the user who sent the notification. NULL for system-generated notifications.';
-    `);
+    console.log('Starting database seeding...');
 
     // Create test users only if they don't exist
     const userPassword = await bcrypt.hash('user123', 10);
@@ -224,29 +15,30 @@ const seed = async () => {
       INSERT INTO users (name, email, password, role, status, first_name, last_name, phone_number, email_notifications, sms_notifications)
       SELECT * FROM (
         VALUES
-          ('Jane Doe', 'jane@example.com', $1, 'user', 'active', 'Jane', 'Doe', '555-0123', true, false),
-          ('John Smith', 'john@example.com', $1, 'user', 'active', 'John', 'Smith', '555-0124', true, true),
+          ('Jane Doe', 'jane@example.com', $1, 'student', 'active', 'Jane', 'Doe', '555-0123', true, false),
+          ('John Smith', 'john@example.com', $1, 'student', 'active', 'John', 'Smith', '555-0124', true, true),
           ('Admin User', 'admin@example.com', $2, 'admin', 'active', 'Admin', 'User', '555-0125', true, false),
           ('Instructor One', 'instructor1@example.com', $1, 'instructor', 'active', 'Instructor', 'One', '555-0126', true, true),
-          ('Instructor Two', 'instructor2@example.com', $1, 'instructor', 'active', 'Instructor', 'Two', '555-0127', true, false)
+          ('Instructor Two', 'instructor2@example.com', $1, 'instructor', 'active', 'Instructor', 'Two', '555-0127', true, false),
+          ('Test Student', 'student1@example.com', $1, 'user', 'active', 'Test', 'Student', '555-0999', true, true)
       ) AS new_users(name, email, password, role, status, first_name, last_name, phone_number, email_notifications, sms_notifications)
       WHERE NOT EXISTS (
         SELECT 1 FROM users WHERE email = new_users.email
       )
     `, [userPassword, adminPassword]);
 
-    // Dynamically get instructor IDs
+    // Get instructor IDs
     const { rows: instructorRows } = await pool.query(`
       SELECT id, email FROM users WHERE email IN ('instructor1@example.com', 'instructor2@example.com')
     `);
     const instructorOneId = instructorRows.find(u => u.email === 'instructor1@example.com')?.id;
     const instructorTwoId = instructorRows.find(u => u.email === 'instructor2@example.com')?.id;
 
-    // Seed classes with dynamic instructor IDs
+    // Seed classes
     const classes = [
       {
         title: 'Child Development Associate (CDA)',
-        description: 'This comprehensive course prepares you for the CDA credential, covering all aspects of early childhood education. Learn about child development, curriculum planning, and professional practices. Perfect for those seeking to advance their career in early childhood education.',
+        description: 'This comprehensive course prepares you for the CDA credential, covering all aspects of early childhood education.',
         date: new Date('2025-06-01'),
         start_time: '09:00',
         end_time: '17:00',
@@ -269,7 +61,7 @@ const seed = async () => {
       },
       {
         title: 'Development and Operations',
-        description: 'Master the essential skills needed to run a successful childcare program. Learn about business operations, staff management, curriculum development, and regulatory compliance. This course is ideal for current and aspiring childcare center directors.',
+        description: 'Master the essential skills needed to run a successful childcare program.',
         date: new Date('2025-06-15'),
         start_time: '10:00',
         end_time: '16:00',
@@ -292,7 +84,7 @@ const seed = async () => {
       },
       {
         title: 'CPR and First Aid Certification',
-        description: 'Essential training for childcare providers. Learn life-saving techniques including CPR, AED use, and first aid procedures. This course meets state licensing requirements and provides certification valid for two years.',
+        description: 'Essential training for childcare providers. Learn life-saving techniques including CPR, AED use, and first aid procedures.',
         date: new Date('2025-06-01'),
         start_time: '08:00',
         end_time: '17:00',
@@ -324,6 +116,7 @@ const seed = async () => {
           prerequisites, materials_needed, waitlist_enabled, waitlist_capacity,
           image_url, instructor_id
         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
+        ON CONFLICT (title) DO NOTHING
       `, [
         classData.title,
         classData.description,
@@ -349,12 +142,15 @@ const seed = async () => {
       ]);
     }
 
-    // Insert sample class sessions for all classes
+    // Get class IDs for seeding related data
+    const { rows: classRows } = await pool.query('SELECT id, title FROM classes');
+    const classMap = new Map(classRows.map(c => [c.title, c.id]));
+
+    // Seed CDA Class Sessions
     await pool.query(`
-      -- CDA Class Sessions (Class ID 1)
       INSERT INTO class_sessions (class_id, session_date, start_time, end_time)
       SELECT 
-        1,
+        $1,
         gs::date,
         '09:00'::time,
         '17:00'::time
@@ -363,12 +159,15 @@ const seed = async () => {
           '2025-06-30'::date,
           '1 day'::interval
       ) AS gs
-      WHERE EXTRACT(DOW FROM gs) IN (1, 3); -- Monday and Wednesday
+      WHERE EXTRACT(DOW FROM gs) IN (1, 3)
+      ON CONFLICT DO NOTHING;
+    `, [classMap.get('Child Development Associate (CDA)')]);
 
-      -- Development and Operations Class Sessions (Class ID 2)
+    // Seed Development and Operations Class Sessions
+    await pool.query(`
       INSERT INTO class_sessions (class_id, session_date, start_time, end_time)
       SELECT 
-        2,
+        $1,
         gs::date,
         '10:00'::time,
         '16:00'::time
@@ -377,27 +176,35 @@ const seed = async () => {
           '2025-07-15'::date,
           '1 day'::interval
       ) AS gs
-      WHERE EXTRACT(DOW FROM gs) IN (2, 4); -- Tuesday and Thursday
+      WHERE EXTRACT(DOW FROM gs) IN (2, 4)
+      ON CONFLICT DO NOTHING;
+    `, [classMap.get('Development and Operations')]);
 
-      -- CPR and First Aid Class Sessions (Class ID 3)
+    // Seed CPR and First Aid Class Sessions
+    await pool.query(`
       INSERT INTO class_sessions (class_id, session_date, start_time, end_time)
       VALUES
-        (3, '2025-06-01', '08:00', '17:00'),
-        (3, '2025-06-08', '08:00', '17:00'),
-        (3, '2025-06-15', '08:00', '17:00'),
-        (3, '2025-06-22', '08:00', '17:00');
-    `);
+        ($1, '2025-06-01', '08:00', '17:00'),
+        ($1, '2025-06-08', '08:00', '17:00'),
+        ($1, '2025-06-15', '08:00', '17:00'),
+        ($1, '2025-06-22', '08:00', '17:00')
+      ON CONFLICT DO NOTHING;
+    `, [classMap.get('CPR and First Aid Certification')]);
 
-    // Insert sample waitlist entries
+    // Seed waitlist entries
     await pool.query(`
       INSERT INTO class_waitlist (class_id, user_id, position, status)
       VALUES
-        (1, 1, 1, 'pending'),
-        (1, 2, 2, 'approved'),
-        (2, 1, 1, 'rejected');
-    `);
+        ($1, 1, 1, 'pending'),
+        ($1, 2, 2, 'approved'),
+        ($2, 1, 1, 'rejected')
+      ON CONFLICT (class_id, user_id) DO NOTHING;
+    `, [
+      classMap.get('Child Development Associate (CDA)'),
+      classMap.get('Development and Operations')
+    ]);
 
-    // Insert sample enrollments with status and session IDs
+    // Seed enrollments
     await pool.query(`
       WITH session_ids AS (
         SELECT id, class_id, ROW_NUMBER() OVER (PARTITION BY class_id ORDER BY session_date) as session_num
@@ -406,7 +213,7 @@ const seed = async () => {
       INSERT INTO enrollments (user_id, class_id, session_id, payment_status, enrollment_status, admin_notes, reviewed_at, reviewed_by)
       SELECT 
         e.user_id,
-        e.class_id,
+        e.class_id::integer,
         s.id as session_id,
         e.payment_status,
         e.enrollment_status,
@@ -415,72 +222,43 @@ const seed = async () => {
         e.reviewed_by
       FROM (
         VALUES
-          (1, 1, 'paid', 'approved', 'Initial enrollment approved', CURRENT_TIMESTAMP, 3),
-          (1, 2, 'paid', 'approved', 'Initial enrollment approved', CURRENT_TIMESTAMP, 3),
-          (2, 3, 'paid', 'approved', 'Initial enrollment approved', CURRENT_TIMESTAMP, 3),
-          (2, 1, 'paid', 'pending', NULL, NULL, NULL),
-          (1, 3, 'paid', 'rejected', 'Class capacity reached', CURRENT_TIMESTAMP, 3)
+          (1, $1::integer, 'paid', 'approved', 'Initial enrollment approved', CURRENT_TIMESTAMP, 3),
+          (1, $2::integer, 'paid', 'approved', 'Initial enrollment approved', CURRENT_TIMESTAMP, 3),
+          (2, $3::integer, 'paid', 'approved', 'Initial enrollment approved', CURRENT_TIMESTAMP, 3),
+          (2, $1::integer, 'paid', 'pending', NULL, NULL, NULL),
+          (1, $3::integer, 'paid', 'rejected', 'Class capacity reached', CURRENT_TIMESTAMP, 3)
       ) AS e(user_id, class_id, payment_status, enrollment_status, admin_notes, reviewed_at, reviewed_by)
-      JOIN session_ids s ON s.class_id = e.class_id AND s.session_num = 1;
-    `);
+      JOIN session_ids s ON s.class_id = e.class_id AND s.session_num = 1
+      ON CONFLICT DO NOTHING;
+    `, [
+      classMap.get('Child Development Associate (CDA)'),
+      classMap.get('Development and Operations'),
+      classMap.get('CPR and First Aid Certification')
+    ]);
 
-    // Insert sample certificates
+    // Seed certificates
     await pool.query(`
-      INSERT INTO user_certificates (user_id, class_id, certificate_name, issue_date, certificate_url)
+      INSERT INTO certificates (
+        user_id, 
+        class_id, 
+        certificate_name, 
+        certificate_url, 
+        verification_code,
+        status,
+        uploaded_by
+      )
       VALUES
-        (1, 1, 'Watercolor Painting Basics', CURRENT_TIMESTAMP, 'https://example.com/certs/watercolor.pdf'),
-        (1, 2, 'Yoga Fundamentals', CURRENT_TIMESTAMP, 'https://example.com/certs/yoga.pdf');
-    `);
+        (1, $1, 'CDA Certificate', 'https://example.com/certs/cda.pdf', 'CDA-2025-001', 'approved', 3),
+        (1, $2, 'Development and Operations Certificate', 'https://example.com/certs/devops.pdf', 'DO-2025-001', 'approved', 3),
+        (2, $3, 'CPR and First Aid Certificate', 'https://example.com/certs/cpr.pdf', 'CPR-2025-001', 'pending', 3)
+      ON CONFLICT (verification_code) DO NOTHING;
+    `, [
+      classMap.get('Child Development Associate (CDA)'),
+      classMap.get('Development and Operations'),
+      classMap.get('CPR and First Aid Certification')
+    ]);
 
-    // Insert sample payment methods
-    await pool.query(`
-      INSERT INTO user_payment_methods (user_id, payment_type, last_four, expiry_date, is_default)
-      VALUES
-        (1, 'credit_card', '4242', '2025-12-31', true),
-        (2, 'credit_card', '5555', '2025-10-31', true);
-    `);
-
-    // Insert sample activity logs
-    await pool.query(`
-      INSERT INTO user_activity_log (user_id, action, details)
-      VALUES
-        (1, 'profile_update', '{"updated_fields": ["first_name", "last_name"]}'),
-        (1, 'enrollment', '{"class_id": 1, "class_name": "Intro to Painting"}'),
-        (2, 'payment_method_added', '{"payment_type": "credit_card", "last_four": "5555"}');
-    `);
-
-    // Insert sample notifications with sender_id
-    await pool.query(`
-      INSERT INTO user_notifications (user_id, type, title, message, is_read, action_url, sender_id, metadata)
-      VALUES
-        -- System notifications (sender_id is NULL)
-        (1, 'class_reminder', 'Upcoming Class', 'Your painting class starts in 1 hour', false, '/classes/1', NULL, '{"category": "class", "priority": "high"}'::jsonb),
-        (1, 'certificate_ready', 'Certificate Available', 'Your yoga certificate is ready to download', false, '/certificates/2', NULL, '{"category": "certificate", "priority": "medium"}'::jsonb),
-        
-        -- Admin sent notifications (sender_id = 3, which is Admin User)
-        (1, 'custom_notification', 'Welcome to YJ Child Care Plus!', 'We are excited to have you join our community. Feel free to explore our classes and programs.', false, '/dashboard', 3, '{"category": "welcome", "priority": "high"}'::jsonb),
-        (2, 'custom_notification', 'Payment Overdue', 'Your payment for the CPR class is overdue. Please process the payment to maintain your enrollment.', false, '/payments/3', 3, '{"category": "payment", "priority": "high"}'::jsonb),
-        (1, 'custom_notification', 'Class Schedule Change', 'Your CDA class schedule has been updated. Please check the new timings.', false, '/classes/1', 3, '{"category": "class", "priority": "high"}'::jsonb),
-        
-        -- Instructor sent notifications (sender_id = 4 or 5, which are instructors)
-        (1, 'custom_notification', 'Class Preparation', 'Please bring your art supplies for tomorrow''s class. We will be working on watercolor techniques.', false, '/classes/1', 4, '{"category": "class", "priority": "medium"}'::jsonb),
-        (2, 'custom_notification', 'Assignment Reminder', 'Don''t forget to submit your child development observation report by Friday.', false, '/assignments/1', 4, '{"category": "assignment", "priority": "medium"}'::jsonb),
-        (1, 'custom_notification', 'Class Feedback', 'Thank you for your participation in today''s class. Your insights were valuable!', false, '/classes/2', 5, '{"category": "feedback", "priority": "low"}'::jsonb),
-        
-        -- Multiple recipients for the same notification
-        (1, 'custom_notification', 'Holiday Schedule', 'The center will be closed on December 25th for Christmas.', false, '/announcements/1', 3, '{"category": "announcement", "priority": "medium"}'::jsonb),
-        (2, 'custom_notification', 'Holiday Schedule', 'The center will be closed on December 25th for Christmas.', false, '/announcements/1', 3, '{"category": "announcement", "priority": "medium"}'::jsonb),
-        
-        -- Class-specific notifications
-        (1, 'class_update', 'Class Cancelled', 'The CPR class scheduled for tomorrow has been cancelled due to instructor illness.', false, '/classes/3', 3, '{"category": "class", "priority": "high"}'::jsonb),
-        (2, 'class_update', 'Class Rescheduled', 'Your Development and Operations class has been rescheduled to next week.', false, '/classes/2', 3, '{"category": "class", "priority": "high"}'::jsonb),
-        
-        -- Payment notifications
-        (1, 'payment_due', 'Payment Reminder', 'Payment for CDA class is due in 3 days.', false, '/payments/1', 3, '{"category": "payment", "priority": "high"}'::jsonb),
-        (2, 'payment_due', 'Payment Confirmation', 'Your payment for CPR class has been received. Thank you!', false, '/payments/2', 3, '{"category": "payment", "priority": "medium"}'::jsonb);
-    `);
-
-    // Insert sample payments with refunds
+    // Seed payments
     await pool.query(`
       INSERT INTO payments (
         user_id, 
@@ -499,17 +277,21 @@ const seed = async () => {
         refunded_by
       )
       VALUES
-        (1, 1, 'stripe_payment_1', 30.00, 'USD', 'completed', CURRENT_TIMESTAMP, 'credit_card', '4242', NULL, NULL, NULL, NULL, NULL),
-        (1, 2, 'stripe_payment_2', 20.00, 'USD', 'completed', CURRENT_TIMESTAMP, 'credit_card', '5555', 'processed', 20.00, 'Student requested refund', CURRENT_TIMESTAMP, 3),
-        (2, 3, 'stripe_payment_3', 35.00, 'USD', 'completed', CURRENT_TIMESTAMP, 'credit_card', '5555', NULL, NULL, NULL, NULL, NULL),
-        (2, 1, 'stripe_payment_4', 30.00, 'USD', 'pending', CURRENT_TIMESTAMP, 'credit_card', '5555', NULL, NULL, NULL, NULL, NULL),
-        (1, 3, 'stripe_payment_5', 35.00, 'USD', 'completed', CURRENT_TIMESTAMP, 'credit_card', '4242', 'processed', 17.50, 'Partial refund due to cancellation', CURRENT_TIMESTAMP, 3);
-    `);
+        (1, $1, 'stripe_payment_1', 299.99, 'USD', 'completed', CURRENT_TIMESTAMP, 'credit_card', '4242', NULL, NULL, NULL, NULL, NULL),
+        (1, $2, 'stripe_payment_2', 349.99, 'USD', 'completed', CURRENT_TIMESTAMP, 'credit_card', '4242', 'processed', 349.99, 'Student requested refund', CURRENT_TIMESTAMP, 3),
+        (2, $3, 'stripe_payment_3', 149.99, 'USD', 'completed', CURRENT_TIMESTAMP, 'credit_card', '5555', NULL, NULL, NULL, NULL, NULL),
+        (2, $1, 'stripe_payment_4', 299.99, 'USD', 'pending', CURRENT_TIMESTAMP, 'credit_card', '5555', NULL, NULL, NULL, NULL, NULL),
+        (1, $3, 'stripe_payment_5', 149.99, 'USD', 'completed', CURRENT_TIMESTAMP, 'credit_card', '4242', 'processed', 74.99, 'Partial refund due to cancellation', CURRENT_TIMESTAMP, 3)
+      ON CONFLICT (stripe_payment_id) DO NOTHING;
+    `, [
+      classMap.get('Child Development Associate (CDA)'),
+      classMap.get('Development and Operations'),
+      classMap.get('CPR and First Aid Certification')
+    ]);
 
-    // Insert notification templates only if they don't exist
+    // Seed notification templates
     await pool.query(`
       INSERT INTO notification_templates (name, type, title_template, message_template, metadata)
-      SELECT * FROM (
         VALUES
           (
             'class_reminder',
@@ -538,70 +320,47 @@ const seed = async () => {
             'Certificate Available: {{class_name}}',
             'Your certificate for "{{class_name}}" is now available for download.',
             '{"category": "certificate", "priority": "medium"}'::jsonb
-          ),
-          (
-            'class_cancelled',
-            'class_update',
-            'Class Cancelled: {{class_name}}',
-            'The class "{{class_name}}" scheduled for {{class_date}} has been cancelled. {{refund_info}}',
-            '{"category": "class", "priority": "high"}'::jsonb
-          ),
-          (
-            'waitlist_offered',
-            'waitlist',
-            'Spot Available: {{class_name}}',
-            'A spot has opened up in "{{class_name}}". You have 24 hours to accept this offer.',
-            '{"category": "waitlist", "priority": "high"}'::jsonb
-          ),
-          (
-            'custom_notification',
-            'custom',
-            '{{title}}',
-            '{{message}}',
-            '{"category": "custom", "priority": "medium"}'::jsonb
-          ),
-          (
-            'broadcast_notification',
-            'broadcast',
-            'Announcement',
-            '{{message}}',
-            '{"category": "broadcast", "priority": "high"}'::jsonb
-          )
-      ) AS new_templates(name, type, title_template, message_template, metadata)
-      WHERE NOT EXISTS (
-        SELECT 1 FROM notification_templates WHERE name = new_templates.name
-      );
-
-      -- Update existing notifications with metadata if needed
-      UPDATE user_notifications
-      SET metadata = jsonb_build_object(
-        'category', 
-        CASE 
-          WHEN type = 'class_reminder' THEN 'class'
-          WHEN type = 'certificate_ready' THEN 'certificate'
-          WHEN type = 'payment_due' THEN 'payment'
-          ELSE 'general'
-        END,
-        'priority',
-        CASE 
-          WHEN type IN ('class_reminder', 'payment_due', 'class_cancelled') THEN 'high'
-          ELSE 'medium'
-        END
-      )::jsonb
-      WHERE metadata IS NULL;
+        )
+      ON CONFLICT (name) DO NOTHING;
     `);
 
-    // Set instructor_id to NULL for all classes where the instructor will be deleted
-    await pool.query(`UPDATE classes SET instructor_id = NULL WHERE instructor_id NOT IN (SELECT id FROM users);`);
+    // Seed notifications
+    await pool.query(`
+      INSERT INTO user_notifications (user_id, type, title, message, is_read, action_url, sender_id, metadata)
+      VALUES
+        (1, 'class_reminder', 'Upcoming Class', 'Your CDA class starts in 1 hour', false, '/classes/1', NULL, '{"category": "class", "priority": "high"}'::jsonb),
+        (1, 'certificate_ready', 'Certificate Available', 'Your CDA certificate is ready to download', false, '/certificates/1', NULL, '{"category": "certificate", "priority": "medium"}'::jsonb),
+        (2, 'payment_due', 'Payment Due', 'Payment for CPR class is due tomorrow', false, '/payments/3', 3, '{"category": "payment", "priority": "high"}'::jsonb)
+      ON CONFLICT DO NOTHING;
+    `);
+
+    // Seed activity logs
+    await pool.query(`
+      INSERT INTO user_activity_log (user_id, action, details)
+      VALUES
+        (1, 'profile_update', '{"updated_fields": ["first_name", "last_name"]}'::jsonb),
+        (1, 'enrollment', '{"class_id": 1, "class_name": "CDA"}'::jsonb),
+        (2, 'payment', '{"amount": 149.99, "class_name": "CPR"}'::jsonb)
+      ON CONFLICT DO NOTHING;
+    `);
 
     console.log('Database seeded successfully!');
-    pool.end();
   } catch (err) {
     console.error('Error seeding database:', err);
-    pool.end();
+    throw err;
   } finally {
-    process.exit();
+    await pool.end();
   }
 };
 
-seed();
+// Only run if this file is being run directly
+if (require.main === module) {
+  seed()
+    .then(() => process.exit(0))
+    .catch(err => {
+      console.error('Error in seed script:', err);
+      process.exit(1);
+    });
+}
+
+module.exports = seed;

@@ -1,5 +1,6 @@
 const {
-    getAllUsers
+    getAllUsers,
+    searchUsers
   } = require('../models/userModel');
   
   const {
@@ -37,13 +38,33 @@ const {
   
   const { getDashboardStats } = require('../models/dashboardModel');
   
-  // @desc    Get all users
+  // @desc    Get all users (with optional search, pagination, and role filter)
   const adminGetUsers = async (req, res) => {
     try {
+      console.log('adminGetUsers: Starting to fetch users...');
+      const { page, limit, search, role } = req.query;
+      if (page || limit || search || role) {
+        // Use searchUsers for advanced queries
+        const result = await searchUsers({
+          searchTerm: search || '',
+          role: role && role !== 'all' ? role : null,
+          limit: limit ? parseInt(limit) : 50,
+          offset: page && limit ? (parseInt(page) - 1) * parseInt(limit) : 0,
+          includeInactive: true
+        });
+        res.json({ users: result.users, pagination: { total: result.total, page: parseInt(page) || 1, limit: parseInt(limit) || 50, totalPages: Math.ceil(result.total / (parseInt(limit) || 50)) } });
+        return;
+      }
+      // Default: return all users
       const users = await getAllUsers();
       res.json(users);
-    } catch (err) {
-      res.status(500).json({ error: 'Failed to fetch users' });
+    } catch (error) {
+      console.error('adminGetUsers: Error fetching users:', error);
+      res.status(500).json({ 
+        success: false, 
+        message: 'Failed to fetch users',
+        error: error.message 
+      });
     }
   };
   

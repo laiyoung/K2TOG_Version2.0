@@ -10,10 +10,12 @@ const {
     getUserCertificates,
     deleteCertificate,
     uploadStudentCertificate,
-    viewStudentCertificate
+    viewStudentCertificate,
+    getAllCertificates
 } = require('../controllers/certificateController');
 
 // Admin routes
+router.get('/', requireAuth, requireAdmin, getAllCertificates);
 router.post('/generate', requireAuth, requireAdmin, generateCertificate);
 router.post('/generate-class/:classId', requireAuth, requireAdmin, generateClassCertificates);
 router.get('/:id/download', requireAuth, requireAdmin, downloadCertificate);

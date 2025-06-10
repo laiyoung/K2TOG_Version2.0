@@ -24,6 +24,9 @@ import {
   Tab,
   Tabs,
   Alert,
+  Tooltip,
+  Autocomplete,
+  CircularProgress,
 } from "@mui/material";
 import {
   Notifications as NotificationIcon,
@@ -46,16 +49,20 @@ const NotificationCenter = () => {
   const [sentNotifications, setSentNotifications] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [templates, setTemplates] = useState(
-    mockData.notificationTemplates || []
-  );
+  const [templates, setTemplates] = useState([]);
   const [showSendDialog, setShowSendDialog] = useState(false);
   const [showTemplateDialog, setShowTemplateDialog] = useState(false);
   const [showBroadcastDialog, setShowBroadcastDialog] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState("");
   const [selectedRecipientType, setSelectedRecipientType] = useState("user");
-  const [selectedRecipient, setSelectedRecipient] = useState("");
+  const [selectedRecipient, setSelectedRecipient] = useState(null);
+  const [selectedClass, setSelectedClass] = useState("");
+  const [notificationMessage, setNotificationMessage] = useState("");
+  const [notificationTitle, setNotificationTitle] = useState("");
+  const [studentSearchTerm, setStudentSearchTerm] = useState("");
+  const [filteredStudents, setFilteredStudents] = useState([]);
   const [broadcastMessage, setBroadcastMessage] = useState("");
+  const [broadcastTitle, setBroadcastTitle] = useState("");
   const [newTemplate, setNewTemplate] = useState({
     name: "",
     content: "",
@@ -65,13 +72,74 @@ const NotificationCenter = () => {
   });
   const [selectedNotification, setSelectedNotification] = useState(null);
   const [notificationDialogOpen, setNotificationDialogOpen] = useState(false);
+  const [users, setUsers] = useState([]);
+  const [classes, setClasses] = useState([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
 
-  // Get users and classes from mock data
-  const users = mockData.users || [];
-  const classes = mockData.classes || [];
+  // Fetch users and classes when component mounts
+  useEffect(() => {
+    fetchUsers();
+    fetchClasses();
+  }, []);
+
+  const fetchUsers = async () => {
+    try {
+      setLoadingUsers(true);
+      console.log('Fetching users in NotificationCenter...');
+      const response = await adminService.getAllUsers();
+      console.log('Users fetched in NotificationCenter:', response);
+
+      if (!Array.isArray(response)) {
+        console.error('Invalid response format:', response);
+        setError('Invalid response format from server');
+        setUsers([]);
+        return;
+      }
+
+      const validUsers = response
+        .filter(user => {
+          const isValid = user &&
+            user.role === 'student' &&
+            user.id &&
+            (user.first_name || user.last_name || user.email);
+
+          if (!isValid) {
+            console.warn('Invalid user data:', user);
+          }
+          return isValid;
+        })
+        .map(user => ({
+          ...user,
+          displayName: user.first_name && user.last_name
+            ? `${user.first_name} ${user.last_name}`
+            : user.email || 'Unnamed User'
+        }));
+
+      console.log('Filtered valid users:', validUsers);
+      setUsers(validUsers);
+    } catch (error) {
+      console.error('Failed to fetch users:', error);
+      setError('Failed to fetch users');
+      setUsers([]);
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
+  const fetchClasses = async () => {
+    try {
+      const response = await adminService.getAllClasses();
+      setClasses(Array.isArray(response) ? response : []);
+    } catch (error) {
+      console.error('Failed to fetch classes:', error);
+      setError('Failed to fetch classes');
+      setClasses([]);
+    }
+  };
 
   useEffect(() => {
     fetchNotifications();
+    fetchTemplates();
     if (activeTab === 1) { // If on sent notifications tab
       fetchSentNotifications();
     }
@@ -82,6 +150,27 @@ const NotificationCenter = () => {
       }
     };
   }, [activeTab]); // Add activeTab as dependency
+
+  // Filter students based on search term
+  useEffect(() => {
+    if (!Array.isArray(users)) {
+      setFilteredStudents([]);
+      return;
+    }
+
+    if (studentSearchTerm) {
+      const searchTerm = studentSearchTerm.toLowerCase().trim();
+      const filtered = users.filter(user => {
+        if (!user) return false;
+        const name = (user.name || '').toLowerCase();
+        const email = (user.email || '').toLowerCase();
+        return name.includes(searchTerm) || email.includes(searchTerm);
+      });
+      setFilteredStudents(filtered);
+    } else {
+      setFilteredStudents(users.filter(user => user && user.name)); // Only include valid users
+    }
+  }, [studentSearchTerm, users]);
 
   const fetchNotifications = async () => {
     try {
@@ -107,6 +196,20 @@ const NotificationCenter = () => {
       console.error('Failed to fetch sent notifications:', error);
       setError(error.message || 'Failed to fetch sent notifications');
       setSentNotifications([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchTemplates = async () => {
+    try {
+      setLoading(true);
+      const response = await adminService.getTemplates();
+      setTemplates(Array.isArray(response) ? response : []);
+    } catch (error) {
+      console.error('Failed to fetch templates:', error);
+      setError(error.message || 'Failed to fetch templates');
+      setTemplates([]);
     } finally {
       setLoading(false);
     }
@@ -169,17 +272,40 @@ const NotificationCenter = () => {
     }
   };
 
-  const handleSendNotification = async (notificationData) => {
+  const handleSendNotification = async () => {
     try {
       setLoading(true);
-      await adminService.sendNotification(notificationData);
+      if (!notificationTitle.trim() || !notificationMessage.trim()) {
+        enqueueSnackbar("Please provide both a title and message", { variant: "error" });
+        return;
+      }
+
+      if (selectedRecipientType === "user" && !selectedRecipient?.id) {
+        enqueueSnackbar("Please select a recipient", { variant: "error" });
+        return;
+      }
+
+      if (selectedRecipientType === "class" && !selectedClass) {
+        enqueueSnackbar("Please select a class", { variant: "error" });
+        return;
+      }
+
+      await adminService.sendNotification({
+        title: notificationTitle,
+        message: notificationMessage,
+        recipient: selectedRecipientType === "user" ? selectedRecipient.id : selectedClass,
+        recipientType: selectedRecipientType
+      });
+
       await fetchNotifications();
       enqueueSnackbar("Notification sent successfully", { variant: "success" });
       setShowSendDialog(false);
-      setSelectedTemplate("");
-      setBroadcastMessage("");
-      setSelectedRecipient("");
+      // Reset form
       setSelectedRecipientType("user");
+      setSelectedRecipient(null);
+      setSelectedClass("");
+      setNotificationMessage("");
+      setNotificationTitle("");
     } catch (error) {
       handleError(error, "Failed to send notification");
     } finally {
@@ -187,41 +313,54 @@ const NotificationCenter = () => {
     }
   };
 
-  const handleCreateTemplate = () => {
-    const recipient =
-      newTemplate.recipientType === "user"
-        ? users.find((u) => u.id === newTemplate.selectedRecipient)
-        : classes.find((c) => c.id === newTemplate.selectedRecipient);
+  const handleCreateTemplate = async () => {
+    try {
+      setLoading(true);
+      const templateData = {
+        name: newTemplate.name,
+        type: newTemplate.recipientType === "user" ? "user_notification" : "class_notification",
+        title_template: newTemplate.name, // Using name as title for now
+        message_template: newTemplate.content,
+        metadata: {
+          recipientType: newTemplate.recipientType,
+          variables: newTemplate.variables
+        }
+      };
 
-    const newTemplateData = {
-      id: templates.length + 1,
-      name: newTemplate.name,
-      content: newTemplate.content,
-      recipientType: newTemplate.recipientType,
-      recipientId: newTemplate.selectedRecipient,
-      recipientName: recipient?.name || recipient?.title,
-      variables: newTemplate.variables,
-      type: "custom",
-    };
-    setTemplates([...templates, newTemplateData]);
-    setShowTemplateDialog(false);
-    setNewTemplate({
-      name: "",
-      content: "",
-      recipientType: "user",
-      selectedRecipient: "",
-      variables: [],
-    });
+      await adminService.createTemplate(templateData);
+      await fetchTemplates(); // Refresh templates after creating new one
+      enqueueSnackbar("Template created successfully", { variant: "success" });
+      setShowTemplateDialog(false);
+      setNewTemplate({
+        name: "",
+        content: "",
+        recipientType: "user",
+        selectedRecipient: "",
+        variables: [],
+      });
+    } catch (error) {
+      handleError(error, "Failed to create template");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleBroadcast = async () => {
     try {
       setLoading(true);
-      await adminService.sendBroadcast({ message: broadcastMessage });
+      if (!broadcastTitle.trim() || !broadcastMessage.trim()) {
+        enqueueSnackbar("Please provide both a title and message for the broadcast", { variant: "error" });
+        return;
+      }
+      await adminService.sendBroadcast({
+        title: broadcastTitle,
+        message: broadcastMessage
+      });
       await fetchNotifications();
       enqueueSnackbar("Broadcast sent successfully", { variant: "success" });
       setShowBroadcastDialog(false);
       setBroadcastMessage("");
+      setBroadcastTitle("");
     } catch (error) {
       handleError(error, "Failed to send broadcast");
     } finally {
@@ -379,8 +518,8 @@ const NotificationCenter = () => {
             </Button>
           </Box>
           <List sx={{ width: "100%" }}>
-            {notifications.map((notification) => (
-              <React.Fragment key={notification.id}>
+            {notifications.map((notification, index) => (
+              <React.Fragment key={`notification-${notification.id || index}`}>
                 <ListItem
                   onClick={() => handleViewNotification(notification)}
                   sx={{
@@ -399,27 +538,31 @@ const NotificationCenter = () => {
                       }}
                     >
                       {!notification.read && (
+                        <Tooltip title={<Typography sx={{ fontSize: '1rem', fontWeight: 400 }}>Mark as Read</Typography>} placement="top" arrow sx={{ '& .MuiTooltip-tooltip': { fontSize: '1rem', fontWeight: 400 } }}>
+                          <IconButton
+                            edge="end"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleMarkAsRead(notification.id);
+                            }}
+                            size="small"
+                          >
+                            <ReadIcon />
+                          </IconButton>
+                        </Tooltip>
+                      )}
+                      <Tooltip title={<Typography sx={{ fontSize: '1rem', fontWeight: 400 }}>Delete Notification</Typography>} placement="top" arrow sx={{ '& .MuiTooltip-tooltip': { fontSize: '1rem', fontWeight: 400 } }}>
                         <IconButton
                           edge="end"
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleMarkAsRead(notification.id);
+                            handleDeleteNotification(notification.id);
                           }}
                           size="small"
                         >
-                          <ReadIcon />
+                          <DeleteIcon />
                         </IconButton>
-                      )}
-                      <IconButton
-                        edge="end"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteNotification(notification.id);
-                        }}
-                        size="small"
-                      >
-                        <DeleteIcon />
-                      </IconButton>
+                      </Tooltip>
                     </Box>
                   }
                 >
@@ -477,8 +620,8 @@ const NotificationCenter = () => {
 
       {activeTab === 1 && (
         <List sx={{ width: "100%" }}>
-          {sentNotifications.map((notification) => (
-            <React.Fragment key={notification.id}>
+          {sentNotifications.map((notification, index) => (
+            <React.Fragment key={`sent-notification-${notification.id || index}`}>
               <ListItem
                 sx={{
                   flexDirection: { xs: "column", sm: "row" },
@@ -496,16 +639,18 @@ const NotificationCenter = () => {
                       mt: { xs: 1, sm: 0 },
                     }}
                   >
-                    <IconButton
-                      edge="end"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteSentNotification(notification.id);
-                      }}
-                      size="small"
-                    >
-                      <DeleteIcon />
-                    </IconButton>
+                    <Tooltip title={<Typography sx={{ fontSize: '1rem', fontWeight: 400 }}>Delete Sent Notification</Typography>} placement="top" arrow sx={{ '& .MuiTooltip-tooltip': { fontSize: '1rem', fontWeight: 400 } }}>
+                      <IconButton
+                        edge="end"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteSentNotification(notification.id);
+                        }}
+                        size="small"
+                      >
+                        <DeleteIcon />
+                      </IconButton>
+                    </Tooltip>
                   </Box>
                 }
               >
@@ -544,9 +689,9 @@ const NotificationCenter = () => {
 
       {activeTab === 2 && (
         <List sx={{ width: "100%" }}>
-          {templates.map((template) => (
+          {templates.map((template, index) => (
             <ListItem
-              key={template.id}
+              key={`template-${template.id || index}`}
               sx={{
                 flexDirection: { xs: "column", sm: "row" },
                 alignItems: { xs: "flex-start", sm: "center" },
@@ -576,17 +721,19 @@ const NotificationCenter = () => {
                         : "secondary"
                     }
                   />
-                  <IconButton
-                    edge="end"
-                    onClick={() => {
-                      setSelectedTemplate(template.id);
-                      setSelectedRecipientType(template.recipientType);
-                      setShowSendDialog(true);
-                    }}
-                    size="small"
-                  >
-                    <SendIcon />
-                  </IconButton>
+                  <Tooltip title={<Typography sx={{ fontSize: '1rem', fontWeight: 400 }}>Send Template</Typography>} placement="top" arrow sx={{ '& .MuiTooltip-tooltip': { fontSize: '1rem', fontWeight: 400 } }}>
+                    <IconButton
+                      edge="end"
+                      onClick={() => {
+                        setSelectedTemplate(template.id);
+                        setSelectedRecipientType(template.metadata?.recipientType || "user");
+                        setShowSendDialog(true);
+                      }}
+                      size="small"
+                    >
+                      <SendIcon />
+                    </IconButton>
+                  </Tooltip>
                 </Box>
               }
             >
@@ -610,7 +757,7 @@ const NotificationCenter = () => {
                       wordBreak: "break-word",
                     }}
                   >
-                    {template.content}
+                    {template.message_template}
                     <Typography
                       component="span"
                       variant="caption"
@@ -618,7 +765,7 @@ const NotificationCenter = () => {
                       sx={{ display: "block", mt: 0.5 }}
                     >
                       Variables:{" "}
-                      {template.variables.map((v) => `{${v}}`).join(", ")}
+                      {template.metadata?.variables?.map((v) => `{${v}}`).join(", ")}
                     </Typography>
                   </Typography>
                 }
@@ -660,170 +807,170 @@ const NotificationCenter = () => {
       {/* Send Notification Dialog */}
       <Dialog
         open={showSendDialog}
-        onClose={() => setShowSendDialog(false)}
+        onClose={() => {
+          setShowSendDialog(false);
+          setSelectedRecipientType("user");
+          setSelectedRecipient(null);
+          setSelectedClass("");
+          setNotificationMessage("");
+          setNotificationTitle("");
+        }}
         aria-labelledby="send-notification-dialog-title"
         keepMounted={false}
+        maxWidth="sm"
+        fullWidth
       >
         <DialogTitle>Send Notification</DialogTitle>
         <DialogContent>
           <Box sx={{ mt: 2 }}>
             <FormControl fullWidth sx={{ mb: 2 }}>
-              <InputLabel>Select Template</InputLabel>
+              <InputLabel>Notification Type</InputLabel>
               <Select
-                value={selectedTemplate}
-                label="Select Template"
+                value={selectedRecipientType}
+                label="Notification Type"
                 onChange={(e) => {
-                  const template = templates.find(
-                    (t) => t.id === e.target.value
-                  );
-                  setSelectedTemplate(e.target.value);
-                  if (template) {
-                    setSelectedRecipientType(template.recipientType);
-                    setBroadcastMessage(template.content);
-                  } else {
-                    setSelectedRecipientType("user");
-                    setBroadcastMessage("");
-                  }
+                  setSelectedRecipientType(e.target.value);
+                  setSelectedRecipient(null);
+                  setSelectedClass("");
                 }}
               >
-                <MenuItem value="">Custom Message</MenuItem>
-                {templates.map((template) => (
-                  <MenuItem key={template.id} value={template.id}>
-                    {template.name}
-                  </MenuItem>
-                ))}
+                <MenuItem value="user">Send to Student</MenuItem>
+                <MenuItem value="class">Send to Class</MenuItem>
               </Select>
             </FormControl>
 
-            <FormControl fullWidth sx={{ mb: 2 }}>
-              <InputLabel>
-                Select{" "}
-                {selectedTemplate
-                  ? templates.find((t) => t.id === selectedTemplate)
-                    ?.recipientType === "user"
-                    ? "Student"
-                    : "Class"
-                  : "Recipient"}
-              </InputLabel>
-              <Select
-                value={selectedRecipient}
-                label={`Select ${selectedTemplate
-                  ? templates.find((t) => t.id === selectedTemplate)
-                    ?.recipientType === "user"
-                    ? "Student"
-                    : "Class"
-                  : "Recipient"
-                  }`}
-                onChange={(e) => setSelectedRecipient(e.target.value)}
-              >
-                {selectedTemplate
-                  ? templates.find((t) => t.id === selectedTemplate)
-                    ?.recipientType === "user"
-                    ? users.map((user) => (
-                      <MenuItem key={user.id} value={user.id}>
-                        {user.name}
-                      </MenuItem>
-                    ))
-                    : classes.map((cls) => (
-                      <MenuItem key={cls.id} value={cls.id}>
-                        {cls.title}
-                      </MenuItem>
-                    ))
-                  : [...users, ...classes].map((item) => (
-                    <MenuItem key={item.id} value={item.id}>
-                      {item.name || item.title}
+            {selectedRecipientType === "user" ? (
+              <Box sx={{ mb: 2 }}>
+                <Autocomplete
+                  value={selectedRecipient}
+                  onChange={(event, newValue) => {
+                    console.log('Selected recipient:', newValue);
+                    setSelectedRecipient(newValue);
+                  }}
+                  options={users}
+                  getOptionLabel={(option) => {
+                    if (!option) return '';
+                    console.log('Getting label for option:', option);
+                    return option.displayName || `${option.first_name} ${option.last_name}`.trim() || option.email || 'Unnamed User';
+                  }}
+                  isOptionEqualToValue={(option, value) => {
+                    const isEqual = option?.id === value?.id;
+                    console.log('Comparing options:', { option, value, isEqual });
+                    return isEqual;
+                  }}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="Search and Select Student"
+                      placeholder="Type to search..."
+                      error={!!error}
+                      helperText={error || "Type to search for a student"}
+                      InputProps={{
+                        ...params.InputProps,
+                        endAdornment: (
+                          <>
+                            {loadingUsers ? <CircularProgress color="inherit" size={20} /> : null}
+                            {params.InputProps.endAdornment}
+                          </>
+                        ),
+                      }}
+                    />
+                  )}
+                  renderOption={(props, option) => {
+                    console.log('Rendering option:', option);
+                    return (
+                      <li {...props}>
+                        <Box>
+                          <Typography variant="body1">
+                            {option.displayName || `${option.first_name} ${option.last_name}`.trim() || option.email || 'Unnamed User'}
+                          </Typography>
+                          {option.email && (
+                            <Typography variant="body2" color="text.secondary">
+                              {option.email}
+                            </Typography>
+                          )}
+                          {option.role && (
+                            <Typography variant="caption" color="text.secondary">
+                              Student
+                            </Typography>
+                          )}
+                        </Box>
+                      </li>
+                    );
+                  }}
+                  noOptionsText={loadingUsers ? "Loading..." : "No students found"}
+                  loadingText="Loading students..."
+                  clearText="Clear"
+                  openText="Open"
+                  closeText="Close"
+                  loading={loadingUsers}
+                  fullWidth
+                />
+                {error && (
+                  <Typography color="error" variant="caption" sx={{ mt: 1 }}>
+                    {error}
+                  </Typography>
+                )}
+              </Box>
+            ) : (
+              <FormControl fullWidth sx={{ mb: 2 }}>
+                <InputLabel>Select Class</InputLabel>
+                <Select
+                  value={selectedClass}
+                  label="Select Class"
+                  onChange={(e) => setSelectedClass(e.target.value)}
+                >
+                  {classes.map((cls) => (
+                    <MenuItem key={cls.id} value={cls.id}>
+                      {cls.title}
                     </MenuItem>
                   ))}
-              </Select>
-            </FormControl>
+                </Select>
+              </FormControl>
+            )}
+
+            <TextField
+              fullWidth
+              label="Notification Title"
+              value={notificationTitle}
+              onChange={(e) => setNotificationTitle(e.target.value)}
+              sx={{ mb: 2 }}
+            />
 
             <TextField
               fullWidth
               multiline
               rows={4}
               label="Message"
-              value={broadcastMessage}
-              onChange={(e) => setBroadcastMessage(e.target.value)}
-              helperText={
-                selectedTemplate
-                  ? `Template variables will be replaced automatically. Available variables: ${templates
-                    .find((t) => t.id === selectedTemplate)
-                    ?.variables.map((v) => `{${v}}`)
-                    .join(", ")}`
-                  : ""
-              }
+              value={notificationMessage}
+              onChange={(e) => setNotificationMessage(e.target.value)}
+              placeholder="Enter your notification message..."
             />
-
-            {selectedTemplate && (
-              <Box sx={{ mt: 2 }}>
-                <Typography variant="subtitle2" gutterBottom>
-                  Preview:
-                </Typography>
-                <Paper variant="outlined" sx={{ p: 2, bgcolor: "grey.50" }}>
-                  <Typography variant="body2">
-                    {broadcastMessage.replace(
-                      /\{([^}]+)\}/g,
-                      (match, variable) => {
-                        switch (variable) {
-                          case "student_name":
-                            return (
-                              users.find((u) => u.id === selectedRecipient)
-                                ?.name || "{student_name}"
-                            );
-                          case "class_name":
-                            return (
-                              classes.find((c) => c.id === selectedRecipient)
-                                ?.title || "{class_name}"
-                            );
-                          case "student_count":
-                            return "15"; // Mock value
-                          case "teacher_name":
-                            return "Mrs. Smith"; // Mock value
-                          case "time":
-                            return "30"; // Mock value
-                          case "amount":
-                            return "$150.00"; // Mock value
-                          case "days":
-                            return "3"; // Mock value
-                          case "certificate_name":
-                            return "Art Fundamentals"; // Mock value
-                          default:
-                            return match;
-                        }
-                      }
-                    )}
-                  </Typography>
-                </Paper>
-              </Box>
-            )}
           </Box>
         </DialogContent>
         <DialogActions>
           <Button
             onClick={() => {
               setShowSendDialog(false);
-              setSelectedRecipient("");
-              setSelectedTemplate("");
-              setBroadcastMessage("");
+              setSelectedRecipientType("user");
+              setSelectedRecipient(null);
+              setSelectedClass("");
+              setNotificationMessage("");
+              setNotificationTitle("");
             }}
           >
             Cancel
           </Button>
           <Button
-            onClick={() =>
-              handleSendNotification({
-                title: selectedTemplate
-                  ? templates.find((t) => t.id === selectedTemplate)?.name
-                  : "Custom Notification",
-                message: broadcastMessage,
-                recipient: selectedRecipient,
-                recipientType: selectedTemplate
-                  ? templates.find((t) => t.id === selectedTemplate)?.recipientType
-                  : selectedRecipientType
-              })
-            }
+            onClick={handleSendNotification}
             variant="contained"
-            disabled={!selectedRecipient || !broadcastMessage}
+            color="primary"
+            disabled={
+              !notificationTitle.trim() ||
+              !notificationMessage.trim() ||
+              (selectedRecipientType === "user" && !selectedRecipient?.id) ||
+              (selectedRecipientType === "class" && !selectedClass)
+            }
           >
             Send
           </Button>
@@ -1016,13 +1163,25 @@ const NotificationCenter = () => {
       {/* Broadcast Dialog */}
       <Dialog
         open={showBroadcastDialog}
-        onClose={() => setShowBroadcastDialog(false)}
+        onClose={() => {
+          setShowBroadcastDialog(false);
+          setBroadcastMessage("");
+          setBroadcastTitle("");
+        }}
         aria-labelledby="broadcast-dialog-title"
         keepMounted={false}
       >
         <DialogTitle>Broadcast Message</DialogTitle>
         <DialogContent>
           <Box sx={{ mt: 2 }}>
+            <TextField
+              fullWidth
+              label="Broadcast Title"
+              value={broadcastTitle}
+              onChange={(e) => setBroadcastTitle(e.target.value)}
+              sx={{ mb: 2 }}
+              helperText="Enter a title for your broadcast message"
+            />
             <TextField
               fullWidth
               multiline
@@ -1035,8 +1194,19 @@ const NotificationCenter = () => {
           </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setShowBroadcastDialog(false)}>Cancel</Button>
-          <Button onClick={handleBroadcast} variant="contained" color="primary">
+          <Button onClick={() => {
+            setShowBroadcastDialog(false);
+            setBroadcastMessage("");
+            setBroadcastTitle("");
+          }}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleBroadcast}
+            variant="contained"
+            color="primary"
+            disabled={!broadcastTitle.trim() || !broadcastMessage.trim()}
+          >
             Broadcast
           </Button>
         </DialogActions>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     Box,
     Card,
@@ -7,17 +7,15 @@ import {
     Typography,
     IconButton,
     Chip,
-    Dialog,
-    DialogTitle,
-    DialogContent,
-    DialogActions,
-    Button,
     Grid,
     Tooltip,
     Menu,
     MenuItem,
     ListItemIcon,
-    ListItemText
+    ListItemText,
+    Checkbox,
+    Button,
+    Paper
 } from '@mui/material';
 import {
     PictureAsPdf as PdfIcon,
@@ -25,18 +23,24 @@ import {
     MoreVert as MoreIcon,
     Download as DownloadIcon,
     Delete as DeleteIcon,
-    Visibility as ViewIcon,
     Edit as EditIcon,
     CheckCircle as ActiveIcon,
     Cancel as RevokedIcon,
     Timer as ExpiredIcon
 } from '@mui/icons-material';
 
-const CertificateViewer = ({ certificates = [], onView, onDownload, onDelete, onStatusChange }) => {
-    const [selectedCertificate, setSelectedCertificate] = useState(null);
-    const [previewOpen, setPreviewOpen] = useState(false);
+const CertificateViewer = ({ certificates = [], onDownload, onDelete, onStatusChange }) => {
     const [menuAnchor, setMenuAnchor] = useState(null);
     const [selectedCertForMenu, setSelectedCertForMenu] = useState(null);
+    const [selectedCertificates, setSelectedCertificates] = useState(new Set());
+    const [selectAll, setSelectAll] = useState(false);
+
+    // Update selectAll when all certificates are selected/deselected
+    useEffect(() => {
+        if (certificates.length > 0) {
+            setSelectAll(selectedCertificates.size === certificates.length);
+        }
+    }, [selectedCertificates, certificates]);
 
     const handleMenuOpen = (event, certificate) => {
         setMenuAnchor(event.currentTarget);
@@ -48,24 +52,45 @@ const CertificateViewer = ({ certificates = [], onView, onDownload, onDelete, on
         setSelectedCertForMenu(null);
     };
 
-    const handlePreviewOpen = (certificate) => {
-        setSelectedCertificate(certificate);
-        setPreviewOpen(true);
-        handleMenuClose();
+    const handleSelectAll = (event) => {
+        if (event.target.checked) {
+            const allIds = new Set(certificates.map(cert => cert.id));
+            setSelectedCertificates(allIds);
+        } else {
+            setSelectedCertificates(new Set());
+        }
+        setSelectAll(event.target.checked);
     };
 
-    const handlePreviewClose = () => {
-        setPreviewOpen(false);
-        setSelectedCertificate(null);
+    const handleSelectCertificate = (certificateId) => {
+        const newSelected = new Set(selectedCertificates);
+        if (newSelected.has(certificateId)) {
+            newSelected.delete(certificateId);
+        } else {
+            newSelected.add(certificateId);
+        }
+        setSelectedCertificates(newSelected);
+    };
+
+    const handleBulkDelete = () => {
+        if (selectedCertificates.size > 0) {
+            if (window.confirm(`Are you sure you want to delete ${selectedCertificates.size} certificate(s)?`)) {
+                selectedCertificates.forEach(certId => {
+                    onDelete({ id: certId });
+                });
+                setSelectedCertificates(new Set());
+                setSelectAll(false);
+            }
+        }
     };
 
     const getStatusIcon = (status) => {
         switch (status) {
-            case 'active':
+            case 'approved':
                 return <ActiveIcon color="success" />;
-            case 'expired':
+            case 'pending':
                 return <ExpiredIcon color="warning" />;
-            case 'revoked':
+            case 'rejected':
                 return <RevokedIcon color="error" />;
             default:
                 return null;
@@ -74,11 +99,11 @@ const CertificateViewer = ({ certificates = [], onView, onDownload, onDelete, on
 
     const getStatusColor = (status) => {
         switch (status) {
-            case 'active':
+            case 'approved':
                 return 'success';
-            case 'expired':
+            case 'pending':
                 return 'warning';
-            case 'revoked':
+            case 'rejected':
                 return 'error';
             default:
                 return 'default';
@@ -103,66 +128,148 @@ const CertificateViewer = ({ certificates = [], onView, onDownload, onDelete, on
 
     return (
         <>
-            <Grid container spacing={3}>
+            {/* Bulk Actions Bar */}
+            {selectedCertificates.size > 0 && (
+                <Paper
+                    elevation={2}
+                    sx={{
+                        p: 2,
+                        mb: 2,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        backgroundColor: 'primary.light',
+                        color: 'primary.contrastText'
+                    }}
+                >
+                    <Typography>
+                        {selectedCertificates.size} certificate(s) selected
+                    </Typography>
+                    <Button
+                        variant="contained"
+                        color="error"
+                        startIcon={<DeleteIcon />}
+                        onClick={handleBulkDelete}
+                    >
+                        Delete Selected
+                    </Button>
+                </Paper>
+            )}
+
+            {/* Select All Checkbox */}
+            <Box sx={{ mb: 2, display: 'flex', alignItems: 'center' }}>
+                <Checkbox
+                    checked={selectAll}
+                    onChange={handleSelectAll}
+                    indeterminate={selectedCertificates.size > 0 && selectedCertificates.size < certificates.length}
+                />
+                <Typography variant="body2" color="text.secondary">
+                    Select All
+                </Typography>
+            </Box>
+
+            <Grid container spacing={3} alignItems="stretch">
                 {certificates.map((certificate) => (
-                    <Grid key={certificate.id} sx={{ width: { xs: '100%', lg: '33.33%' } }}>
+                    <Grid item xs={12} sm={6} md={4} key={certificate.id}>
                         <Card
                             sx={{
                                 height: '100%',
                                 display: 'flex',
                                 flexDirection: 'column',
-                                position: 'relative'
+                                position: 'relative',
+                                border: selectedCertificates.has(certificate.id) ? '2px solid' : 'none',
+                                borderColor: 'primary.main'
                             }}
                         >
-                            <CardContent sx={{ flexGrow: 1 }}>
+                            <CardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
                                 <Box sx={{
                                     display: 'flex',
                                     justifyContent: 'space-between',
                                     alignItems: 'flex-start',
                                     mb: 2
                                 }}>
-                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                        {certificate.file_type === 'application/pdf' ? (
-                                            <PdfIcon color="error" />
-                                        ) : (
-                                            <ImageIcon color="primary" />
-                                        )}
-                                        <Typography variant="subtitle1" noWrap>
-                                            {certificate.certificate_name}
-                                        </Typography>
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1, minWidth: 0 }}>
+                                        <Checkbox
+                                            checked={selectedCertificates.has(certificate.id)}
+                                            onChange={() => handleSelectCertificate(certificate.id)}
+                                            onClick={(e) => e.stopPropagation()}
+                                        />
+                                        <Tooltip title={certificate.file_type === 'application/pdf' ? 'PDF File' : 'Image File'} placement="top" arrow>
+                                            {certificate.file_type === 'application/pdf' ? (
+                                                <PdfIcon color="error" />
+                                            ) : (
+                                                <ImageIcon color="primary" />
+                                            )}
+                                        </Tooltip>
+                                        <Tooltip
+                                            title={
+                                                <Typography sx={{ fontSize: '1rem', fontWeight: 400 }}>
+                                                    {certificate.certificate_name}
+                                                </Typography>
+                                            }
+                                            placement="top"
+                                            arrow
+                                            sx={{
+                                                '& .MuiTooltip-tooltip': {
+                                                    fontSize: '1.1rem',
+                                                    fontWeight: 500,
+                                                },
+                                            }}
+                                        >
+                                            <Typography
+                                                variant="subtitle1"
+                                                sx={{
+                                                    overflow: 'hidden',
+                                                    textOverflow: 'ellipsis',
+                                                    whiteSpace: 'nowrap',
+                                                    flex: 1,
+                                                    minWidth: 0
+                                                }}
+                                            >
+                                                {certificate.certificate_name}
+                                            </Typography>
+                                        </Tooltip>
                                     </Box>
-                                    <IconButton
-                                        size="small"
-                                        onClick={(e) => handleMenuOpen(e, certificate)}
+                                    <Tooltip
+                                        title={<Typography sx={{ fontSize: '1rem', fontWeight: 400 }}>More Actions</Typography>}
+                                        placement="top"
+                                        arrow
+                                        sx={{ '& .MuiTooltip-tooltip': { fontSize: '1rem', fontWeight: 400 } }}
                                     >
-                                        <MoreIcon />
-                                    </IconButton>
+                                        <IconButton
+                                            size="small"
+                                            onClick={(e) => handleMenuOpen(e, certificate)}
+                                            sx={{ flexShrink: 0, ml: 1 }}
+                                        >
+                                            <MoreIcon />
+                                        </IconButton>
+                                    </Tooltip>
                                 </Box>
 
                                 <Box sx={{ mb: 2 }}>
                                     <Typography variant="body2" color="text.secondary" gutterBottom>
-                                        Student: {certificate.student_name}
+                                        Student: {certificate.student_name || 'Not Assigned'}
                                     </Typography>
                                     <Typography variant="body2" color="text.secondary" gutterBottom>
                                         Class: {certificate.class_name || 'N/A'}
                                     </Typography>
                                     <Typography variant="body2" color="text.secondary" gutterBottom>
-                                        Uploaded: {formatDate(certificate.upload_date)}
+                                        Uploaded: {certificate.upload_date ? formatDate(certificate.upload_date) : 'N/A'}
                                     </Typography>
                                     <Typography variant="body2" color="text.secondary">
-                                        Size: {formatFileSize(certificate.file_size)}
+                                        Size: {certificate.file_size ? formatFileSize(certificate.file_size) : 'N/A'}
                                     </Typography>
                                 </Box>
 
                                 <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
                                     <Chip
                                         icon={getStatusIcon(certificate.status)}
-                                        label={certificate.status}
+                                        label={certificate.status || 'Unknown'}
                                         color={getStatusColor(certificate.status)}
                                         size="small"
                                     />
                                     <Chip
-                                        label={certificate.file_type.toUpperCase()}
+                                        label={(certificate.file_type || 'Unknown').toUpperCase()}
                                         size="small"
                                         variant="outlined"
                                     />
@@ -170,15 +277,7 @@ const CertificateViewer = ({ certificates = [], onView, onDownload, onDelete, on
                             </CardContent>
 
                             <CardActions sx={{ justifyContent: 'flex-end', p: 2 }}>
-                                <Tooltip title="View Certificate">
-                                    <IconButton
-                                        size="small"
-                                        onClick={() => handlePreviewOpen(certificate)}
-                                    >
-                                        <ViewIcon />
-                                    </IconButton>
-                                </Tooltip>
-                                <Tooltip title="Download">
+                                <Tooltip title={<Typography sx={{ fontSize: '1rem', fontWeight: 400 }}>Download</Typography>} placement="top" arrow sx={{ '& .MuiTooltip-tooltip': { fontSize: '1rem', fontWeight: 400 } }}>
                                     <IconButton
                                         size="small"
                                         onClick={() => onDownload(certificate)}
@@ -192,86 +291,12 @@ const CertificateViewer = ({ certificates = [], onView, onDownload, onDelete, on
                 ))}
             </Grid>
 
-            {/* Certificate Preview Dialog */}
-            <Dialog
-                open={previewOpen}
-                onClose={handlePreviewClose}
-                maxWidth="md"
-                fullWidth
-            >
-                <DialogTitle>
-                    <Box>
-                        <Typography variant="h6" component="div">
-                            Certificate Preview
-                        </Typography>
-                        {selectedCertificate && (
-                            <Typography variant="body2" color="text.secondary">
-                                {selectedCertificate.certificate_name}
-                            </Typography>
-                        )}
-                    </Box>
-                </DialogTitle>
-                <DialogContent>
-                    {selectedCertificate && (
-                        <Box sx={{
-                            display: 'flex',
-                            justifyContent: 'center',
-                            alignItems: 'center',
-                            minHeight: '400px',
-                            bgcolor: 'grey.100',
-                            borderRadius: 1
-                        }}>
-                            {selectedCertificate.file_type === 'pdf' ? (
-                                <iframe
-                                    src={selectedCertificate.file_url}
-                                    style={{
-                                        width: '100%',
-                                        height: '500px',
-                                        border: 'none'
-                                    }}
-                                    title="Certificate Preview"
-                                />
-                            ) : (
-                                <img
-                                    src={selectedCertificate.file_url}
-                                    alt="Certificate Preview"
-                                    style={{
-                                        maxWidth: '100%',
-                                        maxHeight: '500px',
-                                        objectFit: 'contain'
-                                    }}
-                                />
-                            )}
-                        </Box>
-                    )}
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={handlePreviewClose}>Close</Button>
-                    {selectedCertificate && (
-                        <Button
-                            startIcon={<DownloadIcon />}
-                            onClick={() => onDownload(selectedCertificate)}
-                        >
-                            Download
-                        </Button>
-                    )}
-                </DialogActions>
-            </Dialog>
-
             {/* Certificate Actions Menu */}
             <Menu
                 anchorEl={menuAnchor}
                 open={Boolean(menuAnchor)}
                 onClose={handleMenuClose}
             >
-                <MenuItem onClick={() => {
-                    handlePreviewOpen(selectedCertForMenu);
-                }}>
-                    <ListItemIcon>
-                        <ViewIcon fontSize="small" />
-                    </ListItemIcon>
-                    <ListItemText>View</ListItemText>
-                </MenuItem>
                 <MenuItem onClick={() => {
                     onDownload(selectedCertForMenu);
                     handleMenuClose();

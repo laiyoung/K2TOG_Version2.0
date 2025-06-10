@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import adminService from '../../services/adminService';
 import enrollmentService from '../../services/enrollmentService';
-import { Box, TableContainer, Table, TableHead, TableBody, TableRow, TableCell, Chip, IconButton, Paper, Grid, Card, CardContent, Typography, CircularProgress, Alert, Select, MenuItem, FormControl, InputLabel, Button, Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
+import { Box, TableContainer, Table, TableHead, TableBody, TableRow, TableCell, Chip, IconButton, Paper, Grid, Card, CardContent, Typography, CircularProgress, Alert, Select, MenuItem, FormControl, InputLabel, Button, Dialog, DialogTitle, DialogContent, DialogActions, Tooltip } from '@mui/material';
 import { Visibility as VisibilityIcon, Check as CheckIcon, Block, Download as DownloadIcon, Close as CloseIcon, Pending as PendingIcon } from '@mui/icons-material';
 import { useNotifications } from '../../utils/notificationUtils';
 
@@ -308,29 +308,35 @@ function EnrollmentManagement() {
                                     />
                                 </TableCell>
                                 <TableCell>
-                                    <IconButton
-                                        size="small"
-                                        onClick={() => handleViewDetails(enrollment)}
-                                    >
-                                        <VisibilityIcon />
-                                    </IconButton>
-                                    {enrollment.enrollment_status !== 'pending' && (
+                                    <Tooltip title={<Typography sx={{ fontSize: '1rem', fontWeight: 400 }}>View Details</Typography>} placement="top" arrow sx={{ '& .MuiTooltip-tooltip': { fontSize: '1rem', fontWeight: 400 } }}>
                                         <IconButton
                                             size="small"
-                                            onClick={() => handleStatusUpdate(enrollment.id, 'pending')}
-                                            color="warning"
+                                            onClick={() => handleViewDetails(enrollment)}
                                         >
-                                            <PendingIcon />
+                                            <VisibilityIcon />
                                         </IconButton>
+                                    </Tooltip>
+                                    {enrollment.enrollment_status !== 'pending' && (
+                                        <Tooltip title={<Typography sx={{ fontSize: '1rem', fontWeight: 400 }}>Set Pending</Typography>} placement="top" arrow sx={{ '& .MuiTooltip-tooltip': { fontSize: '1rem', fontWeight: 400 } }}>
+                                            <IconButton
+                                                size="small"
+                                                onClick={() => handleStatusUpdate(enrollment.id, 'pending')}
+                                                color="warning"
+                                            >
+                                                <PendingIcon />
+                                            </IconButton>
+                                        </Tooltip>
                                     )}
                                     {enrollment.enrollment_status !== 'approved' && (
-                                        <IconButton
-                                            size="small"
-                                            onClick={() => handleStatusUpdate(enrollment.id, 'approved')}
-                                            color="success"
-                                        >
-                                            <CheckIcon />
-                                        </IconButton>
+                                        <Tooltip title={<Typography sx={{ fontSize: '1rem', fontWeight: 400 }}>Approve Enrollment</Typography>} placement="top" arrow sx={{ '& .MuiTooltip-tooltip': { fontSize: '1rem', fontWeight: 400 } }}>
+                                            <IconButton
+                                                size="small"
+                                                onClick={() => handleStatusUpdate(enrollment.id, 'approved')}
+                                                color="success"
+                                            >
+                                                <CheckIcon />
+                                            </IconButton>
+                                        </Tooltip>
                                     )}
                                     {enrollment.enrollment_status !== 'rejected' && (
                                         <IconButton

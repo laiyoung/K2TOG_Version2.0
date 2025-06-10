@@ -23,7 +23,8 @@ import {
     DialogContent,
     DialogActions,
     Button,
-    Alert
+    Alert,
+    Tooltip
 } from '@mui/material';
 import {
     Search as SearchIcon,
@@ -259,7 +260,9 @@ const FinancialManagement = () => {
                     <Card>
                         <CardContent>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                <ScheduleIcon color="warning" />
+                                <Tooltip title={<Typography sx={{ fontSize: '1rem', fontWeight: 400 }}>Due Soon</Typography>} placement="top" arrow sx={{ '& .MuiTooltip-tooltip': { fontSize: '1rem', fontWeight: 400 } }}>
+                                    <ScheduleIcon color="warning" />
+                                </Tooltip>
                                 <Typography variant="h6">Due Soon</Typography>
                             </Box>
                             <Typography variant="h4" sx={{ mt: 1 }} color="warning.main">
@@ -320,14 +323,16 @@ const FinancialManagement = () => {
                             }
                         }}
                     />
-                    <Button
-                        variant="outlined"
-                        onClick={handleExportTransactions}
-                        startIcon={<DownloadIcon />}
-                        disabled={loading}
-                    >
-                        Export
-                    </Button>
+                    <Tooltip title={<Typography sx={{ fontSize: '1rem', fontWeight: 400 }}>Export</Typography>} placement="top" arrow sx={{ '& .MuiTooltip-tooltip': { fontSize: '1rem', fontWeight: 400 } }}>
+                        <Button
+                            variant="outlined"
+                            onClick={handleExportTransactions}
+                            startIcon={<DownloadIcon />}
+                            disabled={loading}
+                        >
+                            Export
+                        </Button>
+                    </Tooltip>
                 </Box>
             </Box>
 
@@ -374,14 +379,16 @@ const FinancialManagement = () => {
                                     </Box>
                                 </TableCell>
                                 <TableCell align="right">
-                                    <IconButton
-                                        color="primary"
-                                        onClick={() => handleSendReminder(payment)}
-                                        size="small"
-                                        title="Send Reminder"
-                                    >
-                                        <SendIcon />
-                                    </IconButton>
+                                    <Tooltip title={<Typography sx={{ fontSize: '1rem', fontWeight: 400 }}>Send Reminder</Typography>} placement="top" arrow sx={{ '& .MuiTooltip-tooltip': { fontSize: '1rem', fontWeight: 400 } }}>
+                                        <IconButton
+                                            color="primary"
+                                            onClick={() => handleSendReminder(payment)}
+                                            size="small"
+                                            title="Send Reminder"
+                                        >
+                                            <SendIcon />
+                                        </IconButton>
+                                    </Tooltip>
                                 </TableCell>
                             </TableRow>
                         ))}
@@ -438,15 +445,17 @@ const FinancialManagement = () => {
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={handleReminderCancel}>Cancel</Button>
-                    <Button
-                        onClick={handleReminderConfirm}
-                        variant="contained"
-                        color="primary"
-                        startIcon={<EmailIcon />}
-                        disabled={loading}
-                    >
-                        {loading ? 'Sending...' : 'Send Reminder'}
-                    </Button>
+                    <Tooltip title={<Typography sx={{ fontSize: '1rem', fontWeight: 400 }}>Send Reminder</Typography>} placement="top" arrow sx={{ '& .MuiTooltip-tooltip': { fontSize: '1rem', fontWeight: 400 } }}>
+                        <Button
+                            onClick={handleReminderConfirm}
+                            variant="contained"
+                            color="primary"
+                            startIcon={<EmailIcon />}
+                            disabled={loading}
+                        >
+                            {loading ? 'Sending...' : 'Send Reminder'}
+                        </Button>
+                    </Tooltip>
                 </DialogActions>
             </Dialog>
 

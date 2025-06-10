@@ -40,24 +40,43 @@ async function getTemplateByName(name) {
   return result.rows[0];
 }
 
-// Create bulk notifications from template
+// Create bulk notifications from template or custom message
 async function createBulkFromTemplate(templateName, userIds, variables = {}, actionUrl = null, senderId = null) {
-  // Get the template
-  const template = await getTemplateByName(templateName);
-  if (!template) {
-    throw new Error('Notification template not found');
+  let template;
+  let title;
+  let message;
+  let type;
+
+  // Check if this is a custom notification (no template)
+  if (templateName === 'custom_notification') {
+    title = variables.title || 'Notification';
+    message = variables.message;
+    type = 'custom';
+  } else {
+    // Get the template
+    template = await getTemplateByName(templateName);
+    if (!template) {
+      throw new Error('Notification template not found');
+    }
+
+    // Process template variables
+    title = template.title_template;
+    message = template.message_template;
+    type = template.type;
+    
+    // Replace variables in templates
+    Object.entries(variables).forEach(([key, value]) => {
+      const regex = new RegExp(`{{${key}}}`, 'g');
+      title = title.replace(regex, value);
+      message = message.replace(regex, value);
+    });
   }
 
-  // Process template variables
-  let title = template.title_template;
-  let message = template.message_template;
-  
-  // Replace variables in templates
-  Object.entries(variables).forEach(([key, value]) => {
-    const regex = new RegExp(`{{${key}}}`, 'g');
-    title = title.replace(regex, value);
-    message = message.replace(regex, value);
-  });
+  // Get recipient information for metadata
+  const recipientInfo = await pool.query(
+    'SELECT id, first_name, last_name, email FROM users WHERE id = ANY($1)',
+    [userIds]
+  );
 
   // Create notifications for each user
   const notifications = [];
@@ -65,13 +84,22 @@ async function createBulkFromTemplate(templateName, userIds, variables = {}, act
   
   for (const userId of userIds) {
     try {
+      const recipient = recipientInfo.rows.find(r => r.id === userId);
       const notification = await createNotification({
         user_id: userId,
-        type: template.type,
-        title,
-        message,
+        type: type,
+        title: title,
+        message: message,
         action_url: actionUrl,
-        metadata: template.metadata,
+        metadata: {
+          ...(template?.metadata || { isCustom: true }),
+          recipient: recipient ? {
+            id: recipient.id,
+            name: `${recipient.first_name} ${recipient.last_name}`.trim(),
+            email: recipient.email
+          } : null,
+          sent_at: new Date().toISOString()
+        },
         sender_id: senderId
       });
       notifications.push(notification);
@@ -91,13 +119,91 @@ async function createBulkFromTemplate(templateName, userIds, variables = {}, act
 // Get notifications sent by an admin
 async function getNotificationsSentByAdmin(adminId) {
   const result = await pool.query(`
-    SELECT n.*, u.name as recipient_name 
-    FROM user_notifications n
-    JOIN users u ON n.user_id = u.id
-    WHERE n.sender_id = $1
+    WITH notification_data AS (
+      SELECT 
+        n.*,
+        u.first_name,
+        u.last_name,
+        u.email,
+        n.metadata->>'recipient' as recipient_metadata,
+        (n.metadata->>'sent_at')::timestamp with time zone as sent_at_metadata
+      FROM user_notifications n
+      LEFT JOIN users u ON n.user_id = u.id
+      WHERE n.sender_id = $1
+    )
+    SELECT 
+      n.id,
+      n.user_id,
+      n.type,
+      n.title,
+      n.message,
+      n.action_url,
+      n.metadata,
+      n.sender_id,
+      n.created_at,
+      n.updated_at,
+      CASE 
+        WHEN n.recipient_metadata IS NOT NULL 
+        THEN (n.recipient_metadata::jsonb->>'name')::text
+        ELSE COALESCE(n.first_name || ' ' || n.last_name, n.email)
+      END as recipient_name,
+      CASE 
+        WHEN n.recipient_metadata IS NOT NULL 
+        THEN (n.recipient_metadata::jsonb->>'email')::text
+        ELSE n.email
+      END as recipient_email,
+      COALESCE(n.sent_at_metadata, n.created_at) as sent_at
+    FROM notification_data n
     ORDER BY n.created_at DESC
   `, [adminId]);
+  
   return result.rows;
+}
+
+// Get all notification templates
+async function getAllTemplates() {
+  const result = await pool.query('SELECT * FROM notification_templates ORDER BY created_at DESC');
+  return result.rows;
+}
+
+// Create a notification template
+async function createTemplate(data) {
+  const { name, type, title_template, message_template, metadata } = data;
+  const result = await pool.query(
+    'INSERT INTO notification_templates (name, type, title_template, message_template, metadata) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+    [name, type, title_template, message_template, metadata]
+  );
+  return result.rows[0];
+}
+
+// Create a direct broadcast notification
+async function createDirectBroadcast(title, message, userIds, senderId) {
+  const notifications = [];
+  const failedUsers = [];
+  
+  for (const userId of userIds) {
+    try {
+      const notification = await createNotification({
+        user_id: userId,
+        type: 'broadcast',
+        title: title,
+        message: message,
+        action_url: null,
+        metadata: { isBroadcast: true },
+        sender_id: senderId
+      });
+      notifications.push(notification);
+    } catch (error) {
+      console.error(`Failed to create broadcast notification for user ${userId}:`, error);
+      failedUsers.push(userId);
+    }
+  }
+
+  return {
+    sent_count: notifications.length,
+    failed_count: failedUsers.length,
+    failed_users: failedUsers
+  };
 }
 
 module.exports = {
@@ -107,5 +213,8 @@ module.exports = {
   deleteNotification,
   getTemplateByName,
   createBulkFromTemplate,
-  getNotificationsSentByAdmin
+  getNotificationsSentByAdmin,
+  getAllTemplates,
+  createTemplate,
+  createDirectBroadcast
 }; 

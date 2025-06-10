@@ -13,11 +13,21 @@ cloudinary.config({
 // Configure storage
 const storage = new CloudinaryStorage({
     cloudinary: cloudinary,
-    params: {
-        folder: 'yj-childcare-certificates',
-        allowed_formats: ['pdf', 'jpg', 'jpeg', 'png'],
-        transformation: [{ quality: 'auto:good' }],
-        resource_type: 'auto'
+    params: async (req, file) => {
+        const timestamp = Date.now();
+        const originalName = file.originalname.split('.')[0];
+        const sanitizedName = originalName.replace(/[^a-zA-Z0-9]/g, '_');
+        const isPdf = file.mimetype === 'application/pdf';
+        return {
+            folder: 'yj-childcare-certificates',
+            resource_type: isPdf ? 'raw' : 'image',
+            allowed_formats: ['pdf', 'jpg', 'jpeg', 'png'],
+            public_id: isPdf
+                ? `${sanitizedName}_${timestamp}.pdf`
+                : `${sanitizedName}_${timestamp}`,
+            transformation: !isPdf ? [{ fetch_format: 'auto' }] : undefined,
+            type: 'upload' // Ensure all uploads are public
+        };
     }
 });
 

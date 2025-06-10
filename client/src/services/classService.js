@@ -1,30 +1,63 @@
 import api from './apiConfig';
 
 const classService = {
+    // Helper function to handle fetch requests
+    fetchWithAuth: async (url, options = {}) => {
+        const token = localStorage.getItem('token');
+        const headers = {
+            'Content-Type': 'application/json',
+            ...(token && { 'Authorization': `Bearer ${token}` }),
+            ...options.headers
+        };
+
+        const response = await fetch(`/api${url}`, {
+            ...options,
+            headers
+        });
+
+        if (response.status === 401) {
+            window.location.href = '/login';
+            throw new Error('Unauthorized');
+        }
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        return response.json();
+    },
+
     // Get all classes
-    getAllClasses: async (filters = {}) => {
-        const queryParams = new URLSearchParams(filters).toString();
-        return api.get(`/classes?${queryParams}`);
+    getAllClasses: async () => {
+        return classService.fetchWithAuth('/admin/classes');
     },
 
     // Get a single class by ID
     getClassById: async (classId) => {
-        return api.get(`/classes/${classId}`);
+        return classService.fetchWithAuth(`/admin/classes/${classId}`);
     },
 
     // Create a new class (admin only)
     createClass: async (classData) => {
-        return api.post('/classes', classData);
+        return classService.fetchWithAuth('/admin/classes', {
+            method: 'POST',
+            body: JSON.stringify(classData)
+        });
     },
 
     // Update a class (admin only)
     updateClass: async (classId, classData) => {
-        return api.put(`/classes/${classId}`, classData);
+        return classService.fetchWithAuth(`/admin/classes/${classId}`, {
+            method: 'PUT',
+            body: JSON.stringify(classData)
+        });
     },
 
     // Delete a class (admin only)
     deleteClass: async (classId) => {
-        return api.delete(`/classes/${classId}`);
+        return classService.fetchWithAuth(`/admin/classes/${classId}`, {
+            method: 'DELETE'
+        });
     },
 
     // Get class schedule
