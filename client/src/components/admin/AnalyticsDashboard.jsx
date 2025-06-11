@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import adminService from '../../services/adminService';
 import { useNotifications } from '../../utils/notificationUtils';
 import {
@@ -14,12 +14,13 @@ import {
     ArcElement
 } from 'chart.js';
 import { Line, Bar, Pie } from 'react-chartjs-2';
-import { Box, Grid, Paper, Typography, Select, MenuItem, FormControl, InputLabel, Button, Alert, List, ListItem, ListItemText } from '@mui/material';
+import { Box, Grid, Paper, Typography, Select, MenuItem, FormControl, InputLabel, Button, Alert, List, ListItem, ListItemText, CircularProgress } from '@mui/material';
 import { TableContainer, Table, TableHead, TableBody, TableRow, TableCell } from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { Download } from '@mui/icons-material';
+import { parseISO, isValid, format, subYears, startOfDay, endOfDay } from 'date-fns';
 
 ChartJS.register(
     CategoryScale,
@@ -34,97 +35,207 @@ ChartJS.register(
 );
 
 // Feature flag for export functionality
-const ENABLE_EXPORT = false; // Set to true when backend endpoint is implemented
+const ENABLE_EXPORT = false;
+
+// Add this utility function at the top of the file, after imports
+const parseNumericValue = (value) => {
+    if (typeof value === 'string') {
+        const parsed = parseFloat(value);
+        return isNaN(parsed) ? 0 : parsed;
+    }
+    return value || 0;
+};
+
+// Helper to ensure value is a Date object or null
+const toDateOrNull = (val) => {
+    if (!val) return null;
+    if (val instanceof Date) return val;
+    const parsed = parseISO(val);
+    return isValid(parsed) ? parsed : null;
+};
+
+// Helper to format date for API calls
+const formatDateForAPI = (date) => {
+    if (!date) return '';
+    if (typeof date === 'string') {
+        const parsed = parseISO(date);
+        return isValid(parsed) ? format(parsed, 'yyyy-MM-dd') : '';
+    }
+    return format(date, 'yyyy-MM-dd');
+};
+
+// Helper to get default date range (last year to today)
+const getDefaultDateRange = () => {
+    const endDate = endOfDay(new Date());
+    const startDate = startOfDay(subYears(endDate, 1));
+    return { startDate, endDate };
+};
 
 function AnalyticsDashboard() {
     const { showSuccess, showError } = useNotifications();
     const [analyticsData, setAnalyticsData] = useState({
-        summary: null,
-        revenue: null,
-        revenueByClass: null,
-        enrollmentTrends: null,
-        classEnrollments: null,
-        userEngagement: null,
-        userActivity: null
+        summary: {
+            totalRevenue: 0,
+            totalEnrollments: 0,
+            activeUsers: 0,
+            averageAttendance: 0
+        },
+        revenue: [],
+        revenueByClass: [],
+        enrollmentTrends: [],
+        classEnrollments: [],
+        userEngagement: [],
+        userActivity: []
     });
-    const [loading, setLoading] = useState(false);
+    const [loadingStates, setLoadingStates] = useState({
+        summary: true,
+        revenue: true,
+        revenueByClass: true,
+        enrollmentTrends: true,
+        classEnrollments: true,
+        userEngagement: true,
+        userActivity: true
+    });
     const [error, setError] = useState(null);
-    const [dateRange, setDateRange] = useState({
-        start: new Date(new Date().setMonth(new Date().getMonth() - 6)),
-        end: new Date()
-    });
-    const [selectedMetric, setSelectedMetric] = useState('summary');
+    const [dateRange, setDateRange] = useState(getDefaultDateRange());
+    const [selectedMetric, setSelectedMetric] = useState('revenue');
 
-    useEffect(() => {
-        fetchAnalyticsData();
-    }, [dateRange, selectedMetric]);
+    // Memoize the date range string to prevent unnecessary re-renders
+    const dateRangeString = useMemo(() => ({
+        startDate: formatDateForAPI(dateRange.startDate),
+        endDate: formatDateForAPI(dateRange.endDate)
+    }), [dateRange.startDate, dateRange.endDate]);
 
-    const fetchAnalyticsData = async () => {
+    // Memoize the updateLoadingState function
+    const updateLoadingState = useCallback((key, isLoading) => {
+        setLoadingStates(prev => ({
+            ...prev,
+            [key]: isLoading
+        }));
+    }, []);
+
+    // Memoize the fetchAnalyticsData function
+    const fetchAnalyticsData = useCallback(async () => {
         try {
-            setLoading(true);
-            const filters = {
-                startDate: dateRange.start.toISOString(),
-                endDate: dateRange.end.toISOString()
-            };
+            setLoadingStates(prev => ({
+                ...prev,
+                summary: true,
+                revenue: true,
+                revenueByClass: true,
+                enrollmentTrends: true,
+                classEnrollments: true,
+                userEngagement: true,
+                userActivity: true
+            }));
+
+            // Log the date range being sent
+            console.log('Fetching analytics with date range:', {
+                startDate: formatDateForAPI(dateRange.startDate),
+                endDate: formatDateForAPI(dateRange.endDate)
+            });
 
             // Fetch all analytics data in parallel
             const [
-                summaryData,
-                revenueData,
-                revenueByClassData,
-                enrollmentTrendsData,
-                classEnrollmentsData,
-                userEngagementData,
-                userActivityData
+                summaryRes,
+                revenueByClassRes,
+                classEnrollmentsRes,
+                userEngagementRes
             ] = await Promise.all([
-                adminService.getAnalytics('summary', filters),
-                adminService.getAnalytics('revenue', filters),
-                adminService.getAnalytics('revenue-by-class', filters),
-                adminService.getAnalytics('enrollments', filters),
-                adminService.getAnalytics('class-enrollments', filters),
-                adminService.getAnalytics('user-engagement', filters),
-                adminService.getAnalytics('user-activity', filters)
+                fetch(`/api/admin/analytics/summary?startDate=${formatDateForAPI(dateRange.startDate)}&endDate=${formatDateForAPI(dateRange.endDate)}`, {
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                }),
+                fetch(`/api/admin/analytics/revenue/classes?startDate=${formatDateForAPI(dateRange.startDate)}&endDate=${formatDateForAPI(dateRange.endDate)}`, {
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                }),
+                fetch(`/api/admin/analytics/enrollments/classes?startDate=${formatDateForAPI(dateRange.startDate)}&endDate=${formatDateForAPI(dateRange.endDate)}`, {
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                }),
+                fetch(`/api/admin/analytics/users/engagement?startDate=${formatDateForAPI(dateRange.startDate)}&endDate=${formatDateForAPI(dateRange.endDate)}`, {
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                })
             ]);
 
+            if (!summaryRes.ok) throw new Error('Failed to fetch summary');
+            if (!revenueByClassRes.ok) throw new Error('Failed to fetch revenue by class');
+            if (!classEnrollmentsRes.ok) throw new Error('Failed to fetch class enrollments');
+            if (!userEngagementRes.ok) throw new Error('Failed to fetch user engagement');
+
+            const summary = await summaryRes.json();
+            const revenueByClass = await revenueByClassRes.json();
+            const classEnrollments = await classEnrollmentsRes.json();
+            const userEngagement = await userEngagementRes.json();
+
             setAnalyticsData({
-                summary: summaryData,
-                revenue: revenueData,
-                revenueByClass: revenueByClassData,
-                enrollmentTrends: enrollmentTrendsData,
-                classEnrollments: classEnrollmentsData,
-                userEngagement: userEngagementData,
-                userActivity: userActivityData
+                summary: {
+                    monthlyRevenue: Number(summary.monthly_revenue) || 0,
+                    activeEnrollments: Number(summary.active_enrollments) || 0,
+                    activeUsers: Number(summary.active_users) || 0,
+                    activeClasses: Number(summary.active_classes) || 0,
+                    recentPayments: Number(summary.recent_payments) || 0,
+                    recentCertificates: Number(summary.recent_certificates) || 0,
+                    waitlistCount: Number(summary.waitlist_count) || 0,
+                    enrollmentRate: Number(summary.enrollment_rate) || 0,
+                },
+                revenue: [], // Not used in these cards
+                revenueByClass: Array.isArray(revenueByClass) ? revenueByClass : [],
+                enrollmentTrends: [], // Not used in these cards
+                classEnrollments: Array.isArray(classEnrollments) ? classEnrollments : [],
+                userEngagement: Array.isArray(userEngagement) ? userEngagement : [],
+                userActivity: []
             });
-        } catch (error) {
-            handleError(error, 'Failed to fetch analytics data');
+        } catch (err) {
+            console.error('Error fetching analytics:', err);
+            setError(err.message);
+            showError('Failed to load analytics data');
         } finally {
-            setLoading(false);
+            setLoadingStates(prev => ({
+                ...prev,
+                summary: false,
+                revenue: false,
+                revenueByClass: false,
+                enrollmentTrends: false,
+                classEnrollments: false,
+                userEngagement: false,
+                userActivity: false
+            }));
         }
-    };
+    }, [dateRange, showError]);
 
-    const handleDateRangeChange = (newDateRange) => {
-        setDateRange(newDateRange);
-    };
+    // Memoize the handleDateRangeChange function with validation
+    const handleDateRangeChange = useCallback((newDateRange) => {
+        setDateRange(prev => {
+            const updated = { ...prev, ...newDateRange };
 
-    const handleExportReport = async () => {
+            // Validate dates
+            if (updated.startDate && updated.endDate) {
+                if (updated.startDate > updated.endDate) {
+                    showError('Start date cannot be after end date');
+                    return prev;
+                }
+            }
+
+            return updated;
+        });
+    }, [showError]);
+
+    // Memoize the handleExportReport function
+    const handleExportReport = useCallback(async () => {
         if (!ENABLE_EXPORT) {
             showError('Export functionality is not yet available');
             return;
         }
 
         try {
-            setLoading(true);
             const filters = {
-                startDate: dateRange.start.toISOString(),
-                endDate: dateRange.end.toISOString()
+                startDate: dateRangeString.startDate,
+                endDate: dateRangeString.endDate
             };
             const data = await adminService.exportAnalyticsReport(selectedMetric, filters);
-            // Create and download CSV file
             const blob = new Blob([data], { type: 'text/csv' });
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `analytics-report-${selectedMetric}-${dateRange.start.toISOString().split('T')[0]}-to-${dateRange.end.toISOString().split('T')[0]}.csv`;
+            a.download = `analytics-report-${selectedMetric}-${dateRange.startDate}-to-${dateRange.endDate}.csv`;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
@@ -132,32 +243,186 @@ function AnalyticsDashboard() {
             showSuccess('Analytics report exported successfully');
         } catch (error) {
             handleError(error, 'Failed to export analytics report');
-        } finally {
-            setLoading(false);
         }
-    };
+    }, [dateRange, dateRangeString, selectedMetric, showError, showSuccess]);
 
-    const handleError = (error, customMessage = 'An error occurred') => {
+    // Memoize the handleError function
+    const handleError = useCallback((error, customMessage = 'An error occurred') => {
         console.error(error);
         setError(error.message || customMessage);
         showError(error.message || customMessage);
-    };
+    }, [showError]);
 
-    if (loading) {
-        return (
-            <div className="flex justify-center items-center h-64">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-            </div>
-        );
-    }
+    // Effect to fetch data when component mounts with default dates
+    useEffect(() => {
+        fetchAnalyticsData();
+    }, []); // Empty dependency array means this runs once on mount
 
-    if (error) {
-        return (
-            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-                {error}
+    // Memoize the summary cards to prevent unnecessary re-renders
+    const summaryCards = useMemo(() => (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="bg-white p-6 rounded-lg shadow">
+                <h3 className="text-sm font-medium text-gray-500">Monthly Revenue</h3>
+                {loadingStates.summary ? (
+                    <CircularProgress size={24} className="mt-2" />
+                ) : (
+                    <>
+                        <p className="mt-2 text-3xl font-semibold text-gray-900">
+                            ${parseNumericValue(analyticsData.summary?.monthlyRevenue).toLocaleString()}
+                        </p>
+                        <p className="mt-2 text-sm text-gray-600">
+                            {parseNumericValue(analyticsData.summary?.recentPayments)} recent payments
+                        </p>
+                    </>
+                )}
             </div>
-        );
-    }
+
+            <div className="bg-white p-6 rounded-lg shadow">
+                <h3 className="text-sm font-medium text-gray-500">Active Enrollments</h3>
+                {loadingStates.summary ? (
+                    <CircularProgress size={24} className="mt-2" />
+                ) : (
+                    <>
+                        <p className="mt-2 text-3xl font-semibold text-gray-900">
+                            {parseNumericValue(analyticsData.summary?.activeEnrollments)}
+                        </p>
+                        <p className="mt-2 text-sm text-gray-600">
+                            {parseNumericValue(analyticsData.summary?.enrollmentRate)}% enrollment rate
+                        </p>
+                    </>
+                )}
+            </div>
+
+            <div className="bg-white p-6 rounded-lg shadow">
+                <h3 className="text-sm font-medium text-gray-500">Active Users</h3>
+                {loadingStates.summary ? (
+                    <CircularProgress size={24} className="mt-2" />
+                ) : (
+                    <>
+                        <p className="mt-2 text-3xl font-semibold text-gray-900">
+                            {parseNumericValue(analyticsData.summary?.activeUsers)}
+                        </p>
+                        <p className="mt-2 text-sm text-gray-600">
+                            {parseNumericValue(analyticsData.summary?.recentCertificates)} recent certificates
+                        </p>
+                    </>
+                )}
+            </div>
+
+            <div className="bg-white p-6 rounded-lg shadow">
+                <h3 className="text-sm font-medium text-gray-500">Active Classes</h3>
+                {loadingStates.summary ? (
+                    <CircularProgress size={24} className="mt-2" />
+                ) : (
+                    <>
+                        <p className="mt-2 text-3xl font-semibold text-gray-900">
+                            {parseNumericValue(analyticsData.summary?.activeClasses)}
+                        </p>
+                        <p className="mt-2 text-sm text-gray-600">
+                            {parseNumericValue(analyticsData.summary?.waitlistCount)} on waitlist
+                        </p>
+                    </>
+                )}
+            </div>
+        </div>
+    ), [analyticsData.summary, loadingStates.summary]);
+
+    // Memoize the charts to prevent unnecessary re-renders
+    const charts = useMemo(() => (
+        <Grid container spacing={3}>
+            <Grid item xs={12} md={6}>
+                <Paper className="p-4">
+                    <Typography variant="h6" gutterBottom>
+                        Enrollment Trends
+                    </Typography>
+                    {loadingStates.enrollmentTrends ? (
+                        <div className="flex justify-center items-center h-64">
+                            <CircularProgress />
+                        </div>
+                    ) : (
+                        <Line
+                            data={{
+                                labels: analyticsData.enrollmentTrends?.map(item => new Date(item.period).toLocaleDateString()) || [],
+                                datasets: [{
+                                    label: 'Total Enrollments',
+                                    data: analyticsData.enrollmentTrends?.map(item => parseNumericValue(item.total_enrollments)) || [],
+                                    borderColor: 'rgba(16, 185, 129, 1)',
+                                    backgroundColor: 'rgba(16, 185, 129, 0.2)',
+                                    tension: 0.4
+                                }, {
+                                    label: 'Approved Enrollments',
+                                    data: analyticsData.enrollmentTrends?.map(item => parseNumericValue(item.approved_enrollments)) || [],
+                                    borderColor: 'rgba(59, 130, 246, 1)',
+                                    backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                                    tension: 0.4
+                                }]
+                            }}
+                            options={{
+                                responsive: true,
+                                plugins: {
+                                    legend: {
+                                        position: 'top',
+                                    },
+                                    title: {
+                                        display: false
+                                    }
+                                },
+                                scales: {
+                                    y: {
+                                        beginAtZero: true
+                                    }
+                                }
+                            }}
+                        />
+                    )}
+                </Paper>
+            </Grid>
+            <Grid item xs={12} md={6}>
+                <Paper className="p-4">
+                    <Typography variant="h6" gutterBottom>
+                        Revenue Overview
+                    </Typography>
+                    {loadingStates.revenue ? (
+                        <div className="flex justify-center items-center h-64">
+                            <CircularProgress />
+                        </div>
+                    ) : (
+                        <Bar
+                            data={{
+                                labels: analyticsData.revenue?.map(item => new Date(item.period).toLocaleDateString()) || [],
+                                datasets: [{
+                                    label: 'Net Revenue',
+                                    data: analyticsData.revenue?.map(item => parseNumericValue(item.net_revenue)) || [],
+                                    backgroundColor: 'rgba(59, 130, 246, 0.5)',
+                                    borderColor: 'rgba(59, 130, 246, 1)',
+                                    borderWidth: 1
+                                }]
+                            }}
+                            options={{
+                                responsive: true,
+                                plugins: {
+                                    legend: {
+                                        position: 'top',
+                                    },
+                                    title: {
+                                        display: false
+                                    }
+                                },
+                                scales: {
+                                    y: {
+                                        beginAtZero: true,
+                                        ticks: {
+                                            callback: value => `$${value}`
+                                        }
+                                    }
+                                }
+                            }}
+                        />
+                    )}
+                </Paper>
+            </Grid>
+        </Grid>
+    ), [analyticsData.enrollmentTrends, analyticsData.revenue, loadingStates.enrollmentTrends, loadingStates.revenue]);
 
     return (
         <Box className="analytics-dashboard">
@@ -189,13 +454,27 @@ function AnalyticsDashboard() {
                     <LocalizationProvider dateAdapter={AdapterDateFns}>
                         <DatePicker
                             label="Start Date"
-                            value={dateRange.start}
-                            onChange={(date) => handleDateRangeChange({ ...dateRange, start: date })}
+                            value={toDateOrNull(dateRange.startDate)}
+                            onChange={(date) => handleDateRangeChange({ startDate: date })}
+                            maxDate={dateRange.endDate || undefined}
+                            slotProps={{
+                                textField: {
+                                    error: !dateRange.startDate,
+                                    helperText: !dateRange.startDate ? 'Start date is required' : ''
+                                }
+                            }}
                         />
                         <DatePicker
                             label="End Date"
-                            value={dateRange.end}
-                            onChange={(date) => handleDateRangeChange({ ...dateRange, end: date })}
+                            value={toDateOrNull(dateRange.endDate)}
+                            onChange={(date) => handleDateRangeChange({ endDate: date })}
+                            minDate={dateRange.startDate || undefined}
+                            slotProps={{
+                                textField: {
+                                    error: !dateRange.endDate,
+                                    helperText: !dateRange.endDate ? 'End date is required' : ''
+                                }
+                            }}
                         />
                     </LocalizationProvider>
                     <button
@@ -208,7 +487,7 @@ function AnalyticsDashboard() {
                         variant="contained"
                         startIcon={<Download />}
                         onClick={handleExportReport}
-                        disabled={loading || !ENABLE_EXPORT}
+                        disabled={!ENABLE_EXPORT}
                         title={!ENABLE_EXPORT ? "Export functionality coming soon" : "Export Report"}
                     >
                         Export Report
@@ -216,210 +495,8 @@ function AnalyticsDashboard() {
                 </div>
             </div>
 
-            {/* Summary Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="bg-white p-6 rounded-lg shadow">
-                    <h3 className="text-sm font-medium text-gray-500">Monthly Revenue</h3>
-                    <p className="mt-2 text-3xl font-semibold text-gray-900">
-                        ${analyticsData.summary?.monthly_revenue?.toLocaleString() || 0}
-                    </p>
-                    <p className="mt-2 text-sm text-gray-600">
-                        {analyticsData.summary?.recent_payments || 0} recent payments
-                    </p>
-                </div>
-
-                <div className="bg-white p-6 rounded-lg shadow">
-                    <h3 className="text-sm font-medium text-gray-500">Active Enrollments</h3>
-                    <p className="mt-2 text-3xl font-semibold text-gray-900">
-                        {analyticsData.summary?.active_enrollments || 0}
-                    </p>
-                    <p className="mt-2 text-sm text-gray-600">
-                        {analyticsData.summary?.enrollment_rate || 0}% enrollment rate
-                    </p>
-                </div>
-
-                <div className="bg-white p-6 rounded-lg shadow">
-                    <h3 className="text-sm font-medium text-gray-500">Active Users</h3>
-                    <p className="mt-2 text-3xl font-semibold text-gray-900">
-                        {analyticsData.summary?.active_users || 0}
-                    </p>
-                    <p className="mt-2 text-sm text-gray-600">
-                        {analyticsData.summary?.recent_certificates || 0} recent certificates
-                    </p>
-                </div>
-
-                <div className="bg-white p-6 rounded-lg shadow">
-                    <h3 className="text-sm font-medium text-gray-500">Active Classes</h3>
-                    <p className="mt-2 text-3xl font-semibold text-gray-900">
-                        {analyticsData.summary?.active_classes || 0}
-                    </p>
-                    <p className="mt-2 text-sm text-gray-600">
-                        {analyticsData.summary?.waitlist_count || 0} on waitlist
-                    </p>
-                </div>
-            </div>
-
-            {/* Charts */}
-            <Grid container spacing={3}>
-                <Grid item xs={12} md={6}>
-                    <Paper className="p-4">
-                        <Typography variant="h6" gutterBottom>
-                            Enrollment Trends
-                        </Typography>
-                        <Line
-                            data={{
-                                labels: analyticsData.enrollmentTrends?.map(item => new Date(item.period).toLocaleDateString()) || [],
-                                datasets: [{
-                                    label: 'Total Enrollments',
-                                    data: analyticsData.enrollmentTrends?.map(item => item.total_enrollments) || [],
-                                    borderColor: 'rgba(16, 185, 129, 1)',
-                                    backgroundColor: 'rgba(16, 185, 129, 0.2)',
-                                    tension: 0.4
-                                }, {
-                                    label: 'Approved Enrollments',
-                                    data: analyticsData.enrollmentTrends?.map(item => item.approved_enrollments) || [],
-                                    borderColor: 'rgba(59, 130, 246, 1)',
-                                    backgroundColor: 'rgba(59, 130, 246, 0.2)',
-                                    tension: 0.4
-                                }]
-                            }}
-                            options={{
-                                responsive: true,
-                                plugins: {
-                                    legend: {
-                                        position: 'top',
-                                    },
-                                    title: {
-                                        display: false
-                                    }
-                                },
-                                scales: {
-                                    y: {
-                                        beginAtZero: true
-                                    }
-                                }
-                            }}
-                        />
-                    </Paper>
-                </Grid>
-                <Grid item xs={12} md={6}>
-                    <Paper className="p-4">
-                        <Typography variant="h6" gutterBottom>
-                            Revenue Overview
-                        </Typography>
-                        <Bar
-                            data={{
-                                labels: analyticsData.revenue?.map(item => new Date(item.period).toLocaleDateString()) || [],
-                                datasets: [{
-                                    label: 'Net Revenue',
-                                    data: analyticsData.revenue?.map(item => item.net_revenue) || [],
-                                    backgroundColor: 'rgba(59, 130, 246, 0.5)',
-                                    borderColor: 'rgba(59, 130, 246, 1)',
-                                    borderWidth: 1
-                                }]
-                            }}
-                            options={{
-                                responsive: true,
-                                plugins: {
-                                    legend: {
-                                        position: 'top',
-                                    },
-                                    title: {
-                                        display: false
-                                    }
-                                },
-                                scales: {
-                                    y: {
-                                        beginAtZero: true,
-                                        ticks: {
-                                            callback: value => `$${value}`
-                                        }
-                                    }
-                                }
-                            }}
-                        />
-                    </Paper>
-                </Grid>
-                <Grid item xs={12} md={6}>
-                    <Paper className="p-4">
-                        <Typography variant="h6" gutterBottom>
-                            Class Performance
-                        </Typography>
-                        <TableContainer>
-                            <Table>
-                                <TableHead>
-                                    <TableRow>
-                                        <TableCell>Class</TableCell>
-                                        <TableCell>Enrollments</TableCell>
-                                        <TableCell>Attendance Rate</TableCell>
-                                        <TableCell>Revenue</TableCell>
-                                    </TableRow>
-                                </TableHead>
-                                <TableBody>
-                                    {analyticsData?.classStats?.performance?.map((classData) => (
-                                        <TableRow key={classData.id}>
-                                            <TableCell>{classData.name}</TableCell>
-                                            <TableCell>{classData.enrollments}</TableCell>
-                                            <TableCell>{classData.attendanceRate}%</TableCell>
-                                            <TableCell>${classData.revenue}</TableCell>
-                                        </TableRow>
-                                    )) || (
-                                            <TableRow>
-                                                <TableCell colSpan={4} align="center">
-                                                    No class performance data available
-                                                </TableCell>
-                                            </TableRow>
-                                        )}
-                                </TableBody>
-                            </Table>
-                        </TableContainer>
-                    </Paper>
-                </Grid>
-                <Grid item xs={12} md={6}>
-                    <Paper className="p-4">
-                        <Typography variant="h6" gutterBottom>
-                            Attendance Analysis
-                        </Typography>
-                        {analyticsData?.attendanceStats?.byClass ? (
-                            <Pie
-                                data={{
-                                    labels: analyticsData.attendanceStats.byClass.map(item => item.class),
-                                    datasets: [{
-                                        data: analyticsData.attendanceStats.byClass.map(item => item.attendance),
-                                        backgroundColor: [
-                                            'rgba(255, 99, 132, 0.5)',
-                                            'rgba(54, 162, 235, 0.5)',
-                                            'rgba(255, 206, 86, 0.5)',
-                                            'rgba(75, 192, 192, 0.5)',
-                                            'rgba(153, 102, 255, 0.5)'
-                                        ],
-                                        borderColor: [
-                                            'rgba(255, 99, 132, 1)',
-                                            'rgba(54, 162, 235, 1)',
-                                            'rgba(255, 206, 86, 1)',
-                                            'rgba(75, 192, 192, 1)',
-                                            'rgba(153, 102, 255, 1)'
-                                        ],
-                                        borderWidth: 1
-                                    }]
-                                }}
-                                options={{
-                                    responsive: true,
-                                    plugins: {
-                                        legend: {
-                                            position: 'right'
-                                        }
-                                    }
-                                }}
-                            />
-                        ) : (
-                            <Typography align="center" color="textSecondary">
-                                No attendance data available
-                            </Typography>
-                        )}
-                    </Paper>
-                </Grid>
-            </Grid>
+            {summaryCards}
+            {charts}
 
             {/* Additional Metrics */}
             <Grid container spacing={3} sx={{ mt: 2 }}>
@@ -428,20 +505,28 @@ function AnalyticsDashboard() {
                         <Typography variant="h6" gutterBottom>
                             Top Performing Classes
                         </Typography>
-                        <List>
-                            {analyticsData?.classEnrollments?.map((cls, index) => (
-                                <ListItem key={index}>
-                                    <ListItemText
-                                        primary={cls.class_name}
-                                        secondary={`${cls.total_enrollments} enrollments (${cls.enrollment_rate}% rate)`}
-                                    />
-                                </ListItem>
-                            )) || (
+                        {loadingStates.classEnrollments ? (
+                            <div className="flex justify-center items-center h-32">
+                                <CircularProgress />
+                            </div>
+                        ) : (
+                            <List>
+                                {analyticsData.classEnrollments && analyticsData.classEnrollments.length > 0 ? (
+                                    analyticsData.classEnrollments.map((cls, index) => (
+                                        <ListItem key={index}>
+                                            <ListItemText
+                                                primary={cls.class_name || cls.className}
+                                                secondary={`${Number(cls.total_enrollments || cls.enrollment_count || 0)} enrollments (${Number(cls.enrollment_rate || 0).toFixed(2)}% rate)`}
+                                            />
+                                        </ListItem>
+                                    ))
+                                ) : (
                                     <ListItem>
                                         <ListItemText primary="No data available" />
                                     </ListItem>
                                 )}
-                        </List>
+                            </List>
+                        )}
                     </Paper>
                 </Grid>
                 <Grid item xs={12} md={4}>
@@ -449,20 +534,28 @@ function AnalyticsDashboard() {
                         <Typography variant="h6" gutterBottom>
                             Revenue by Class
                         </Typography>
-                        <List>
-                            {analyticsData?.revenueByClass?.map((cls, index) => (
-                                <ListItem key={index}>
-                                    <ListItemText
-                                        primary={cls.class_name}
-                                        secondary={`$${cls.net_revenue.toLocaleString()} (${cls.enrollment_count} enrollments)`}
-                                    />
-                                </ListItem>
-                            )) || (
+                        {loadingStates.revenueByClass ? (
+                            <div className="flex justify-center items-center h-32">
+                                <CircularProgress />
+                            </div>
+                        ) : (
+                            <List>
+                                {analyticsData.revenueByClass && analyticsData.revenueByClass.length > 0 ? (
+                                    analyticsData.revenueByClass.map((cls, index) => (
+                                        <ListItem key={index}>
+                                            <ListItemText
+                                                primary={cls.class_name}
+                                                secondary={`$${Number(cls.net_revenue || 0).toLocaleString()} (${Number(cls.enrollment_count || 0)} enrollments)`}
+                                            />
+                                        </ListItem>
+                                    ))
+                                ) : (
                                     <ListItem>
                                         <ListItemText primary="No data available" />
                                     </ListItem>
                                 )}
-                        </List>
+                            </List>
+                        )}
                     </Paper>
                 </Grid>
                 <Grid item xs={12} md={4}>
@@ -470,20 +563,28 @@ function AnalyticsDashboard() {
                         <Typography variant="h6" gutterBottom>
                             User Engagement Summary
                         </Typography>
-                        <List>
-                            {analyticsData?.userEngagement?.map((user, index) => (
-                                <ListItem key={index}>
-                                    <ListItemText
-                                        primary={`${user.first_name} ${user.last_name}`}
-                                        secondary={`${user.enrolled_classes} classes, ${user.activity_count} activities`}
-                                    />
-                                </ListItem>
-                            )) || (
+                        {loadingStates.userEngagement ? (
+                            <div className="flex justify-center items-center h-32">
+                                <CircularProgress />
+                            </div>
+                        ) : (
+                            <List>
+                                {analyticsData.userEngagement && analyticsData.userEngagement.length > 0 ? (
+                                    analyticsData.userEngagement.map((user, index) => (
+                                        <ListItem key={index}>
+                                            <ListItemText
+                                                primary={`${user.first_name || user.firstName || ''} ${user.last_name || user.lastName || ''}`}
+                                                secondary={`${Number(user.enrolled_classes || user.enrolledClasses || 0)} classes, ${Number(user.activity_count || user.activityCount || 0)} activities`}
+                                            />
+                                        </ListItem>
+                                    ))
+                                ) : (
                                     <ListItem>
                                         <ListItemText primary="No data available" />
                                     </ListItem>
                                 )}
-                        </List>
+                            </List>
+                        )}
                     </Paper>
                 </Grid>
             </Grid>
@@ -491,4 +592,6 @@ function AnalyticsDashboard() {
     );
 }
 
-export default AnalyticsDashboard; 
+// Export the memoized component
+const MemoizedAnalyticsDashboard = React.memo(AnalyticsDashboard);
+export default MemoizedAnalyticsDashboard; 

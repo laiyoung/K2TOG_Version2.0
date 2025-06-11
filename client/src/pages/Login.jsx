@@ -1,49 +1,57 @@
-import { useState } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useNotifications } from '../utils/notificationUtils';
 import Footer from '../components/layout/Footer';
 
 const Login = () => {
     const navigate = useNavigate();
     const location = useLocation();
-    const { login, error: authError, clearError } = useAuth();
+    const { login, error, clearError, loading } = useAuth();
+    const { showError } = useNotifications();
     const [formData, setFormData] = useState({
         email: '',
         password: '',
     });
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState('');
 
     // Get the redirect path from location state or default to home
     const from = location.state?.from?.pathname || '/';
 
-    const handleChange = (e) => {
+    console.log('Login component rendered with state:', { from, error, loading }); // Debug log
+
+    const handleChange = useCallback((e) => {
         const { name, value } = e.target;
-        setFormData(prevState => ({
-            ...prevState,
+        console.log('Form field changed:', { name, value }); // Debug log
+        setFormData(prev => ({
+            ...prev,
             [name]: value
         }));
-        // Clear any existing errors when user types
-        if (error || authError) {
-            setError('');
+        // Clear any previous errors when user starts typing
+        if (error) {
             clearError();
         }
-    };
+    }, [error, clearError]);
 
-    const handleSubmit = async (e) => {
+    const handleSubmit = useCallback(async (e) => {
         e.preventDefault();
-        setLoading(true);
-        setError('');
+        console.log('Login form submitted with data:', formData); // Debug log
 
         try {
-            await login(formData.email, formData.password);
+            console.log('Calling login function...'); // Debug log
+            const userData = await login(formData.email, formData.password);
+            console.log('Login successful, user data:', userData); // Debug log
+            console.log('Navigating to:', from); // Debug log
             navigate(from, { replace: true });
         } catch (err) {
-            setError(err.message || 'Failed to login. Please try again.');
-        } finally {
-            setLoading(false);
+            console.error('Login error in component:', err); // Debug log
+            showError(err.message || 'Login failed. Please try again.');
         }
-    };
+    }, [formData, login, navigate, showError, from]);
+
+    // Add effect to monitor auth state
+    useEffect(() => {
+        console.log('Login component auth state changed:', { error, loading }); // Debug log
+    }, [error, loading]);
 
     return (
         <div className="bg-white min-h-screen font-montserrat">
@@ -62,9 +70,9 @@ const Login = () => {
 
             {/* Login Form */}
             <section className="py-16 max-w-md mx-auto px-6">
-                {(error || authError) && (
+                {error && (
                     <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded">
-                        {error || authError}
+                        {error}
                     </div>
                 )}
 
@@ -111,6 +119,7 @@ const Login = () => {
                             disabled={loading}
                             className="w-full bg-black text-white px-8 py-4 font-normal border-0 hover:bg-gray-900 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed relative"
                             style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 400, fontSize: '16px' }}
+                            onClick={() => console.log('Login button clicked')} // Debug log
                         >
                             {loading ? (
                                 <>

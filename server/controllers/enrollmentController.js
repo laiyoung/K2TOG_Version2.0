@@ -344,6 +344,27 @@ const setEnrollmentToPending = async (req, res) => {
   }
 };
 
+// @desc    Get waitlist status for a class and user
+// @route   GET /api/enrollments/waitlist/:classId
+// @access  Private
+const getWaitlistStatus = async (req, res) => {
+  const userId = req.user.id;
+  const classId = req.params.classId;
+  try {
+    const result = await pool.query(
+      `SELECT * FROM class_waitlist WHERE class_id = $1 AND user_id = $2 ORDER BY created_at DESC LIMIT 1`,
+      [classId, userId]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Not on waitlist' });
+    }
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('Get waitlist status error:', err);
+    res.status(500).json({ error: 'Failed to fetch waitlist status' });
+  }
+};
+
 module.exports = {
   enrollInClass,
   cancelClassEnrollment,
@@ -353,5 +374,6 @@ module.exports = {
   getEnrollmentDetails,
   approveEnrollmentRequest,
   rejectEnrollmentRequest,
-  setEnrollmentToPending
+  setEnrollmentToPending,
+  getWaitlistStatus,
 };

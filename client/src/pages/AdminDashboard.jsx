@@ -12,7 +12,7 @@ import NotificationCenter from '../components/admin/NotificationCenter';
 import mockData from '../mock/adminDashboardData.json';
 
 function AdminDashboard({ defaultSection = 'analytics' }) {
-    const { user } = useAuth();
+    const { user, loading: authLoading } = useAuth();
     const navigate = useNavigate();
     const location = useLocation();
     const [activeSection, setActiveSection] = useState(defaultSection);
@@ -33,7 +33,7 @@ function AdminDashboard({ defaultSection = 'analytics' }) {
 
     // Only load data for analytics section
     useEffect(() => {
-        if (activeSection === 'analytics' && !dashboardData) {
+        if (activeSection === 'analytics' && !dashboardData && !authLoading) {
             setLoading(true);
             // Simulate API call with timeout
             setTimeout(() => {
@@ -41,7 +41,7 @@ function AdminDashboard({ defaultSection = 'analytics' }) {
                 setLoading(false);
             }, 100);
         }
-    }, [activeSection, dashboardData]);
+    }, [activeSection, dashboardData, authLoading]);
 
     // Update active section when route changes
     useEffect(() => {
@@ -59,9 +59,11 @@ function AdminDashboard({ defaultSection = 'analytics' }) {
 
     // Memoize the rendered section to prevent unnecessary re-renders
     const renderedSection = useMemo(() => {
+        if (!user) return null;
+
         switch (activeSection) {
             case 'analytics':
-                return <AnalyticsDashboard data={dashboardData} />;
+                return dashboardData ? <AnalyticsDashboard data={dashboardData} /> : null;
             case 'users':
                 return <UserManagement />;
             case 'classes':
@@ -79,19 +81,42 @@ function AdminDashboard({ defaultSection = 'analytics' }) {
             default:
                 return <div>Select a section from the sidebar</div>;
         }
-    }, [activeSection, dashboardData]);
+    }, [activeSection, dashboardData, user]);
 
-    if (loading && activeSection === 'analytics') {
+    // Show loading state while auth is loading
+    if (authLoading) {
         return (
-            <div className="flex items-center justify-center h-screen">
+            <div className="flex items-center justify-center min-h-screen bg-gray-50">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
             </div>
         );
     }
 
+    // Show error if user is not admin
+    if (!user || user.role !== 'admin') {
+        return (
+            <div className="flex items-center justify-center min-h-screen bg-gray-50">
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
+                    <p className="font-medium">Access Denied</p>
+                    <p>You do not have permission to access this page.</p>
+                </div>
+            </div>
+        );
+    }
+
+    // Show loading state for analytics data
+    if (loading && activeSection === 'analytics') {
+        return (
+            <div className="flex items-center justify-center min-h-screen bg-gray-50">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+            </div>
+        );
+    }
+
+    // Show error state
     if (error) {
         return (
-            <div className="flex items-center justify-center h-screen">
+            <div className="flex items-center justify-center min-h-screen bg-gray-50">
                 <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
                     <p className="font-medium">Error</p>
                     <p>{error}</p>
@@ -100,6 +125,16 @@ function AdminDashboard({ defaultSection = 'analytics' }) {
         );
     }
 
+    // Show loading state for rendered section
+    if (!renderedSection) {
+        return (
+            <div className="flex items-center justify-center min-h-screen bg-gray-50">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+            </div>
+        );
+    }
+
+    // Main render
     return (
         <div className="min-h-screen bg-gray-100">
             {/* Main Content */}
@@ -107,7 +142,7 @@ function AdminDashboard({ defaultSection = 'analytics' }) {
                 <div className="mb-6">
                     <h1 className="text-2xl font-semibold text-gray-900">Admin Dashboard</h1>
                     <p className="mt-1 text-sm text-gray-500">
-                        Welcome, {user?.name || 'Admin'}
+                        Welcome, {user.name || 'Admin'}
                     </p>
                 </div>
                 <div className="flex gap-8">
@@ -132,11 +167,7 @@ function AdminDashboard({ defaultSection = 'analytics' }) {
 
                     {/* Main Content Area */}
                     <div className="flex-1">
-                        <div className="bg-white shadow rounded-lg">
-                            <div className="p-6">
-                                {renderedSection}
-                            </div>
-                        </div>
+                        {renderedSection}
                     </div>
                 </div>
             </div>

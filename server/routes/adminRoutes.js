@@ -30,6 +30,7 @@ const {
   adminUpdateWaitlistStatus,
   adminGetOutstandingPayments,
   getStats,
+  adminGetClassStudents,
 } = require('../controllers/dashboardController');
 
 const requireAuth = require('../middleware/auth');
@@ -79,6 +80,7 @@ router.get('/classes/:classId/sessions', adminGetClassSessions);
 router.put('/classes/:classId/status', adminUpdateClassStatus);
 router.get('/classes/:classId/waitlist', adminGetClassWaitlist);
 router.put('/classes/:classId/waitlist/:waitlistId', adminUpdateWaitlistStatus);
+router.get('/classes/:classId/students', adminGetClassStudents);
 
 // User Management Routes
 router.get('/users/search', searchUsers);

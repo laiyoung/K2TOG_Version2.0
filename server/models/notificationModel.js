@@ -176,6 +176,15 @@ async function createTemplate(data) {
   return result.rows[0];
 }
 
+// Delete a notification template
+async function deleteTemplate(id) {
+  const result = await pool.query(
+    'DELETE FROM notification_templates WHERE id = $1 RETURNING *',
+    [id]
+  );
+  return result.rows[0];
+}
+
 // Create a direct broadcast notification
 async function createDirectBroadcast(title, message, userIds, senderId) {
   const notifications = [];
@@ -216,5 +225,6 @@ module.exports = {
   getNotificationsSentByAdmin,
   getAllTemplates,
   createTemplate,
+  deleteTemplate,
   createDirectBroadcast
 }; 

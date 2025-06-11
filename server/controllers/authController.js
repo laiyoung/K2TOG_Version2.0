@@ -81,13 +81,17 @@ const registerUser = async (req, res) => {
 
 const loginUser = async (req, res) => {
   const { email, password } = req.body;
+  console.log('Login attempt for email:', email); // Debug log
 
   try {
     if (!email || !password) {
+      console.log('Login failed: Missing email or password'); // Debug log
       return res.status(400).json({ error: 'Email and password are required' });
     }
 
     const user = await getUserByEmail(email);
+    console.log('User found:', user ? { id: user.id, email: user.email, role: user.role } : null); // Debug log
+
     if (!user) {
       if (process.env.NODE_ENV !== 'test') {
         console.log(`Failed login attempt for non-existent email: ${email}`);
@@ -96,6 +100,8 @@ const loginUser = async (req, res) => {
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
+    console.log('Password match:', isMatch); // Debug log
+
     if (!isMatch) {
       if (process.env.NODE_ENV !== 'test') {
         console.log(`Failed login attempt for user: ${user.email}`);
@@ -113,8 +119,16 @@ const loginUser = async (req, res) => {
     const token = jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET, {
       expiresIn: '1d',
     });
+    console.log('Generated token:', token.substring(0, 20) + '...'); // Debug log (only show part of token)
 
     const { password: _, ...userData } = user;
+    console.log('Sending response with user data:', { 
+      id: userData.id, 
+      email: userData.email, 
+      role: userData.role,
+      hasToken: !!token 
+    }); // Debug log
+
     res.status(200).json({ user: userData, token });
   } catch (err) {
     if (process.env.NODE_ENV !== 'test') {

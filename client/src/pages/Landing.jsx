@@ -1,16 +1,13 @@
 import { Link } from 'react-router-dom';
 import Header from '../components/layout/Header';
 import Footer from '../components/layout/Footer';
-import heroImg from '../images/hero-img.jpg';
-import whoImg from '../images/whoImg.jpeg';
-import whatImg from '../images/whatImg.jpeg';
 
 function Landing() {
     return (
         <div className="bg-white min-h-screen font-montserrat">
             {/* Hero Section */}
             <section className="relative w-full h-[620px] flex items-center justify-center text-white text-center overflow-hidden mb-0 px-6" style={{ margin: '10px auto' }}>
-                <img src={heroImg} alt="Hero" className="absolute inset-0 w-full h-full object-cover object-center z-0" />
+                <img src="/images/hero-img.jpg" alt="Hero" className="absolute inset-0 w-full h-full object-cover object-center z-0" />
                 <div className="absolute inset-0 bg-black opacity-30 z-10" />
                 <div className="relative z-20 flex flex-col items-center justify-center w-full h-full">
                     <h1 className="hero-title font-normal mb-4" style={{ fontSize: '64px', fontFamily: 'Montserrat, sans-serif' }}>Grow your business.</h1>
@@ -38,7 +35,7 @@ function Landing() {
                     <p className="text-gray-700 mb-8" style={{ fontSize: '16px', fontFamily: 'Montserrat, sans-serif' }}>Nulla vel sodales tellus, quis condimentum enim. Nunc porttitor venenatis feugiat. Etiam quis faucibus erat, non accumsan leo. Aliquam erat volutpat. Vestibulum ac faucibus eros. Cras ullamcorper gravida tellus ut consequat.</p>
                     <Link to="#" className="bg-black text-white px-8 py-4 font-normal border-0 hover:bg-gray-900 transition-colors" style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 400, fontSize: '16px' }}>LEARN MORE</Link>
                 </div>
-                <img src={whoImg} alt="Who we are" className="flex-1 w-full max-w-[500px] h-[350px] object-cover" />
+                <img src="/images/whoImg.jpeg" alt="Who we are" className="flex-1 w-full max-w-[500px] h-[350px] object-cover" />
             </section>
 
             {/* Divider */}
@@ -51,7 +48,7 @@ function Landing() {
                     <p className="text-gray-700 mb-8" style={{ fontSize: '16px', fontFamily: 'Montserrat, sans-serif' }}>Nulla vel sodales tellus, quis condimentum enim. Nunc porttitor venenatis feugiat. Etiam quis faucibus erat, non accumsan leo. Aliquam erat volutpat. Vestibulum ac faucibus eros. Cras ullamcorper gravida tellus ut consequat.</p>
                     <Link to="#" className="bg-black text-white px-8 py-4 font-normal border-0 hover:bg-gray-900 transition-colors" style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 400, fontSize: '16px' }}>LEARN MORE</Link>
                 </div>
-                <img src={whatImg} alt="What we do" className="flex-1 w-full max-w-[500px] h-[350px] object-cover" />
+                <img src="/images/whatImg.jpeg" alt="What we do" className="flex-1 w-full max-w-[500px] h-[350px] object-cover" />
             </section>
 
             {/* Divider */}

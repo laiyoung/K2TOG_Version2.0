@@ -60,27 +60,77 @@ const adminService = {
         return api.get(`/admin/audit-logs?${queryParams}`);
     },
 
-    // Get analytics data
+    // Get analytics data - updated to use fetch API and handle all analytics endpoints
     getAnalytics: async (type, filters = {}) => {
         const queryParams = new URLSearchParams(filters).toString();
-        switch (type) {
-            case 'summary':
-                return api.get(`/admin/analytics/summary${queryParams ? `?${queryParams}` : ''}`);
-            case 'revenue':
-                return api.get(`/admin/analytics/revenue${queryParams ? `?${queryParams}` : ''}`);
-            case 'revenue-by-class':
-                return api.get(`/admin/analytics/revenue/classes${queryParams ? `?${queryParams}` : ''}`);
-            case 'enrollments':
-                return api.get(`/admin/analytics/enrollments/trends${queryParams ? `?${queryParams}` : ''}`);
-            case 'class-enrollments':
-                return api.get(`/admin/analytics/enrollments/classes${queryParams ? `?${queryParams}` : ''}`);
-            case 'user-engagement':
-                return api.get(`/admin/analytics/users/engagement${queryParams ? `?${queryParams}` : ''}`);
-            case 'user-activity':
-                return api.get(`/admin/analytics/users/activity${queryParams ? `?${queryParams}` : ''}`);
-            default:
-                return api.get(`/admin/analytics/summary${queryParams ? `?${queryParams}` : ''}`);
+        const endpoint = type === 'summary' ? 'summary' :
+                        type === 'revenue' ? 'revenue' :
+                        type === 'revenue-by-class' ? 'revenue/classes' :
+                        type === 'enrollments' ? 'enrollments/trends' :
+                        type === 'class-enrollments' ? 'enrollments/classes' :
+                        type === 'user-engagement' ? 'users/engagement' :
+                        type === 'user-activity' ? 'users/activity' : 'summary';
+
+        const response = await fetch(`/api/admin/analytics/${endpoint}?${queryParams}`, {
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
         }
+
+        return response.json();
+    },
+
+    // Fetch all analytics data in parallel
+    fetchAllAnalytics: async (filters) => {
+        const [
+            summary,
+            revenue,
+            revenueByClass,
+            enrollmentTrends,
+            classEnrollments,
+            userEngagement,
+            userActivity
+        ] = await Promise.all([
+            adminService.getAnalytics('summary', filters),
+            adminService.getAnalytics('revenue', filters),
+            adminService.getAnalytics('revenue-by-class', filters),
+            adminService.getAnalytics('enrollments', filters),
+            adminService.getAnalytics('class-enrollments', filters),
+            adminService.getAnalytics('user-engagement', filters),
+            adminService.getAnalytics('user-activity', filters)
+        ]);
+
+        return {
+            summary,
+            revenue,
+            revenueByClass,
+            enrollmentTrends,
+            classEnrollments,
+            userEngagement,
+            userActivity
+        };
+    },
+
+    // Export analytics report - updated to use fetch API
+    exportAnalyticsReport: async (type, filters = {}) => {
+        const params = new URLSearchParams(filters).toString();
+        const response = await fetch(`/api/admin/analytics/export/${type}?${params}`, {
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        return response.blob();
     },
 
     // Manage class schedules
@@ -118,15 +168,6 @@ const adminService = {
     exportTransactions: async (filters = {}) => {
         const params = new URLSearchParams(filters).toString();
         const response = await api.get(`/admin/financial/transactions/export?${params}`, {
-            responseType: 'blob' // Important for file downloads
-        });
-        return response.data;
-    },
-
-    // Export analytics report
-    exportAnalyticsReport: async (type, filters = {}) => {
-        const params = new URLSearchParams(filters).toString();
-        const response = await api.get(`/admin/analytics/export/${type}${params ? `?${params}` : ''}`, {
             responseType: 'blob' // Important for file downloads
         });
         return response.data;
@@ -186,40 +227,101 @@ const adminService = {
     },
 
     sendNotification: async (notificationData) => {
-        const { recipientType, recipient, title, message } = notificationData;
+        const { recipientType, recipient, title, message, templateId, template, user } = notificationData;
         
-        if (recipientType === 'class') {
-            // Send notification to all users in a class
-            const response = await api.post('/notifications/admin/class', {
-                template_name: 'class_notification',
-                class_id: Number(recipient),
-                variables: {
-                    title,
-                    message
-                }
-            });
-            return response.data;
-        } else {
-            // Send notification to specific user(s)
-            const response = await api.post('/notifications/admin/bulk', {
-                template_name: 'custom_notification', // Use custom notification type
-                user_ids: [Number(recipient)],
-                variables: {
-                    title,
-                    message
-                }
-            });
-            return response.data;
+        if (!recipient) {
+            throw new Error('No recipient specified');
         }
+
+        // Process template variables if template data is provided
+        let processedTitle = title;
+        let processedMessage = message;
+        let variables = {};
+        let userIds = [];
+
+        // If sending to a class, fetch all students in that class first
+        if (recipientType === 'class') {
+            try {
+                const students = await api.get(`/admin/classes/${recipient}/students`);
+                console.log('Students fetched in sendNotification:', students);
+                
+                // The response is already the array of students
+                if (!Array.isArray(students) || students.length === 0) {
+                    throw new Error('No students found in this class');
+                }
+
+                // Get unique student IDs
+                userIds = [...new Set(students.map(student => student.id))];
+                console.log('Unique student IDs:', userIds);
+
+                // Get class details for template variables
+                const classDetails = await api.get(`/admin/classes/${recipient}`);
+                console.log('Class details:', classDetails);
+                
+                variables = {
+                    class_name: classDetails?.title || '',
+                    start_date: classDetails?.start_date || '',
+                    student_count: userIds.length
+                };
+            } catch (error) {
+                console.error('Error in sendNotification:', error);
+                throw new Error(error.message || 'Failed to fetch students in the class');
+            }
+        } else {
+            // For individual user notifications
+            userIds = [Number(recipient)];
+            
+            if (template) {
+                variables = {
+                    student_name: user ? `${user.first_name} ${user.last_name}` : '',
+                    ...variables
+                };
+            }
+        }
+
+        if (template) {
+            // Replace variables in title and message
+            processedTitle = template.title_template.replace(/\{\{(\w+)\}\}/g, (match, key) => variables[key] || match);
+            processedMessage = template.message_template.replace(/\{\{(\w+)\}\}/g, (match, key) => variables[key] || match);
+        }
+
+        // Prepare the payload according to server requirements
+        const payload = {
+            template_name: template ? template.name : 'custom_notification',
+            user_ids: userIds,
+            variables: {
+                title: processedTitle,
+                message: processedMessage,
+                ...variables
+            },
+            type: recipientType === 'class' ? 'class_notification' : 'user_notification',
+            metadata: {
+                recipient_type: recipientType,
+                ...(recipientType === 'class' ? { class_id: recipient } : { user_id: recipient }),
+                ...(user ? { user_name: `${user.first_name} ${user.last_name}` } : {})
+            }
+        };
+
+        console.log('Sending notification payload:', payload);
+
+        // Send the notification
+        const response = await api.post('/notifications/admin/bulk', payload);
+        return response;
     },
 
     sendBroadcast: async (broadcastData) => {
-        const response = await api.post('/notifications/admin/broadcast', {
-            title: 'Broadcast Message',
-            message: broadcastData.message,
-            type: 'broadcast'  // Specify this is a direct broadcast
-        });
-        return response.data;
+        try {
+            const response = await api.post('/notifications/admin/broadcast', {
+                title: broadcastData.title,
+                message: broadcastData.message,
+                type: 'broadcast'
+            });
+            // Return the response data directly
+            return response;
+        } catch (error) {
+            console.error('Error sending broadcast:', error);
+            throw error;
+        }
     },
 
     // Send payment reminder email
@@ -307,7 +409,9 @@ const adminService = {
     getTemplates: async () => {
         try {
             const response = await api.get('/notifications/admin/templates');
-            return response.data;
+            console.log('Raw templates response:', response);
+            // Handle both direct array responses and responses with a data property
+            return Array.isArray(response) ? response : (response.data || []);
         } catch (error) {
             console.error('Error fetching templates:', error);
             throw error;
@@ -324,13 +428,60 @@ const adminService = {
         }
     },
 
+    updateTemplate: async (templateId, templateData) => {
+        try {
+            // Since there's no update endpoint, we'll delete the old template and create a new one
+            await api.delete(`/notifications/admin/templates/${templateId}`);
+            const response = await api.post('/notifications/admin/templates', templateData);
+            return response.data;
+        } catch (error) {
+            console.error('Error updating template:', error);
+            throw error;
+        }
+    },
+
+    deleteTemplate: async (templateId) => {
+        try {
+            const response = await api.delete(`/notifications/admin/templates/${templateId}`);
+            return response.data;
+        } catch (error) {
+            console.error('Error deleting template:', error);
+            throw error;
+        }
+    },
+
     getAllClasses: async () => {
         try {
             const response = await api.get('/admin/classes');
-            return response.data;
+            // Handle both direct array responses and responses with a data property
+            return Array.isArray(response) ? response : (response.data || []);
         } catch (error) {
             console.error('Error fetching classes:', error);
             throw error;
+        }
+    },
+
+    getClassStudents: async (classId) => {
+        try {
+            const response = await api.get(`/admin/classes/${classId}/students`, {
+                headers: {
+                    'Cache-Control': 'no-cache',
+                    'Pragma': 'no-cache'
+                },
+                params: {
+                    _t: new Date().getTime() // Add timestamp to prevent caching
+                }
+            });
+            console.log('Raw response in getClassStudents:', response);
+            // The response is already the data array from apiConfig.js
+            if (!Array.isArray(response)) {
+                console.error('Invalid response format:', response);
+                return [];
+            }
+            return response;
+        } catch (error) {
+            console.error('Error fetching class students:', error);
+            throw new Error('Failed to fetch students in the class');
         }
     }
 };

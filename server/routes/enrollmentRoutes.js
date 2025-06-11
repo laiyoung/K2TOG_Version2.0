@@ -9,7 +9,8 @@ const {
   getEnrollmentDetails,
   approveEnrollmentRequest,
   rejectEnrollmentRequest,
-  setEnrollmentToPending
+  setEnrollmentToPending,
+  getWaitlistStatus
 } = require('../controllers/enrollmentController');
 
 const requireAuth = require('../middleware/auth');
@@ -30,5 +31,8 @@ router.get('/:id', requireAuth, requireAdmin, getEnrollmentDetails);
 router.post('/:id/approve', requireAuth, requireAdmin, approveEnrollmentRequest);
 router.post('/:id/reject', requireAuth, requireAdmin, rejectEnrollmentRequest);
 router.post('/:id/pending', requireAuth, requireAdmin, setEnrollmentToPending);
+
+// Add waitlist status route
+router.get('/waitlist/:classId', requireAuth, getWaitlistStatus);
 
 module.exports = router;

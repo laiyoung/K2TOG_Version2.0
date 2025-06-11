@@ -74,7 +74,7 @@ const CertificateManagementPage = () => {
     const fetchStudents = async () => {
         try {
             const data = await getUsersByRole('user');
-            setStudents(data);
+            setStudents(Array.isArray(data) ? data : []);
         } catch (error) {
             console.error('Error fetching students:', error);
             if (error.message !== 'Unauthorized') {
@@ -83,6 +83,7 @@ const CertificateManagementPage = () => {
                     message: 'Failed to fetch students'
                 });
             }
+            setStudents([]);
         }
     };
 
@@ -204,11 +205,6 @@ const CertificateManagementPage = () => {
         }
     };
 
-    const handleStatusChange = async (certificate) => {
-        // Implement status change functionality if needed
-        console.log('Changing status for certificate:', certificate);
-    };
-
     const filteredCertificates = certificates.filter(cert => {
         if (!cert) return false;
 
@@ -321,7 +317,6 @@ const CertificateManagementPage = () => {
                         onDownload={handleDownload}
                         onDelete={handleDelete}
                         onBulkDelete={handleBulkDelete}
-                        onStatusChange={handleStatusChange}
                     />
                 )}
 
@@ -329,11 +324,11 @@ const CertificateManagementPage = () => {
                 <Dialog
                     open={showUploadDialog}
                     onClose={handleUploadClose}
-                    maxWidth="md"
+                    maxWidth="sm"
                     fullWidth
                 >
                     <DialogTitle>
-                        Upload New Certificate
+                        Upload Certificate
                         <IconButton
                             aria-label="close"
                             onClick={handleUploadClose}
@@ -355,7 +350,7 @@ const CertificateManagementPage = () => {
                                     label="Select Student"
                                     onChange={(e) => setSelectedStudent(e.target.value)}
                                 >
-                                    {students.map((student) => (
+                                    {Array.isArray(students) && students.map((student) => (
                                         <MenuItem key={student.id} value={student.id}>
                                             {student.first_name} {student.last_name}
                                         </MenuItem>

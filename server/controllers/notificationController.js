@@ -115,6 +115,25 @@ const getTemplates = async (req, res) => {
     }
 };
 
+// @desc    Delete notification template
+// @route   DELETE /api/notifications/admin/templates/:id
+// @access  Private/Admin
+const deleteTemplate = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const result = await Notification.deleteTemplate(id);
+        
+        if (!result) {
+            return res.status(404).json({ error: 'Template not found' });
+        }
+
+        res.json({ message: 'Template deleted successfully' });
+    } catch (error) {
+        console.error('Delete template error:', error);
+        res.status(500).json({ error: 'Failed to delete template' });
+    }
+};
+
 // @desc    Send bulk notification using template
 // @route   POST /api/admin/notifications/bulk
 // @access  Private/Admin
@@ -212,6 +231,7 @@ module.exports = {
     deleteNotification,
     createTemplate,
     getTemplates,
+    deleteTemplate,
     sendBulkNotification,
     broadcastNotification,
     getSentNotifications

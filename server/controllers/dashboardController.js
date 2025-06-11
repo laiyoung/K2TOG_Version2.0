@@ -13,7 +13,8 @@ const {
     getClassWaitlist,
     updateClassStatus,
     updateWaitlistStatus,
-    getClassWithDetails
+    getClassWithDetails,
+    getClassParticipants
   } = require('../models/classModel');
   
   const {
@@ -532,6 +533,41 @@ const {
     }
   };
   
+  // @desc    Get students in a class
+  // @route   GET /api/admin/classes/:classId/students
+  // @access  Admin
+  const adminGetClassStudents = async (req, res) => {
+    try {
+      const participants = await getClassParticipants(req.params.classId);
+      console.log('Raw class participants:', JSON.stringify(participants, null, 2));
+      
+      if (!Array.isArray(participants)) {
+        console.error('Invalid participants data:', participants);
+        return res.status(500).json({ error: 'Invalid participants data received' });
+      }
+      
+      // Filter for approved enrollments first
+      const approvedParticipants = participants.filter(p => p.enrollment_status === 'approved');
+      console.log('Approved participants:', JSON.stringify(approvedParticipants, null, 2));
+      
+      // Transform the data to only include necessary student information
+      const students = approvedParticipants.map(p => ({
+        id: p.user_id,
+        first_name: p.name?.split(' ')[0] || '',
+        last_name: p.name?.split(' ').slice(1).join(' ') || '',
+        email: p.email,
+        role: 'student',
+        enrollment_status: p.enrollment_status
+      }));
+      
+      console.log('Transformed students:', JSON.stringify(students, null, 2));
+      res.json(students);
+    } catch (err) {
+      console.error('Get class students error:', err);
+      res.status(500).json({ error: 'Failed to fetch class students' });
+    }
+  };
+  
   module.exports = {
     adminGetUsers,
     adminDeleteUser,
@@ -556,6 +592,7 @@ const {
     adminGetClassWaitlist,
     adminUpdateWaitlistStatus,
     adminGetOutstandingPayments,
-    getStats
+    getStats,
+    adminGetClassStudents
   };
   

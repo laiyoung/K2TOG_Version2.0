@@ -29,12 +29,12 @@ const classService = {
 
     // Get all classes
     getAllClasses: async () => {
-        return classService.fetchWithAuth('/admin/classes');
+        return classService.fetchWithAuth('/classes');
     },
 
     // Get a single class by ID
     getClassById: async (classId) => {
-        return classService.fetchWithAuth(`/admin/classes/${classId}`);
+        return classService.fetchWithAuth(`/classes/${classId}`);
     },
 
     // Create a new class (admin only)

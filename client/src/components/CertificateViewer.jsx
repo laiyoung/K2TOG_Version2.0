@@ -29,7 +29,7 @@ import {
     Timer as ExpiredIcon
 } from '@mui/icons-material';
 
-const CertificateViewer = ({ certificates = [], onDownload, onDelete, onStatusChange }) => {
+const CertificateViewer = ({ certificates = [], onDownload, onDelete }) => {
     const [menuAnchor, setMenuAnchor] = useState(null);
     const [selectedCertForMenu, setSelectedCertForMenu] = useState(null);
     const [selectedCertificates, setSelectedCertificates] = useState(new Set());
@@ -170,7 +170,16 @@ const CertificateViewer = ({ certificates = [], onDownload, onDelete, onStatusCh
 
             <Grid container spacing={3} alignItems="stretch">
                 {certificates.map((certificate) => (
-                    <Grid item xs={12} sm={6} md={4} key={certificate.id}>
+                    <Grid
+                        key={certificate.id}
+                        sx={{
+                            width: {
+                                xs: '100%',
+                                sm: '50%',
+                                md: '33.33%'
+                            }
+                        }}
+                    >
                         <Card
                             sx={{
                                 height: '100%',
@@ -305,15 +314,6 @@ const CertificateViewer = ({ certificates = [], onDownload, onDelete, onStatusCh
                         <DownloadIcon fontSize="small" />
                     </ListItemIcon>
                     <ListItemText>Download</ListItemText>
-                </MenuItem>
-                <MenuItem onClick={() => {
-                    onStatusChange(selectedCertForMenu);
-                    handleMenuClose();
-                }}>
-                    <ListItemIcon>
-                        <EditIcon fontSize="small" />
-                    </ListItemIcon>
-                    <ListItemText>Change Status</ListItemText>
                 </MenuItem>
                 <MenuItem
                     onClick={() => {

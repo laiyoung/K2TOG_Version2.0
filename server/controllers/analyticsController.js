@@ -13,7 +13,13 @@ const {
 // @access  Private/Admin
 const getDashboardSummary = async (req, res) => {
     try {
-        const summary = await getDashboardSummaryModel();
+        const { startDate, endDate } = req.query;
+        
+        if (!startDate || !endDate) {
+            return res.status(400).json({ error: 'Start date and end date are required' });
+        }
+
+        const summary = await getDashboardSummaryModel({ startDate, endDate });
         res.json(summary);
     } catch (error) {
         console.error('Get dashboard summary error:', error);

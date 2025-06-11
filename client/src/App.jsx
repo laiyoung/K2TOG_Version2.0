@@ -1,5 +1,13 @@
 import React, { useMemo } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import {
+    createBrowserRouter,
+    RouterProvider,
+    createRoutesFromElements,
+    Route,
+    Navigate,
+    useLocation,
+    Outlet
+} from 'react-router-dom';
 import { SnackbarProvider } from 'notistack';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Header from './components/layout/Header';
@@ -19,7 +27,7 @@ const ProtectedRoute = React.memo(({ children }) => {
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center h-screen">
+            <div className="flex items-center justify-center min-h-screen bg-gray-50">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
             </div>
         );
@@ -29,7 +37,7 @@ const ProtectedRoute = React.memo(({ children }) => {
         return <Navigate to="/login" state={{ from: window.location.pathname }} replace />;
     }
 
-    return children;
+    return <>{children}</>;
 });
 
 // Admin Route component
@@ -38,7 +46,7 @@ const AdminRoute = React.memo(({ children }) => {
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center h-screen">
+            <div className="flex items-center justify-center min-h-screen bg-gray-50">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
             </div>
         );
@@ -48,7 +56,7 @@ const AdminRoute = React.memo(({ children }) => {
         return <Navigate to="/" replace />;
     }
 
-    return children;
+    return <>{children}</>;
 });
 
 // Header wrapper component to always render header
@@ -59,11 +67,37 @@ const HeaderWrapper = React.memo(() => {
 // AppContent component that uses useAuth
 function AppContent() {
     const location = useLocation();
+    const { loading } = useAuth();
     const isAdminRoute = location.pathname.startsWith('/admin');
 
-    // Memoize routes to prevent unnecessary re-renders
-    const routes = useMemo(() => (
-        <Routes>
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center min-h-screen bg-gray-50">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="min-h-screen bg-gray-50">
+            <HeaderWrapper />
+            {isAdminRoute ? (
+                <div className="admin-route">
+                    <Outlet />
+                </div>
+            ) : (
+                <main className="container mx-auto px-4 py-8">
+                    <Outlet />
+                </main>
+            )}
+        </div>
+    );
+}
+
+// Create router with future flags
+const router = createBrowserRouter(
+    createRoutesFromElements(
+        <Route element={<AppContent />}>
             {/* Public Routes */}
             <Route path="/" element={<Landing />} />
             <Route path="/classes" element={<Classes />} />
@@ -82,94 +116,71 @@ function AppContent() {
             {/* Admin Routes */}
             <Route path="/admin" element={
                 <AdminRoute>
-                    <Navigate to="/admin/analytics" replace />
+                    <AdminDashboard defaultSection="analytics" />
                 </AdminRoute>
             } />
             <Route path="/admin/analytics" element={
                 <AdminRoute>
-                    <div className="admin-route">
-                        <AdminDashboard defaultSection="analytics" />
-                    </div>
+                    <AdminDashboard defaultSection="analytics" />
                 </AdminRoute>
             } />
             <Route path="/admin/users" element={
                 <AdminRoute>
-                    <div className="admin-route">
-                        <AdminDashboard defaultSection="users" />
-                    </div>
+                    <AdminDashboard defaultSection="users" />
                 </AdminRoute>
             } />
             <Route path="/admin/classes" element={
                 <AdminRoute>
-                    <div className="admin-route">
-                        <AdminDashboard defaultSection="classes" />
-                    </div>
+                    <AdminDashboard defaultSection="classes" />
                 </AdminRoute>
             } />
             <Route path="/admin/enrollments" element={
                 <AdminRoute>
-                    <div className="admin-route">
-                        <AdminDashboard defaultSection="enrollments" />
-                    </div>
+                    <AdminDashboard defaultSection="enrollments" />
                 </AdminRoute>
             } />
             <Route path="/admin/financial" element={
                 <AdminRoute>
-                    <div className="admin-route">
-                        <AdminDashboard defaultSection="financial" />
-                    </div>
+                    <AdminDashboard defaultSection="financial" />
                 </AdminRoute>
             } />
             <Route path="/admin/certificates" element={
                 <AdminRoute>
-                    <div className="admin-route">
-                        <AdminDashboard defaultSection="certificates" />
-                    </div>
+                    <AdminDashboard defaultSection="certificates" />
                 </AdminRoute>
             } />
             <Route path="/admin/notifications" element={
                 <AdminRoute>
-                    <div className="admin-route">
-                        <AdminDashboard defaultSection="notifications" />
-                    </div>
+                    <AdminDashboard defaultSection="notifications" />
                 </AdminRoute>
             } />
 
             {/* Fallback Route */}
             <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-    ), []);
-
-    return (
-        <div className="min-h-screen bg-gray-50">
-            <HeaderWrapper />
-            {isAdminRoute ? (
-                routes
-            ) : (
-                <main className="container mx-auto px-4 py-8">
-                    {routes}
-                </main>
-            )}
-        </div>
-    );
-}
+        </Route>
+    ),
+    {
+        future: {
+            v7_startTransition: true,
+            v7_relativeSplatPath: true
+        }
+    }
+);
 
 // Main App component
 const App = React.memo(() => {
     return (
-        <Router>
-            <SnackbarProvider
-                maxSnack={3}
-                anchorOrigin={{
-                    vertical: 'top',
-                    horizontal: 'right',
-                }}
-            >
-                <AuthProvider>
-                    <AppContent />
-                </AuthProvider>
-            </SnackbarProvider>
-        </Router>
+        <SnackbarProvider
+            maxSnack={3}
+            anchorOrigin={{
+                vertical: 'top',
+                horizontal: 'right',
+            }}
+        >
+            <AuthProvider>
+                <RouterProvider router={router} />
+            </AuthProvider>
+        </SnackbarProvider>
     );
 });
 

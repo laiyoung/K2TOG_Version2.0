@@ -15,12 +15,11 @@ const seed = async () => {
       INSERT INTO users (name, email, password, role, status, first_name, last_name, phone_number, email_notifications, sms_notifications)
       SELECT * FROM (
         VALUES
-          ('Jane Doe', 'jane@example.com', $1, 'student', 'active', 'Jane', 'Doe', '555-0123', true, false),
-          ('John Smith', 'john@example.com', $1, 'student', 'active', 'John', 'Smith', '555-0124', true, true),
+          ('Jane Doe', 'jane@example.com', $1, 'user', 'active', 'Jane', 'Doe', '555-0123', true, false),
+          ('John Smith', 'john@example.com', $1, 'user', 'active', 'John', 'Smith', '555-0124', true, true),
           ('Admin User', 'admin@example.com', $2, 'admin', 'active', 'Admin', 'User', '555-0125', true, false),
           ('Instructor One', 'instructor1@example.com', $1, 'instructor', 'active', 'Instructor', 'One', '555-0126', true, true),
-          ('Instructor Two', 'instructor2@example.com', $1, 'instructor', 'active', 'Instructor', 'Two', '555-0127', true, false),
-          ('Test Student', 'student1@example.com', $1, 'user', 'active', 'Test', 'Student', '555-0999', true, true)
+          ('Instructor Two', 'instructor2@example.com', $1, 'instructor', 'active', 'Instructor', 'Two', '555-0127', true, false)
       ) AS new_users(name, email, password, role, status, first_name, last_name, phone_number, email_notifications, sms_notifications)
       WHERE NOT EXISTS (
         SELECT 1 FROM users WHERE email = new_users.email
@@ -33,6 +32,13 @@ const seed = async () => {
     `);
     const instructorOneId = instructorRows.find(u => u.email === 'instructor1@example.com')?.id;
     const instructorTwoId = instructorRows.find(u => u.email === 'instructor2@example.com')?.id;
+
+    // Get student user IDs
+    const { rows: studentRows } = await pool.query(`
+      SELECT id, email FROM users WHERE email IN ('jane@example.com', 'john@example.com')
+    `);
+    const janeId = studentRows.find(u => u.email === 'jane@example.com')?.id;
+    const johnId = studentRows.find(u => u.email === 'john@example.com')?.id;
 
     // Seed classes
     const classes = [
@@ -204,11 +210,14 @@ const seed = async () => {
       classMap.get('Development and Operations')
     ]);
 
-    // Seed enrollments
+    // Seed enrollments - only users who are not admin or instructor can be enrolled
     await pool.query(`
       WITH session_ids AS (
         SELECT id, class_id, ROW_NUMBER() OVER (PARTITION BY class_id ORDER BY session_date) as session_num
         FROM class_sessions
+      ),
+      enrollable_users AS (
+        SELECT id FROM users WHERE role NOT IN ('admin', 'instructor')
       )
       INSERT INTO enrollments (user_id, class_id, session_id, payment_status, enrollment_status, admin_notes, reviewed_at, reviewed_by)
       SELECT 
@@ -222,19 +231,33 @@ const seed = async () => {
         e.reviewed_by
       FROM (
         VALUES
-          (1, $1::integer, 'paid', 'approved', 'Initial enrollment approved', CURRENT_TIMESTAMP, 3),
-          (1, $2::integer, 'paid', 'approved', 'Initial enrollment approved', CURRENT_TIMESTAMP, 3),
-          (2, $3::integer, 'paid', 'approved', 'Initial enrollment approved', CURRENT_TIMESTAMP, 3),
-          (2, $1::integer, 'paid', 'pending', NULL, NULL, NULL),
-          (1, $3::integer, 'paid', 'rejected', 'Class capacity reached', CURRENT_TIMESTAMP, 3)
+          (${janeId}, $1::integer, 'paid', 'approved', 'Initial enrollment approved', CURRENT_TIMESTAMP, 3),
+          (${janeId}, $2::integer, 'paid', 'approved', 'Initial enrollment approved', CURRENT_TIMESTAMP, 3),
+          (${johnId}, $3::integer, 'paid', 'approved', 'Initial enrollment approved', CURRENT_TIMESTAMP, 3),
+          (${johnId}, $1::integer, 'paid', 'pending', NULL, NULL, NULL),
+          (${janeId}, $3::integer, 'paid', 'rejected', 'Class capacity reached', CURRENT_TIMESTAMP, 3)
       ) AS e(user_id, class_id, payment_status, enrollment_status, admin_notes, reviewed_at, reviewed_by)
       JOIN session_ids s ON s.class_id = e.class_id AND s.session_num = 1
-      ON CONFLICT DO NOTHING;
+      JOIN enrollable_users eu ON eu.id = e.user_id  -- Only allow enrollable users
+      ON CONFLICT DO NOTHING
     `, [
       classMap.get('Child Development Associate (CDA)'),
       classMap.get('Development and Operations'),
       classMap.get('CPR and First Aid Certification')
     ]);
+
+    // Then, update user roles for users with approved enrollments
+    await pool.query(`
+      UPDATE users u
+      SET role = 'student'
+      WHERE EXISTS (
+        SELECT 1 
+        FROM enrollments e 
+        WHERE e.user_id = u.id 
+        AND e.enrollment_status = 'approved'
+      )
+      AND u.role = 'user'  -- Only update users who are not already instructors or admins
+    `);
 
     // Seed certificates
     await pool.query(`
@@ -295,28 +318,28 @@ const seed = async () => {
         VALUES
           (
             'class_reminder',
-            'class_reminder',
+            'class_notification',
             'Upcoming Class: {{class_name}}',
             'Your class "{{class_name}}" starts in {{time_until}}. Please join at {{location}}.',
             '{"category": "class", "priority": "high"}'::jsonb
           ),
           (
             'enrollment_approved',
-            'enrollment',
+            'user_notification',
             'Enrollment Approved: {{class_name}}',
             'Your enrollment in "{{class_name}}" has been approved. The class starts on {{start_date}}.',
             '{"category": "enrollment", "priority": "medium"}'::jsonb
           ),
           (
             'payment_due',
-            'payment',
+            'user_notification',
             'Payment Due: {{class_name}}',
             'Payment of {{amount}} for "{{class_name}}" is due on {{due_date}}.',
             '{"category": "payment", "priority": "high"}'::jsonb
           ),
           (
             'certificate_ready',
-            'certificate',
+            'user_notification',
             'Certificate Available: {{class_name}}',
             'Your certificate for "{{class_name}}" is now available for download.',
             '{"category": "certificate", "priority": "medium"}'::jsonb

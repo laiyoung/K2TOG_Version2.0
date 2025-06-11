@@ -181,7 +181,7 @@ const getAllEnrollments = async (filters = {}) => {
     JOIN users u ON u.id = e.user_id
     JOIN classes c ON c.id = e.class_id
     LEFT JOIN users reviewer ON reviewer.id = e.reviewed_by
-    WHERE 1=1
+    WHERE u.role NOT IN ('admin', 'instructor')
   `;
   
   const queryParams = [];
