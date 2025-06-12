@@ -167,18 +167,21 @@ const FinancialManagement = () => {
         showError(error.message || customMessage);
     };
 
-    const filteredPayments = outstandingPayments.filter(payment =>
-        payment.student_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        payment.student_email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        payment.class_name.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const filteredPayments = outstandingPayments
+        .filter(payment =>
+            (payment.student_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                payment.student_email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                payment.class_name.toLowerCase().includes(searchTerm.toLowerCase())) &&
+            payment.student_email !== 'admin@example.com' // Exclude admin
+        );
 
     const getStatusChip = (status, days) => {
+        const dayValue = (typeof days === 'number' && !isNaN(days)) ? days : (Number(days) || '-');
         if (status === 'overdue') {
             return (
                 <Chip
                     icon={<WarningIcon />}
-                    label={`Overdue (${days} days)`}
+                    label={`Overdue (${dayValue} days)`}
                     color="error"
                     size="small"
                     variant="outlined"
@@ -188,7 +191,7 @@ const FinancialManagement = () => {
         return (
             <Chip
                 icon={<ScheduleIcon />}
-                label={`Due in ${days} days`}
+                label={`Due in ${dayValue} days`}
                 color="warning"
                 size="small"
                 variant="outlined"
@@ -215,7 +218,7 @@ const FinancialManagement = () => {
 
     return (
         <Box className="financial-management">
-            <Typography variant="h5" component="h2" gutterBottom>
+            <Typography variant="h4" component="h2" gutterBottom sx={{ mt: 3, mb: 5, fontWeight: 700, fontSize: { xs: '2rem', md: '2.5rem' } }}>
                 Financial Management
             </Typography>
 
@@ -226,84 +229,107 @@ const FinancialManagement = () => {
             )}
 
             {/* Stats Cards */}
-            <Grid container spacing={3} sx={{ mb: 4 }}>
-                <Grid sx={{ width: { xs: '100%', sm: '50%', md: '25%' } }}>
-                    <Card>
-                        <CardContent>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                <MoneyIcon color="primary" />
-                                <Typography variant="h6">Total Outstanding</Typography>
-                            </Box>
-                            <Typography variant="h4" sx={{ mt: 1 }}>
+            <Grid container spacing={3} className="mb-6">
+                <Grid item xs={12} md={3} sx={{ height: '100%' }}>
+                    <Card sx={{ height: '100%' }}>
+                        <CardContent sx={{ display: 'flex', flexDirection: 'column', height: 140 }}>
+                            <Typography color="textSecondary" gutterBottom>
+                                Total Outstanding
+                            </Typography>
+                            <Typography variant="h4">
                                 {formatCurrency(paymentStats?.total_outstanding)}
                             </Typography>
+                            <Typography variant="body2" color="text.secondary" sx={{ minHeight: 24 }}>&nbsp;</Typography>
                         </CardContent>
                     </Card>
                 </Grid>
-                <Grid sx={{ width: { xs: '100%', sm: '50%', md: '25%' } }}>
-                    <Card>
-                        <CardContent>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                <WarningIcon color="error" />
-                                <Typography variant="h6">Overdue Amount</Typography>
-                            </Box>
-                            <Typography variant="h4" sx={{ mt: 1 }} color="error">
+                <Grid item xs={12} md={3} sx={{ height: '100%' }}>
+                    <Card sx={{ height: '100%' }}>
+                        <CardContent sx={{ display: 'flex', flexDirection: 'column', height: 140 }}>
+                            <Typography color="textSecondary" gutterBottom>
+                                Overdue Amount
+                            </Typography>
+                            <Typography variant="h4" color="error">
                                 {formatCurrency(paymentStats?.overdue_amount)}
                             </Typography>
-                            <Typography variant="body2" color="text.secondary">
+                            <Typography variant="body2" color="text.secondary" sx={{ minHeight: 24 }}>
                                 {paymentStats?.overdue_count ?? 0} payments overdue
                             </Typography>
                         </CardContent>
                     </Card>
                 </Grid>
-                <Grid sx={{ width: { xs: '100%', sm: '50%', md: '25%' } }}>
-                    <Card>
-                        <CardContent>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                <Tooltip title={<Typography sx={{ fontSize: '1rem', fontWeight: 400 }}>Due Soon</Typography>} placement="top" arrow sx={{ '& .MuiTooltip-tooltip': { fontSize: '1rem', fontWeight: 400 } }}>
-                                    <ScheduleIcon color="warning" />
-                                </Tooltip>
-                                <Typography variant="h6">Due Soon</Typography>
-                            </Box>
-                            <Typography variant="h4" sx={{ mt: 1 }} color="warning.main">
+                <Grid item xs={12} md={3} sx={{ height: '100%' }}>
+                    <Card sx={{ height: '100%' }}>
+                        <CardContent sx={{ display: 'flex', flexDirection: 'column', height: 140 }}>
+                            <Typography color="textSecondary" gutterBottom>
+                                Due Soon
+                            </Typography>
+                            <Typography variant="h4" color="warning.main">
                                 {formatCurrency(paymentStats?.due_soon_amount)}
                             </Typography>
-                            <Typography variant="body2" color="text.secondary">
+                            <Typography variant="body2" color="text.secondary" sx={{ minHeight: 24 }}>
                                 {paymentStats?.due_soon_count ?? 0} payments due soon
                             </Typography>
                         </CardContent>
                     </Card>
                 </Grid>
+                <Grid item xs={12} md={3} sx={{ height: '100%' }}>
+                    <Card sx={{ height: '100%' }}>
+                        <CardContent sx={{ display: 'flex', flexDirection: 'column', height: 140 }}>
+                            <Typography color="textSecondary" gutterBottom>
+                                Total Students with Outstanding Payments
+                            </Typography>
+                            <Typography variant="h4">
+                                {filteredPayments.length}
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary" sx={{ minHeight: 24 }}>&nbsp;</Typography>
+                        </CardContent>
+                    </Card>
+                </Grid>
             </Grid>
 
-            {/* Date Range Picker */}
-            <Paper sx={{ p: 2, mb: 3 }}>
+            {/* Date Range Filter Bar */}
+            <Paper sx={{ p: 2, mb: 4, mt: 2 }}>
                 <Grid container spacing={2} alignItems="center">
-                    <Grid sx={{ width: { xs: '100%', sm: '50%', md: '25%' } }}>
+                    <Grid item xs={12} sm={5} md={4}>
                         <TextField
+                            fullWidth
                             type="date"
                             label="Start Date"
                             value={dateRange.startDate}
                             onChange={(e) => handleDateRangeChange({ ...dateRange, startDate: e.target.value })}
-                            fullWidth
                             size="small"
                         />
                     </Grid>
-                    <Grid sx={{ width: { xs: '100%', sm: '50%', md: '25%' } }}>
+                    <Grid item xs={12} sm={5} md={4}>
                         <TextField
+                            fullWidth
                             type="date"
                             label="End Date"
                             value={dateRange.endDate}
                             onChange={(e) => handleDateRangeChange({ ...dateRange, endDate: e.target.value })}
-                            fullWidth
                             size="small"
                         />
+                    </Grid>
+                    <Grid item xs={12} sm={2} md={4} sx={{ display: 'flex', alignItems: 'center', justifyContent: { xs: 'flex-start', sm: 'flex-end' } }}>
+                        <Tooltip title={<Typography sx={{ fontSize: '1rem', fontWeight: 400 }}>Export</Typography>} placement="top" arrow sx={{ '& .MuiTooltip-tooltip': { fontSize: '1rem', fontWeight: 400 } }}>
+                            <span>
+                                <Button
+                                    variant="contained"
+                                    onClick={handleExportTransactions}
+                                    startIcon={<DownloadIcon />}
+                                    disabled={loading}
+                                >
+                                    Export
+                                </Button>
+                            </span>
+                        </Tooltip>
                     </Grid>
                 </Grid>
             </Paper>
 
             {/* Search and Table */}
-            <Box className="financial-header">
+            <Box className="financial-header" sx={{ mt: 3, mb: 2 }}>
                 <Typography variant="h6" component="h3">
                     Outstanding Payments
                 </Typography>
@@ -323,16 +349,6 @@ const FinancialManagement = () => {
                             }
                         }}
                     />
-                    <Tooltip title={<Typography sx={{ fontSize: '1rem', fontWeight: 400 }}>Export</Typography>} placement="top" arrow sx={{ '& .MuiTooltip-tooltip': { fontSize: '1rem', fontWeight: 400 } }}>
-                        <Button
-                            variant="outlined"
-                            onClick={handleExportTransactions}
-                            startIcon={<DownloadIcon />}
-                            disabled={loading}
-                        >
-                            Export
-                        </Button>
-                    </Tooltip>
                 </Box>
             </Box>
 
@@ -384,7 +400,6 @@ const FinancialManagement = () => {
                                             color="primary"
                                             onClick={() => handleSendReminder(payment)}
                                             size="small"
-                                            title="Send Reminder"
                                         >
                                             <SendIcon />
                                         </IconButton>
@@ -446,57 +461,20 @@ const FinancialManagement = () => {
                 <DialogActions>
                     <Button onClick={handleReminderCancel}>Cancel</Button>
                     <Tooltip title={<Typography sx={{ fontSize: '1rem', fontWeight: 400 }}>Send Reminder</Typography>} placement="top" arrow sx={{ '& .MuiTooltip-tooltip': { fontSize: '1rem', fontWeight: 400 } }}>
-                        <Button
-                            onClick={handleReminderConfirm}
-                            variant="contained"
-                            color="primary"
-                            startIcon={<EmailIcon />}
-                            disabled={loading}
-                        >
-                            {loading ? 'Sending...' : 'Send Reminder'}
-                        </Button>
+                        <span>
+                            <Button
+                                onClick={handleReminderConfirm}
+                                variant="contained"
+                                color="primary"
+                                startIcon={<EmailIcon />}
+                                disabled={loading}
+                            >
+                                {loading ? 'Sending...' : 'Send Reminder'}
+                            </Button>
+                        </span>
                     </Tooltip>
                 </DialogActions>
             </Dialog>
-
-            <TableContainer component={Paper}>
-                <Table>
-                    <TableHead>
-                        <TableRow>
-                            <TableCell>Date</TableCell>
-                            <TableCell>Description</TableCell>
-                            <TableCell>Amount</TableCell>
-                            <TableCell>Status</TableCell>
-                            <TableCell>Actions</TableCell>
-                        </TableRow>
-                    </TableHead>
-                    <TableBody>
-                        {transactions.map((transaction) => (
-                            <TableRow key={transaction.id}>
-                                <TableCell>{new Date(transaction.date).toLocaleDateString()}</TableCell>
-                                <TableCell>{transaction.description}</TableCell>
-                                <TableCell>{formatCurrency(transaction.amount)}</TableCell>
-                                <TableCell>
-                                    <Chip
-                                        label={transaction.status}
-                                        color={getStatusColor(transaction.status)}
-                                        size="small"
-                                    />
-                                </TableCell>
-                                <TableCell>
-                                    <IconButton
-                                        size="small"
-                                        onClick={() => handleTransactionStatusUpdate(transaction.id, 'completed')}
-                                        disabled={transaction.status === 'completed'}
-                                    >
-                                        <CheckIcon />
-                                    </IconButton>
-                                </TableCell>
-                            </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
-            </TableContainer>
         </Box>
     );
 };

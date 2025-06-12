@@ -262,6 +262,7 @@ const getOutstandingPayments = async ({ startDate, endDate } = {}) => {
     JOIN classes c ON c.id = p.class_id
     WHERE p.status = 'pending'
     AND p.due_date IS NOT NULL
+    AND u.role = 'student'
     ${startDate ? 'AND p.due_date >= $1' : ''}
     ${endDate ? 'AND p.due_date <= $2' : ''}
     ORDER BY p.due_date ASC
@@ -275,11 +276,13 @@ const getOutstandingPayments = async ({ startDate, endDate } = {}) => {
       COUNT(CASE WHEN due_date < CURRENT_DATE THEN 1 END) as overdue_count,
       SUM(CASE WHEN due_date <= CURRENT_DATE + INTERVAL '7 days' AND due_date >= CURRENT_DATE THEN amount ELSE 0 END) as due_soon_amount,
       COUNT(CASE WHEN due_date <= CURRENT_DATE + INTERVAL '7 days' AND due_date >= CURRENT_DATE THEN 1 END) as due_soon_count
-    FROM payments
-    WHERE status = 'pending'
-    AND due_date IS NOT NULL
-    ${startDate ? 'AND due_date >= $1' : ''}
-    ${endDate ? 'AND due_date <= $2' : ''}
+    FROM payments p
+    JOIN users u ON u.id = p.user_id
+    WHERE p.status = 'pending'
+    AND p.due_date IS NOT NULL
+    AND u.role = 'student'
+    ${startDate ? 'AND p.due_date >= $1' : ''}
+    ${endDate ? 'AND p.due_date <= $2' : ''}
   `;
 
   const values = [];

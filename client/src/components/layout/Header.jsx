@@ -84,7 +84,7 @@ function Header() {
         console.log('User exists, showing profile/logout links'); // Debug log
         return (
             <div className="flex items-center space-x-4">
-                {!isAdminRoute && (
+                {!isAdminRoute && userRole !== 'admin' && (
                     <Link
                         to="/profile"
                         className="nav-button uppercase text-gray-500 hover:text-black transition-colors"
