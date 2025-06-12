@@ -20,6 +20,15 @@ const formatDate = (date) => {
     return format(parseISO(date), 'MMMM d, yyyy');
 };
 
+// Helper function to format time to user-friendly format
+const formatTime = (timeStr) => {
+    if (!timeStr) return '';
+    const [hour, minute] = timeStr.split(':');
+    const date = new Date();
+    date.setHours(Number(hour), Number(minute));
+    return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+};
+
 function ClassDetails() {
     const { id } = useParams();
     const navigate = useNavigate();
@@ -267,7 +276,7 @@ function ClassDetails() {
                                                             }`}
                                                         disabled={isFull && !waitlistStatus}
                                                     >
-                                                        {date.toLocaleDateString()} ({session.start_time} - {session.end_time})
+                                                        {date.toLocaleDateString()} ({formatTime(session.start_time)} - {formatTime(session.end_time)})
                                                     </button>
                                                 ))}
                                             </div>
@@ -340,7 +349,18 @@ function ClassDetails() {
                                 </div>
                             </div>
 
-                            {enrollError && <div className="mb-4 p-2 bg-red-50 border border-red-200 text-red-700 rounded">{enrollError}</div>}
+                            {enrollError && (
+                                <div className="mb-4 p-2 bg-red-50 border border-red-200 text-red-700 rounded flex items-center justify-between">
+                                    <span>{enrollError}</span>
+                                    <button
+                                        onClick={() => setEnrollError('')}
+                                        className="ml-4 text-red-700 hover:text-red-900 font-bold text-lg focus:outline-none"
+                                        aria-label="Close error message"
+                                    >
+                                        ×
+                                    </button>
+                                </div>
+                            )}
 
                             {user ? (
                                 <div className="mt-8">

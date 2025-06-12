@@ -30,6 +30,11 @@ const enrollInClass = async (req, res) => {
   const classId = req.params.classId;
   const { sessionId } = req.body;
 
+  // Prevent admin or instructor from enrolling
+  if (req.user.role === 'admin' || req.user.role === 'instructor') {
+    return res.status(403).json({ error: 'Admins and instructors are not allowed to enroll in classes.' });
+  }
+
   if (!sessionId) {
     return res.status(400).json({ error: "Session ID is required" });
   }

@@ -74,6 +74,15 @@ function Classes() {
         return defaultClassImage;
     };
 
+    // Helper function to get duration string based on class title
+    const getDurationString = (classItem) => {
+        if (classItem.title === "Development and Operations") return "4 weeks";
+        if (classItem.title === "Child Development Associate (CDA)") return "3 months";
+        if (classItem.title === "CPR and First Aid Certification") return "1 day";
+        // fallback if needed
+        return "";
+    };
+
     const renderLoadingState = () => (
         <div className="flex justify-center items-center min-h-[400px]">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
@@ -182,7 +191,7 @@ function Classes() {
                                     <p className="text-gray-700 mb-4" style={{ fontSize: '16px', fontFamily: 'Montserrat, sans-serif' }}>{classItem.description}</p>
                                     <div className="mb-8 space-y-2">
                                         <p className="text-gray-700" style={{ fontSize: '16px', fontFamily: 'Montserrat, sans-serif' }}>
-                                            <span className="font-medium">Duration:</span> {classItem.duration}
+                                            <span className="font-medium">Duration:</span> {getDurationString(classItem)}
                                         </p>
                                         <p className="text-gray-700" style={{ fontSize: '16px', fontFamily: 'Montserrat, sans-serif' }}>
                                             <span className="font-medium">Location:</span> {classItem.location}
