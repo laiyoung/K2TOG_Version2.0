@@ -84,6 +84,7 @@ function ClassManagement() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const { showSuccess, showError } = useNotifications();
+  const [deletedSessionIds, setDeletedSessionIds] = useState([]);
 
   // Fetch classes on component mount
   useEffect(() => {
@@ -156,6 +157,7 @@ function ClassManagement() {
       if (Array.isArray(classDetails.sessions) && classDetails.sessions.length > 0) {
         console.log('Found sessions:', classDetails.sessions);
         formattedDates = classDetails.sessions.map(session => ({
+          id: session.id,
           date: session.session_date ? new Date(session.session_date).toISOString().split('T')[0] : "",
           start_time: session.start_time ? session.start_time.substring(0, 5) : "",
           end_time: session.end_time ? session.end_time.substring(0, 5) : ""
@@ -230,10 +232,17 @@ function ClassManagement() {
   };
 
   const handleRemoveDate = (index) => {
-    setForm(prev => ({
-      ...prev,
-      dates: prev.dates.filter((_, i) => i !== index)
-    }));
+    if (!window.confirm("Are you sure you want to delete this session?")) return;
+    setForm(prev => {
+      const removed = prev.dates[index];
+      if (removed && removed.id) {
+        setDeletedSessionIds(ids => [...ids, removed.id]);
+      }
+      return {
+        ...prev,
+        dates: prev.dates.filter((_, i) => i !== index)
+      };
+    });
   };
 
   const handleDateChange = (index, field, value) => {
@@ -285,7 +294,8 @@ function ClassManagement() {
       const formattedData = {
         ...form,
         price: Number(form.price),
-        capacity: Number(form.capacity)
+        capacity: Number(form.capacity),
+        deletedSessionIds: deletedSessionIds
       };
 
       if (editClass) {
@@ -297,6 +307,7 @@ function ClassManagement() {
       }
       await fetchClasses(); // Refresh the list
       setShowModal(false);
+      setDeletedSessionIds([]);
     } catch (error) {
       handleError(error, "Failed to save class");
     } finally {
@@ -479,6 +490,52 @@ function ClassManagement() {
                         <MoreVertIcon />
                       </IconButton>
                     </Tooltip>
+                    <Menu
+                      anchorEl={anchorEl}
+                      open={Boolean(anchorEl)}
+                      onClose={handleMenuClose}
+                      PaperProps={{
+                        elevation: 0,
+                        sx: {
+                          overflow: 'visible',
+                          filter: 'drop-shadow(0px 2px 8px rgba(0,0,0,0.32))',
+                          mt: 1.5,
+                          '& .MuiAvatar-root': {
+                            width: 32,
+                            height: 32,
+                            ml: -0.5,
+                            mr: 1,
+                          },
+                        },
+                      }}
+                      transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+                      anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+                    >
+                      <MenuItem onClick={() => handleMenuAction('edit')}>
+                        <ListItemIcon>
+                          <EditIcon fontSize="small" />
+                        </ListItemIcon>
+                        <ListItemText>Edit Class</ListItemText>
+                      </MenuItem>
+                      <MenuItem onClick={() => handleMenuAction('sessions')}>
+                        <ListItemIcon>
+                          <ScheduleIcon fontSize="small" />
+                        </ListItemIcon>
+                        <ListItemText>View Sessions</ListItemText>
+                      </MenuItem>
+                      <MenuItem onClick={() => handleMenuAction('waitlist')}>
+                        <ListItemIcon>
+                          <QueueIcon fontSize="small" />
+                        </ListItemIcon>
+                        <ListItemText>View Waitlist</ListItemText>
+                      </MenuItem>
+                      <MenuItem onClick={() => handleMenuAction('status')}>
+                        <ListItemIcon>
+                          <UpdateIcon fontSize="small" />
+                        </ListItemIcon>
+                        <ListItemText>Update Status</ListItemText>
+                      </MenuItem>
+                    </Menu>
                     <Tooltip title={<Typography sx={{ fontSize: '1rem', fontWeight: 400 }}>View Students</Typography>} placement="top" arrow sx={{ '& .MuiTooltip-tooltip': { fontSize: '1rem', fontWeight: 400 } }}>
                       <IconButton
                         color="info"

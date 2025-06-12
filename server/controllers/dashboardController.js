@@ -99,6 +99,7 @@ const {
       const classItem = await getClassById(classId);
       if (!classItem) return res.status(404).json({ error: 'Class not found' });
   
+      // Pass deletedSessionIds to updateClass if present
       const updatedClass = await updateClass(classId, updates);
       res.json(updatedClass);
     } catch (err) {

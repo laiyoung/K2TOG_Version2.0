@@ -13,8 +13,10 @@ import {
 import './ProfileNavigation.css';
 
 const ProfileNavigation = ({ activeSection, onSectionChange, profile }) => {
-    const unreadNotifications = profile?.notifications?.filter(n => !n.is_read).length || 0;
-    const paymentsDue = profile?.payments?.filter(p => p.status !== 'paid').length || 0;
+    const notifications = profile?.notifications || [];
+    const payments = profile?.payments || [];
+    const unreadNotifications = notifications.filter(n => !n.is_read).length;
+    const paymentsDue = payments.filter(p => p.status !== 'paid').length;
 
     const menuItems = [
         { value: 'overview', label: 'Overview', icon: <PersonIcon /> },

@@ -79,6 +79,8 @@ function Header() {
             );
         }
 
+        // Ensure user and user.role are defined before rendering
+        const userRole = user?.role;
         console.log('User exists, showing profile/logout links'); // Debug log
         return (
             <div className="flex items-center space-x-4">
@@ -91,7 +93,7 @@ function Header() {
                         Profile
                     </Link>
                 )}
-                {user.role === 'admin' && (
+                {userRole === 'admin' && (
                     <Link
                         to="/admin/analytics"
                         className="nav-button uppercase text-gray-500 hover:text-black transition-colors"

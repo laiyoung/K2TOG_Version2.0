@@ -467,8 +467,36 @@ const updateClass = async (id, updates) => {
     location_details,
     price,
     capacity,
-    enrolled_count
+    enrolled_count,
+    deletedSessionIds
   } = updates;
+
+  // If there are sessions to delete, delete enrollments referencing them first, then the sessions
+  if (Array.isArray(deletedSessionIds) && deletedSessionIds.length > 0) {
+    // Delete enrollments referencing these sessions
+    await pool.query(
+      `DELETE FROM enrollments WHERE session_id = ANY($1::int[])`,
+      [deletedSessionIds]
+    );
+    // Delete the sessions
+    await pool.query(
+      `DELETE FROM class_sessions WHERE id = ANY($1::int[])`,
+      [deletedSessionIds]
+    );
+  }
+
+  // Insert new sessions if provided in updates.dates
+  if (Array.isArray(updates.dates)) {
+    for (const session of updates.dates) {
+      if (!session.id && session.date && session.start_time && session.end_time) {
+        await pool.query(
+          `INSERT INTO class_sessions (class_id, session_date, start_time, end_time)
+           VALUES ($1, $2, $3, $4)`,
+          [id, session.date, session.start_time, session.end_time]
+        );
+      }
+    }
+  }
 
   const result = await pool.query(
     `UPDATE classes 

@@ -7,6 +7,14 @@ const seed = async () => {
   try {
     console.log('Starting database seeding...');
 
+    // Clean up old data to prevent duplicates
+    await pool.query('DELETE FROM enrollments');
+    await pool.query('DELETE FROM class_sessions');
+    await pool.query('DELETE FROM class_waitlist');
+    await pool.query('DELETE FROM certificates');
+    await pool.query('DELETE FROM payments');
+    await pool.query('DELETE FROM classes');
+
     // Create test users only if they don't exist
     const userPassword = await bcrypt.hash('user123', 10);
     const adminPassword = await bcrypt.hash('admin123', 10);
@@ -152,48 +160,30 @@ const seed = async () => {
     const { rows: classRows } = await pool.query('SELECT id, title FROM classes');
     const classMap = new Map(classRows.map(c => [c.title, c.id]));
 
-    // Seed CDA Class Sessions
-    await pool.query(`
-      INSERT INTO class_sessions (class_id, session_date, start_time, end_time)
-      SELECT 
-        $1,
-        gs::date,
-        '09:00'::time,
-        '17:00'::time
-      FROM generate_series(
-          '2025-06-01'::date,
-          '2025-06-30'::date,
-          '1 day'::interval
-      ) AS gs
-      WHERE EXTRACT(DOW FROM gs) IN (1, 3)
-      ON CONFLICT DO NOTHING;
-    `, [classMap.get('Child Development Associate (CDA)')]);
-
-    // Seed Development and Operations Class Sessions
-    await pool.query(`
-      INSERT INTO class_sessions (class_id, session_date, start_time, end_time)
-      SELECT 
-        $1,
-        gs::date,
-        '10:00'::time,
-        '16:00'::time
-      FROM generate_series(
-          '2025-06-15'::date,
-          '2025-07-15'::date,
-          '1 day'::interval
-      ) AS gs
-      WHERE EXTRACT(DOW FROM gs) IN (2, 4)
-      ON CONFLICT DO NOTHING;
-    `, [classMap.get('Development and Operations')]);
-
-    // Seed CPR and First Aid Class Sessions
+    // Seed CDA Class Sessions (two sessions, one Monday and one Friday, 7pm-10pm, spaced 3 months apart)
     await pool.query(`
       INSERT INTO class_sessions (class_id, session_date, start_time, end_time)
       VALUES
-        ($1, '2025-06-01', '08:00', '17:00'),
-        ($1, '2025-06-08', '08:00', '17:00'),
-        ($1, '2025-06-15', '08:00', '17:00'),
-        ($1, '2025-06-22', '08:00', '17:00')
+        ($1, '2025-06-02', '19:00', '22:00'),  -- Monday
+        ($1, '2025-08-29', '19:00', '22:00')   -- Friday (about 3 months later)
+      ON CONFLICT DO NOTHING;
+    `, [classMap.get('Child Development Associate (CDA)')]);
+
+    // Seed Development and Operations Class Sessions (two consecutive Saturdays, 9am-4pm)
+    await pool.query(`
+      INSERT INTO class_sessions (class_id, session_date, start_time, end_time)
+      VALUES
+        ($1, '2025-06-21', '09:00', '16:00'),  -- Saturday
+        ($1, '2025-06-28', '09:00', '16:00')   -- Next Saturday
+      ON CONFLICT DO NOTHING;
+    `, [classMap.get('Development and Operations')]);
+
+    // Seed CPR and First Aid Class Sessions (two Saturdays, 10am-2pm)
+    await pool.query(`
+      INSERT INTO class_sessions (class_id, session_date, start_time, end_time)
+      VALUES
+        ($1, '2025-06-07', '10:00', '14:00'),   -- Saturday
+        ($1, '2025-06-14', '10:00', '14:00')    -- Next Saturday
       ON CONFLICT DO NOTHING;
     `, [classMap.get('CPR and First Aid Certification')]);
 
