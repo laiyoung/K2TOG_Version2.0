@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { requireAuth, requireAdmin } = require('../middleware/authMiddleware');
+const { requireAuth, requireAdmin } = require('../middleware/auth');
 const { upload } = require('../config/cloudinary');
 const {
     generateCertificate,

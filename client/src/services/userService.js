@@ -110,16 +110,30 @@ const fetchWithAuth = async (url, options = {}) => {
         headers
     });
 
+    const contentType = response.headers.get('content-type');
+
     if (response.status === 401) {
         window.location.href = '/login';
         throw new Error('Unauthorized');
     }
 
     if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        let errorData = {};
+        if (contentType && contentType.includes('application/json')) {
+            errorData = await response.json().catch(() => ({}));
+        } else {
+            const text = await response.text();
+            errorData = { error: `Non-JSON error response: ${text}` };
+        }
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
     }
 
-    return response.json();
+    if (contentType && contentType.includes('application/json')) {
+        return response.json();
+    } else {
+        const text = await response.text();
+        throw new Error(`Expected JSON but got: ${text}`);
+    }
 };
 
 // Get all users with a specific role

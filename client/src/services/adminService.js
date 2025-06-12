@@ -1,4 +1,5 @@
 import api from './apiConfig';
+import { fetchWithAuth } from '../utils/fetchUtils';
 
 const adminService = {
     // Get dashboard statistics
@@ -483,6 +484,31 @@ const adminService = {
             console.error('Error fetching class students:', error);
             throw new Error('Failed to fetch students in the class');
         }
+    },
+
+    // Get all sessions with students for a class
+    async getClassSessionsWithStudents(classId) {
+        const response = await fetchWithAuth(`/sessions/class/${classId}/sessions`);
+        if (!response.ok) {
+            throw new Error('Failed to fetch sessions and students');
+        }
+        return response.json();
+    },
+
+    // Update session status
+    async updateSessionStatus(sessionId, status) {
+        const response = await fetchWithAuth(`/sessions/sessions/${sessionId}/status`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ status }),
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to update session status');
+        }
+        return response.json();
     }
 };
 

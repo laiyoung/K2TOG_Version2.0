@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { getUserEnrollments } = require('../models/enrollmentModel');
 const { getInstructors } = require('../controllers/adminController');
+const { requireAuth, requireAdmin } = require('../middleware/auth');
 
 const {
   adminGetUsers,
@@ -33,8 +34,6 @@ const {
   adminGetClassStudents,
 } = require('../controllers/dashboardController');
 
-const requireAuth = require('../middleware/auth');
-const requireAdmin = require('../middleware/requireAdmin');
 const {
     searchUsers,
     updateUserRole,
@@ -49,7 +48,8 @@ const {
 } = require('../controllers/userManagementController');
 
 // Apply authentication and admin middleware to ALL routes
-router.use(requireAuth, requireAdmin);
+router.use(requireAuth);
+router.use(requireAdmin);
 
 // Users
 router.get('/users', adminGetUsers);

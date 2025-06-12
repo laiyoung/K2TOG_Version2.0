@@ -13,8 +13,7 @@ const {
   getWaitlistStatus
 } = require('../controllers/enrollmentController');
 
-const requireAuth = require('../middleware/auth');
-const requireAdmin = require('../middleware/requireAdmin');
+const { requireAuth, requireAdmin } = require('../middleware/auth');
 
 // Public routes
 // None - all enrollment routes require authentication

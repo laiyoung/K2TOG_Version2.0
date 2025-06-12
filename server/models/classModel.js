@@ -587,5 +587,6 @@ module.exports = {
   updateClassStatus,
   getClassWithDetails,
   getClassParticipants,
-  addToWaitlist
+  addToWaitlist,
+  generateRecurringSessions
 };

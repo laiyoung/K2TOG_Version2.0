@@ -1,11 +1,6 @@
-const requireAuth = require('./auth');
+const { requireAuth, authorizeRole } = require('./auth');
 
-function requireAdmin(req, res, next) {
-  if (req.user && req.user.role === 'admin') {
-    return next();
-  }
-  return res.status(403).json({ error: 'Forbidden: Admins only' });
-}
+const requireAdmin = authorizeRole(['admin']);
 
 module.exports = {
   requireAuth,

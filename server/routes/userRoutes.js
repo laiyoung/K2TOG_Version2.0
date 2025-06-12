@@ -8,8 +8,7 @@ const {
   updateUserProfile
 } = require('../controllers/userController');
 
-const requireAuth = require('../middleware/auth');
-const requireAdmin = require('../middleware/requireAdmin');
+const { requireAuth, requireAdmin } = require('../middleware/auth');
 
 // Auth routes
 router.post('/register', validateRegistration, registerUser);

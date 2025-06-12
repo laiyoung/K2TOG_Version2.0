@@ -1,7 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const requireAuth = require('../middleware/auth');
-const requireAdmin = require('../middleware/requireAdmin');
+const { requireAuth, requireAdmin } = require('../middleware/auth');
 
 const {
     getSecuritySettings,
@@ -16,7 +15,8 @@ const {
 } = require('../controllers/settingsController');
 
 // All routes require authentication and admin privileges
-router.use(requireAuth, requireAdmin);
+router.use(requireAuth);
+router.use(requireAdmin);
 
 // Security Settings Routes
 router.get('/security', getSecuritySettings);

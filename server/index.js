@@ -20,6 +20,7 @@ const settingsRoutes = require('./routes/settingsRoutes');
 const profileRoutes = require('./routes/profileRoutes');
 const errorHandler = require('./middleware/errorHandler');
 const devLogger = require('./middleware/devLogger');
+const sessionRoutes = require('./routes/sessionRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -43,12 +44,13 @@ app.use('/api/classes', classRoutes);
 app.use('/api/enrollments', enrollmentRoutes);
 // app.use('/api/payments', paymentRoutes);
 app.use('/api/webhook', stripeWebhook); 
+app.use('/api/admin/analytics', analyticsRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/certificates', certificateRoutes);
 app.use('/api/notifications', notificationRoutes);
-app.use('/api/admin/analytics', analyticsRoutes);
 app.use('/api/admin/settings', settingsRoutes);
 app.use('/api/profile', profileRoutes);
+app.use('/api/sessions', sessionRoutes);
 app.use(devLogger);
 app.use(errorHandler); // place this last!
 

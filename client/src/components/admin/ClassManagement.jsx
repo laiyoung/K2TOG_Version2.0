@@ -517,23 +517,11 @@ function ClassManagement() {
                         </ListItemIcon>
                         <ListItemText>Edit Class</ListItemText>
                       </MenuItem>
-                      <MenuItem onClick={() => handleMenuAction('sessions')}>
-                        <ListItemIcon>
-                          <ScheduleIcon fontSize="small" />
-                        </ListItemIcon>
-                        <ListItemText>View Sessions</ListItemText>
-                      </MenuItem>
                       <MenuItem onClick={() => handleMenuAction('waitlist')}>
                         <ListItemIcon>
                           <QueueIcon fontSize="small" />
                         </ListItemIcon>
                         <ListItemText>View Waitlist</ListItemText>
-                      </MenuItem>
-                      <MenuItem onClick={() => handleMenuAction('status')}>
-                        <ListItemIcon>
-                          <UpdateIcon fontSize="small" />
-                        </ListItemIcon>
-                        <ListItemText>Update Status</ListItemText>
                       </MenuItem>
                     </Menu>
                     <Tooltip title={<Typography sx={{ fontSize: '1rem', fontWeight: 400 }}>View Students</Typography>} placement="top" arrow sx={{ '& .MuiTooltip-tooltip': { fontSize: '1rem', fontWeight: 400 } }}>

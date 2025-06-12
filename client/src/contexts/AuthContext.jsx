@@ -16,12 +16,25 @@ const fetchWithAuth = async (url, options = {}) => {
         headers
     });
 
+    const contentType = response.headers.get('content-type');
+
     if (!response.ok) {
-        const error = await response.json().catch(() => ({ message: 'An error occurred' }));
-        throw new Error(error.message || `HTTP error! status: ${response.status}`);
+        let errorData = {};
+        if (contentType && contentType.includes('application/json')) {
+            errorData = await response.json().catch(() => ({ message: 'An error occurred' }));
+        } else {
+            const text = await response.text();
+            errorData = { message: `Non-JSON error response: ${text}` };
+        }
+        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
     }
 
-    return response.json();
+    if (contentType && contentType.includes('application/json')) {
+        return response.json();
+    } else {
+        const text = await response.text();
+        throw new Error(`Expected JSON but got: ${text}`);
+    }
 };
 
 export const useAuth = () => {

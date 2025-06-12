@@ -13,13 +13,21 @@ const fetchWithAuth = async (url, options = {}) => {
         headers
     });
 
+    const contentType = response.headers.get('content-type');
+
     if (response.status === 401) {
         window.location.href = '/login';
         throw new Error('Unauthorized');
     }
 
     if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
+        let errorData = {};
+        if (contentType && contentType.includes('application/json')) {
+            errorData = await response.json().catch(() => ({}));
+        } else {
+            const text = await response.text();
+            errorData = { error: `Non-JSON error response: ${text}` };
+        }
         throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
     }
 
@@ -29,7 +37,12 @@ const fetchWithAuth = async (url, options = {}) => {
     }
 
     // For JSON responses
-    return response.json();
+    if (contentType && contentType.includes('application/json')) {
+        return response.json();
+    } else {
+        const text = await response.text();
+        throw new Error(`Expected JSON but got: ${text}`);
+    }
 };
 
 // Helper function for FormData requests

@@ -19,7 +19,14 @@ import {
     TextField,
     InputAdornment,
     CircularProgress,
-    Alert
+    Alert,
+    Accordion,
+    AccordionSummary,
+    AccordionDetails,
+    Select,
+    MenuItem,
+    FormControl,
+    InputLabel
 } from '@mui/material';
 import {
     Delete as DeleteIcon,
@@ -29,109 +36,54 @@ import {
     CalendarToday as CalendarIcon,
     CheckCircle as ActiveIcon,
     Cancel as InactiveIcon,
-    Payment as PaymentIcon
+    Payment as PaymentIcon,
+    ExpandMore as ExpandMoreIcon,
+    Schedule as ScheduleIcon
 } from '@mui/icons-material';
 import classService from '../../services/classService';
 import { useNotifications } from '../../utils/notificationUtils';
+import adminService from '../../services/adminService';
 import './ClassStudents.css';
 
 const ClassStudents = ({ classId, className }) => {
-    const [students, setStudents] = useState([]);
-    const [searchTerm, setSearchTerm] = useState('');
-    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-    const [studentToDelete, setStudentToDelete] = useState(null);
+    const [sessions, setSessions] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const { showSuccess, showError } = useNotifications();
 
     useEffect(() => {
-        fetchStudents();
+        fetchSessionsWithStudents();
     }, [classId]);
 
-    const fetchStudents = async () => {
-        setLoading(true);
-        setError(null);
+    const fetchSessionsWithStudents = async () => {
         try {
-            const response = await classService.getClassParticipants(classId);
-            setStudents(Array.isArray(response) ? response : []);
-        } catch (error) {
-            console.error('Error fetching students:', error);
-            setError('Failed to load students. Please try again.');
-            showError('Failed to load students');
+            setLoading(true);
+            const data = await adminService.getClassSessionsWithStudents(classId);
+            setSessions(data);
+        } catch (err) {
+            setError(err.message || 'Failed to fetch sessions and students');
         } finally {
             setLoading(false);
         }
     };
 
-    const handleDeleteClick = (student) => {
-        setStudentToDelete(student);
-        setDeleteDialogOpen(true);
-    };
-
-    const handleDeleteConfirm = async () => {
-        if (studentToDelete) {
-            try {
-                // TODO: Implement API call to remove student from class
-                // await classService.removeStudentFromClass(classId, studentToDelete.enrollment_id);
-                setStudents(students.filter(s => s.enrollment_id !== studentToDelete.enrollment_id));
-                showSuccess('Student removed from class successfully');
-            } catch (error) {
-                console.error('Error removing student:', error);
-                showError('Failed to remove student from class');
-            }
-            setDeleteDialogOpen(false);
-            setStudentToDelete(null);
+    const handleSessionStatusChange = async (sessionId, newStatus) => {
+        try {
+            await adminService.updateSessionStatus(sessionId, newStatus);
+            // Refresh the data
+            await fetchSessionsWithStudents();
+        } catch (err) {
+            setError(err.message || 'Failed to update session status');
         }
     };
 
-    const handleDeleteCancel = () => {
-        setDeleteDialogOpen(false);
-        setStudentToDelete(null);
-    };
-
-    const filteredStudents = students.filter(student =>
-        student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        student.email.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-
-    const getStatusChip = (status) => {
-        const statusConfig = {
-            'approved': { color: 'success', icon: <ActiveIcon />, label: 'Active' },
-            'pending': { color: 'warning', icon: <CalendarIcon />, label: 'Pending' },
-            'rejected': { color: 'error', icon: <InactiveIcon />, label: 'Rejected' }
-        };
-
-        const config = statusConfig[status] || statusConfig.pending;
-
-        return (
-            <Chip
-                icon={config.icon}
-                label={config.label}
-                color={config.color}
-                size="small"
-                variant="outlined"
-            />
-        );
-    };
-
-    const getPaymentChip = (status) => {
-        const statusConfig = {
-            'paid': { color: 'success', icon: <PaymentIcon />, label: 'Paid' },
-            'pending': { color: 'warning', icon: <PaymentIcon />, label: 'Pending' },
-            'failed': { color: 'error', icon: <PaymentIcon />, label: 'Failed' }
-        };
-
-        const config = statusConfig[status] || statusConfig.pending;
-
-        return (
-            <Chip
-                icon={config.icon}
-                label={config.label}
-                color={config.color}
-                size="small"
-                variant="outlined"
-            />
-        );
+    // Helper to format time in a user-friendly way
+    const formatTime = (timeStr) => {
+        if (!timeStr) return '';
+        const [hour, minute] = timeStr.split(':');
+        const date = new Date();
+        date.setHours(Number(hour), Number(minute), 0, 0);
+        return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
     };
 
     if (loading) {
@@ -154,112 +106,101 @@ const ClassStudents = ({ classId, className }) => {
 
     return (
         <Box className="class-students-container">
-            <Box className="class-students-header">
-                <Typography variant="h6" component="h2">
-                    Students in {className}
-                </Typography>
-                <TextField
-                    placeholder="Search students..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    size="small"
-                    InputProps={{
-                        startAdornment: (
-                            <InputAdornment position="start">
-                                <SearchIcon />
-                            </InputAdornment>
-                        ),
-                    }}
-                />
-            </Box>
+            <Typography variant="h6" gutterBottom>
+                Students for {className}
+            </Typography>
 
-            <TableContainer component={Paper} className="students-table">
-                <Table>
-                    <TableHead>
-                        <TableRow>
-                            <TableCell>Name</TableCell>
-                            <TableCell>Email</TableCell>
-                            <TableCell>Phone</TableCell>
-                            <TableCell>Enrollment Date</TableCell>
-                            <TableCell>Status</TableCell>
-                            <TableCell>Payment</TableCell>
-                            <TableCell>Session</TableCell>
-                            <TableCell align="right">Actions</TableCell>
-                        </TableRow>
-                    </TableHead>
-                    <TableBody>
-                        {filteredStudents.map((student) => (
-                            <TableRow key={student.enrollment_id || student.id}>
-                                <TableCell>
-                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                        <PersonIcon color="action" fontSize="small" />
-                                        {student.name}
-                                    </Box>
-                                </TableCell>
-                                <TableCell>
-                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                        <EmailIcon color="action" fontSize="small" />
-                                        {student.email}
-                                    </Box>
-                                </TableCell>
-                                <TableCell>{student.phone_number || 'N/A'}</TableCell>
-                                <TableCell>
-                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                        <CalendarIcon color="action" fontSize="small" />
-                                        {new Date(student.enrolled_at).toLocaleDateString()}
-                                    </Box>
-                                </TableCell>
-                                <TableCell>{getStatusChip(student.enrollment_status)}</TableCell>
-                                <TableCell>{getPaymentChip(student.payment_status)}</TableCell>
-                                <TableCell>
-                                    {student.session_date ? (
-                                        `${new Date(student.session_date).toLocaleDateString()} ${student.start_time.substring(0, 5)
-                                        }-${student.end_time.substring(0, 5)}`
-                                    ) : 'Not assigned'}
-                                </TableCell>
-                                <TableCell align="right">
-                                    <IconButton
-                                        color="error"
-                                        onClick={() => handleDeleteClick(student)}
-                                        size="small"
-                                        title="Remove Student"
-                                    >
-                                        <DeleteIcon />
-                                    </IconButton>
-                                </TableCell>
-                            </TableRow>
-                        ))}
-                        {filteredStudents.length === 0 && (
-                            <TableRow>
-                                <TableCell colSpan={8} align="center">
-                                    No students found
-                                </TableCell>
-                            </TableRow>
-                        )}
-                    </TableBody>
-                </Table>
-            </TableContainer>
+            {sessions.map((session) => (
+                <Accordion key={session.session_id || session.session_date + session.start_time}>
+                    <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, width: '100%' }}>
+                            <ScheduleIcon color="action" />
+                            <Typography variant="subtitle1" sx={{ flexGrow: 1 }}>
+                                {new Date(session.session_date).toLocaleDateString('en-US', {
+                                    weekday: 'short', year: 'numeric', month: 'short', day: 'numeric'
+                                })}
+                                {` - ${formatTime(session.start_time)} to ${formatTime(session.end_time)}`}
+                            </Typography>
+                            <Chip label={session.status || 'Scheduled'} color={session.status === 'completed' ? 'success' : session.status === 'cancelled' ? 'error' : 'primary'} size="small" />
+                        </Box>
+                    </AccordionSummary>
+                    <AccordionDetails>
+                        <Box sx={{ mb: 2 }}>
+                            <FormControl size="small" sx={{ minWidth: 200 }}>
+                                <InputLabel>Session Status</InputLabel>
+                                <Select
+                                    value={session.status}
+                                    onChange={(e) => handleSessionStatusChange(session.session_id, e.target.value)}
+                                    label="Session Status"
+                                >
+                                    <MenuItem value="scheduled">Scheduled</MenuItem>
+                                    <MenuItem value="cancelled">Cancelled</MenuItem>
+                                    <MenuItem value="completed">Completed</MenuItem>
+                                </Select>
+                            </FormControl>
+                        </Box>
 
-            <Dialog
-                open={deleteDialogOpen}
-                onClose={handleDeleteCancel}
-                maxWidth="sm"
-                fullWidth
-            >
-                <DialogTitle>Remove Student</DialogTitle>
-                <DialogContent>
-                    <Typography>
-                        Are you sure you want to remove {studentToDelete?.name} from {className}?
-                        This action cannot be undone.
-                    </Typography>
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={handleDeleteCancel}>Cancel</Button>
-                    <Button onClick={handleDeleteConfirm} color="error" variant="contained">
-                        Remove Student
-                    </Button>
-                </DialogActions>
-            </Dialog>
+                        <TableContainer component={Paper}>
+                            <Table size="small">
+                                <TableHead>
+                                    <TableRow>
+                                        <TableCell>Student Name</TableCell>
+                                        <TableCell>Email</TableCell>
+                                        <TableCell>Enrollment Status</TableCell>
+                                        <TableCell>Payment Status</TableCell>
+                                    </TableRow>
+                                </TableHead>
+                                <TableBody>
+                                    {(() => {
+                                        const filteredStudents = (session.students || []).filter(Boolean);
+                                        return filteredStudents.length > 0 ? (
+                                            filteredStudents.map((student) => (
+                                                <TableRow key={student.id || student.email}>
+                                                    <TableCell>
+                                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                            <PersonIcon color="action" fontSize="small" />
+                                                            {student.name}
+                                                        </Box>
+                                                    </TableCell>
+                                                    <TableCell>{student.email}</TableCell>
+                                                    <TableCell>
+                                                        <Chip
+                                                            label={student.enrollment_status}
+                                                            color={
+                                                                student.enrollment_status === 'approved' ? 'success' :
+                                                                    student.enrollment_status === 'rejected' ? 'error' :
+                                                                        'warning'
+                                                            }
+                                                            size="small"
+                                                        />
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <Chip
+                                                            label={student.payment_status}
+                                                            color={
+                                                                student.payment_status === 'paid' ? 'success' :
+                                                                    student.payment_status === 'pending' ? 'warning' :
+                                                                        'error'
+                                                            }
+                                                            size="small"
+                                                        />
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))
+                                        ) : (
+                                            <TableRow key="no-students">
+                                                <TableCell colSpan={4} align="center">
+                                                    No students enrolled in this session
+                                                </TableCell>
+                                            </TableRow>
+                                        );
+                                    })()}
+                                </TableBody>
+                            </Table>
+                        </TableContainer>
+                    </AccordionDetails>
+                </Accordion>
+            ))}
         </Box>
     );
 };

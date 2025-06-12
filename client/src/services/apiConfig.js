@@ -47,8 +47,16 @@ const fetchApi = async (endpoint, options = {}) => {
         const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
         console.log('API response status:', response.status); // Add logging
 
+        const contentType = response.headers.get('content-type');
+
         if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
+            let errorData = {};
+            if (contentType && contentType.includes('application/json')) {
+                errorData = await response.json().catch(() => ({}));
+            } else {
+                const text = await response.text();
+                errorData = { error: `Non-JSON error response: ${text}` };
+            }
             // Suppress logging for 404 'Not on waitlist'
             if (!(response.status === 404 && (errorData.error === 'Not on waitlist' || errorData.message === 'Not on waitlist'))) {
                 console.error('API Error Response:', errorData); // Only log unexpected errors
@@ -56,9 +64,14 @@ const fetchApi = async (endpoint, options = {}) => {
             throw new Error(errorData.error || errorData.message || 'Something went wrong');
         }
 
-        const data = await response.json();
-        console.log('API response data:', data); // Add logging
-        return data;
+        if (contentType && contentType.includes('application/json')) {
+            const data = await response.json();
+            console.log('API response data:', data); // Add logging
+            return data;
+        } else {
+            const text = await response.text();
+            throw new Error(`Expected JSON but got: ${text}`);
+        }
     } catch (error) {
         // Suppress logging for 404 'Not on waitlist'
         if (!(error.message === 'Not on waitlist')) {

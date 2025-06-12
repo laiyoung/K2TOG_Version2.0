@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const requireAuth = require('../middleware/auth');
+const { requireAuth } = require('../middleware/auth');
 
 const {
     getProfileWithDetails,
@@ -16,6 +16,22 @@ const {
     markNotificationAsRead,
     markAllNotificationsAsRead
 } = require('../controllers/profileController');
+
+// Debug logging for route handlers
+console.log('Route handlers:', {
+    getProfileWithDetails: typeof getProfileWithDetails,
+    updateProfile: typeof updateProfile,
+    updatePassword: typeof updatePassword,
+    getCertificates: typeof getCertificates,
+    getPaymentMethods: typeof getPaymentMethods,
+    addPaymentMethod: typeof addPaymentMethod,
+    setDefaultPaymentMethod: typeof setDefaultPaymentMethod,
+    deletePaymentMethod: typeof deletePaymentMethod,
+    getActivityLog: typeof getActivityLog,
+    getNotifications: typeof getNotifications,
+    markNotificationAsRead: typeof markNotificationAsRead,
+    markAllNotificationsAsRead: typeof markAllNotificationsAsRead
+});
 
 // Profile routes
 router.get('/profile', requireAuth, getProfileWithDetails);
