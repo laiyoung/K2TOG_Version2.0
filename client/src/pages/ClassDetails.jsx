@@ -45,6 +45,8 @@ function ClassDetails() {
     const [waitlistLoading, setWaitlistLoading] = useState(false);
     const [userEnrollments, setUserEnrollments] = useState([]);
     const [userWaitlist, setUserWaitlist] = useState([]);
+    const isAdminOrInstructor = user && (user.role === 'admin' || user.role === 'instructor');
+    const [roleEnrollError, setRoleEnrollError] = useState('');
 
     // Memoize the class data fetching effect
     useEffect(() => {
@@ -60,24 +62,30 @@ function ClassDetails() {
                 // Only check enrollment and waitlist status if user is logged in
                 if (user) {
                     try {
-                        const [enrollments, waitlistData] = await Promise.all([
-                            enrollmentService.getUserEnrollments(),
-                            enrollmentService.getWaitlistStatus(id).catch(err => {
-                                // If error is 404, user is not on waitlist
+                        const enrollments = await enrollmentService.getUserEnrollments();
+                        const isUserEnrolled = enrollments.some(enrollment => enrollment.class_id === id);
+                        setIsEnrolled(isUserEnrolled);
+                        setUserEnrollments(enrollments);
+                        // Only check waitlist status if class is full
+                        if (data.enrolled_count >= data.capacity) {
+                            const waitlistData = await enrollmentService.getWaitlistStatus(id).catch(err => {
                                 if (err.response?.status === 404) {
+                                    // Not on waitlist is not an error, just return null
                                     return null;
                                 }
                                 throw err;
-                            })
-                        ]);
-
-                        const isUserEnrolled = enrollments.some(enrollment => enrollment.class_id === id);
-                        setIsEnrolled(isUserEnrolled);
-                        setWaitlistStatus(waitlistData);
-                        setUserEnrollments(enrollments);
-                        setUserWaitlist(waitlistData);
+                            });
+                            setWaitlistStatus(waitlistData);
+                            setUserWaitlist(waitlistData);
+                        } else {
+                            setWaitlistStatus(null);
+                            setUserWaitlist(null);
+                        }
                     } catch (err) {
-                        console.error('Error fetching user enrollment data:', err);
+                        // Only log if not a 404 from waitlist or error message is not 'Not on waitlist'
+                        if (!(err.response?.status === 404 && err.message === 'Not on waitlist') && err.message !== 'Not on waitlist') {
+                            console.error('Error fetching user enrollment data:', err);
+                        }
                         // Don't set error state for enrollment data, as it's not critical
                     }
                 }
@@ -262,48 +270,75 @@ function ClassDetails() {
                                 <div className="space-y-6">
                                     {formattedDates.map(({ rangeIndex, startDate, endDate, days, isFull }) => (
                                         <div key={rangeIndex} className="border rounded-lg p-4">
-                                            <h3 className="font-medium mb-2">
-                                                {startDate} - {endDate}
-                                            </h3>
-                                            <div className="space-y-2">
-                                                {days.map(({ date, index, session }) => (
-                                                    <button
-                                                        key={date.toISOString()}
-                                                        onClick={() => handleDateSelection(index)}
-                                                        className={`w-full text-left p-2 rounded ${selectedDateIndex === index
-                                                            ? 'bg-black text-white'
-                                                            : 'hover:bg-gray-100'
-                                                            }`}
-                                                        disabled={isFull && !waitlistStatus}
-                                                    >
-                                                        {date.toLocaleDateString()} ({formatTime(session.start_time)} - {formatTime(session.end_time)})
-                                                    </button>
-                                                ))}
-                                            </div>
-                                            {isFull && classData.waitlist_enabled && (
-                                                <div className="mt-2">
-                                                    {waitlistStatus ? (
-                                                        <div className="flex items-center justify-between">
-                                                            <span className="text-sm text-gray-600">You are on the waitlist</span>
-                                                            <button
-                                                                onClick={handleWaitlistAction}
-                                                                disabled={waitlistLoading}
-                                                                className="text-red-600 hover:text-red-800"
-                                                            >
-                                                                {waitlistLoading ? 'Processing...' : 'Leave Waitlist'}
-                                                            </button>
+                                            <div className="space-y-4">
+                                                {days.map(({ date, index, session }) => {
+                                                    // Calculate duration
+                                                    const getDuration = (start, end) => {
+                                                        if (!start || !end) return '';
+                                                        const [sh, sm] = start.split(":").map(Number);
+                                                        const [eh, em] = end.split(":").map(Number);
+                                                        let startMins = sh * 60 + sm;
+                                                        let endMins = eh * 60 + em;
+                                                        let diff = endMins - startMins;
+                                                        if (diff < 0) diff += 24 * 60; // handle overnight
+                                                        const hours = Math.floor(diff / 60);
+                                                        const mins = diff % 60;
+                                                        return `${hours > 0 ? hours + ' hr' + (hours > 1 ? 's' : '') : ''}${hours > 0 && mins > 0 ? ' ' : ''}${mins > 0 ? mins + ' min' + (mins > 1 ? 's' : '') : ''}`;
+                                                    };
+                                                    const duration = getDuration(session.start_time, session.end_time);
+                                                    // Only show date range if more than one day
+                                                    const isOneDay = startDate === endDate;
+                                                    return (
+                                                        <div key={date.toISOString()} className="flex flex-col md:flex-row md:items-center md:justify-between border p-3 rounded mb-2 bg-gray-50">
+                                                            <div className="flex-1">
+                                                                <div className="font-medium text-gray-900">
+                                                                    {isOneDay ? startDate : `${startDate} - ${endDate}`}
+                                                                </div>
+                                                                <div className="text-gray-700 text-sm">
+                                                                    {`${formatTime(session.start_time)} - ${formatTime(session.end_time)}`}
+                                                                    {duration && (
+                                                                        <span className="ml-2 text-xs text-gray-500">({duration})</span>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                            <div className="mt-2 md:mt-0 md:ml-4 flex items-center gap-2">
+                                                                <button
+                                                                    onClick={() => {
+                                                                        if (isAdminOrInstructor) {
+                                                                            setRoleEnrollError('Admins and instructors cannot enroll in classes.');
+                                                                            return;
+                                                                        }
+                                                                        handleDateSelection(index);
+                                                                    }}
+                                                                    className={`px-4 py-2 rounded text-white font-medium transition-colors ${selectedDateIndex === index ? 'bg-black' : 'bg-blue-600 hover:bg-blue-700'}${isAdminOrInstructor ? ' opacity-50 cursor-not-allowed' : ''}`}
+                                                                    disabled={isFull && !waitlistStatus || isAdminOrInstructor}
+                                                                >
+                                                                    {isEnrolled && selectedDateIndex === index ? 'Cancel Enrollment' : 'Enroll Now'}
+                                                                </button>
+                                                                {isFull && classData.waitlist_enabled && (
+                                                                    waitlistStatus ? (
+                                                                        <button
+                                                                            onClick={handleWaitlistAction}
+                                                                            disabled={waitlistLoading}
+                                                                            className="px-4 py-2 rounded text-white bg-red-600 hover:bg-red-700"
+                                                                        >
+                                                                            {waitlistLoading ? 'Processing...' : 'Leave Waitlist'}
+                                                                        </button>
+                                                                    ) : (
+                                                                        <button
+                                                                            onClick={handleWaitlistAction}
+                                                                            disabled={waitlistLoading}
+                                                                            className="px-4 py-2 rounded text-white bg-blue-400 hover:bg-blue-500"
+                                                                        >
+                                                                            {waitlistLoading ? 'Processing...' : 'Join Waitlist'}
+                                                                        </button>
+                                                                    )
+                                                                )}
+                                                            </div>
                                                         </div>
-                                                    ) : (
-                                                        <button
-                                                            onClick={handleWaitlistAction}
-                                                            disabled={waitlistLoading}
-                                                            className="text-blue-600 hover:text-blue-800"
-                                                        >
-                                                            {waitlistLoading ? 'Processing...' : 'Join Waitlist'}
-                                                        </button>
-                                                    )}
-                                                </div>
-                                            )}
+                                                    );
+                                                })}
+                                            </div>
                                         </div>
                                     ))}
                                 </div>
@@ -327,7 +362,6 @@ function ClassDetails() {
                                 <h2 className="text-2xl font-semibold mb-2 text-gray-900">Enrollment</h2>
                                 <p className="text-3xl font-semibold text-blue-600">${classData.price}</p>
                             </div>
-
                             <div className="space-y-4">
                                 <div className="flex items-center space-x-2">
                                     <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -348,70 +382,6 @@ function ClassDetails() {
                                     <span className="text-gray-700">Hands-on Learning</span>
                                 </div>
                             </div>
-
-                            {enrollError && (
-                                <div className="mb-4 p-2 bg-red-50 border border-red-200 text-red-700 rounded flex items-center justify-between">
-                                    <span>{enrollError}</span>
-                                    <button
-                                        onClick={() => setEnrollError('')}
-                                        className="ml-4 text-red-700 hover:text-red-900 font-bold text-lg focus:outline-none"
-                                        aria-label="Close error message"
-                                    >
-                                        ×
-                                    </button>
-                                </div>
-                            )}
-
-                            {user ? (
-                                <div className="mt-8">
-                                    <div className="space-y-4">
-                                        {!isFull ? (
-                                            <button
-                                                onClick={handleEnroll}
-                                                disabled={enrollLoading || (!selectedDateIndex && !isEnrolled)}
-                                                className={`w-full py-3 px-4 rounded-lg text-white font-medium ${enrollLoading
-                                                    ? 'bg-gray-400'
-                                                    : isEnrolled
-                                                        ? 'bg-red-600 hover:bg-red-700'
-                                                        : 'bg-blue-600 hover:bg-blue-700'
-                                                    }`}
-                                            >
-                                                {enrollLoading
-                                                    ? 'Processing...'
-                                                    : isEnrolled
-                                                        ? 'Cancel Enrollment'
-                                                        : 'Enroll Now'}
-                                            </button>
-                                        ) : waitlistStatus ? (
-                                            <div className="text-gray-700">
-                                                You are on the waitlist for this class. We will notify you if a spot becomes available.
-                                            </div>
-                                        ) : classData.waitlist_enabled ? (
-                                            <button
-                                                onClick={handleWaitlistAction}
-                                                disabled={waitlistLoading}
-                                                className="bg-blue-600 text-white px-6 py-3 rounded hover:bg-blue-700 disabled:bg-blue-400"
-                                            >
-                                                {waitlistLoading ? 'Processing...' : 'Join Waitlist'}
-                                            </button>
-                                        ) : (
-                                            <div className="text-gray-700">
-                                                This class is full and waitlist is not available.
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            ) : (
-                                <div className="space-y-4">
-                                    <p className="text-gray-700">Please log in to enroll in this class.</p>
-                                    <button
-                                        onClick={() => navigate('/login', { state: { from: `/classes/${id}` } })}
-                                        className="bg-black text-white px-6 py-3 rounded hover:bg-gray-800"
-                                    >
-                                        Log in to Enroll
-                                    </button>
-                                </div>
-                            )}
                         </div>
                     </div>
                 </div>
@@ -441,6 +411,20 @@ function ClassDetails() {
                     )}
                 </div>
             </section>
+
+            {/* Show error if admin/instructor tries to enroll */}
+            {roleEnrollError && (
+                <div className="mb-4 p-2 bg-red-50 border border-red-200 text-red-700 rounded flex items-center justify-between">
+                    <span>{roleEnrollError}</span>
+                    <button
+                        onClick={() => setRoleEnrollError('')}
+                        className="ml-4 text-red-700 hover:text-red-900 font-bold text-lg focus:outline-none"
+                        aria-label="Close error message"
+                    >
+                        ×
+                    </button>
+                </div>
+            )}
 
             <Footer />
         </div>

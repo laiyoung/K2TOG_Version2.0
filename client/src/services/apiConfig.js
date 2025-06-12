@@ -49,7 +49,10 @@ const fetchApi = async (endpoint, options = {}) => {
 
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
-            console.error('API Error Response:', errorData); // Add logging
+            // Suppress logging for 404 'Not on waitlist'
+            if (!(response.status === 404 && (errorData.error === 'Not on waitlist' || errorData.message === 'Not on waitlist'))) {
+                console.error('API Error Response:', errorData); // Only log unexpected errors
+            }
             throw new Error(errorData.error || errorData.message || 'Something went wrong');
         }
 
@@ -57,7 +60,10 @@ const fetchApi = async (endpoint, options = {}) => {
         console.log('API response data:', data); // Add logging
         return data;
     } catch (error) {
-        console.error('API Error:', error);
+        // Suppress logging for 404 'Not on waitlist'
+        if (!(error.message === 'Not on waitlist')) {
+            console.error('API Error:', error);
+        }
         throw error;
     }
 };
