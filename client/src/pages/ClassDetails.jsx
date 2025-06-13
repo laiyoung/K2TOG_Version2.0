@@ -29,12 +29,22 @@ const formatTime = (timeStr) => {
     return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 };
 
+// Helper to get the class date range (min and max session dates)
+const getClassDateRange = (sessions) => {
+    if (!sessions || sessions.length === 0) return null;
+    const dates = sessions.map(s => parseISO(s.session_date || s.date));
+    const minDate = new Date(Math.min(...dates));
+    const maxDate = new Date(Math.max(...dates));
+    return { minDate, maxDate };
+};
+
 function ClassDetails() {
     const { id } = useParams();
     const navigate = useNavigate();
     const { user, loading: authLoading, initialized } = useAuth();
     const { showSuccess, showError } = useNotifications();
     const [classData, setClassData] = useState(null);
+    const [sessions, setSessions] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [isEnrolled, setIsEnrolled] = useState(false);
@@ -51,13 +61,15 @@ function ClassDetails() {
     // Memoize the class data fetching effect
     useEffect(() => {
         const fetchClassDetails = async () => {
-            if (!initialized) return; // Don't fetch until auth is initialized
-
+            if (!initialized) return;
             setLoading(true);
             setError(null);
             try {
                 const data = await classService.getClassById(id);
                 setClassData(data);
+                // Fetch sessions for this class
+                const sessionData = await classService.getClassSessions(id);
+                setSessions(sessionData);
 
                 // Only check enrollment and waitlist status if user is logged in
                 if (user) {
@@ -170,6 +182,10 @@ function ClassDetails() {
     const formattedDates = useMemo(() => {
         if (!classData?.available_dates) return [];
 
+        // Get all sessions for the class (flattened)
+        const allSessions = classData.available_dates.flatMap(dateRange => dateRange.sessions);
+        const classDateRange = getClassDateRange(allSessions);
+
         return classData.available_dates.map((dateRange, rangeIndex) => {
             const availableSpots = classData.capacity - classData.enrolled_count;
             const isFull = availableSpots <= 0;
@@ -184,7 +200,8 @@ function ClassDetails() {
                     index: `${rangeIndex}-${dayIndex}`,
                     session: dateRange.sessions[dayIndex]
                 })),
-                isFull
+                isFull,
+                classDateRange
             };
         });
     }, [classData]);
@@ -264,81 +281,25 @@ function ClassDetails() {
                             <p className="text-gray-700 leading-relaxed">{classData.description}</p>
                         </div>
 
-                        {formattedDates.length > 0 && (
+                        {sessions.length > 0 && (
                             <div>
-                                <h2 className="text-2xl font-semibold mb-4 text-gray-900">Available Days</h2>
+                                <h2 className="text-2xl font-semibold mb-4 text-gray-900">Available Sessions</h2>
                                 <div className="space-y-6">
-                                    {formattedDates.map(({ rangeIndex, startDate, endDate, days, isFull }) => (
-                                        <div key={rangeIndex} className="border rounded-lg p-4">
-                                            <div className="space-y-4">
-                                                {days.map(({ date, index, session }) => {
-                                                    // Calculate duration
-                                                    const getDuration = (start, end) => {
-                                                        if (!start || !end) return '';
-                                                        const [sh, sm] = start.split(":").map(Number);
-                                                        const [eh, em] = end.split(":").map(Number);
-                                                        let startMins = sh * 60 + sm;
-                                                        let endMins = eh * 60 + em;
-                                                        let diff = endMins - startMins;
-                                                        if (diff < 0) diff += 24 * 60; // handle overnight
-                                                        const hours = Math.floor(diff / 60);
-                                                        const mins = diff % 60;
-                                                        return `${hours > 0 ? hours + ' hr' + (hours > 1 ? 's' : '') : ''}${hours > 0 && mins > 0 ? ' ' : ''}${mins > 0 ? mins + ' min' + (mins > 1 ? 's' : '') : ''}`;
-                                                    };
-                                                    const duration = getDuration(session.start_time, session.end_time);
-                                                    // Only show date range if more than one day
-                                                    const isOneDay = startDate === endDate;
-                                                    return (
-                                                        <div key={date.toISOString()} className="flex flex-col md:flex-row md:items-center md:justify-between border p-3 rounded mb-2 bg-gray-50">
-                                                            <div className="flex-1">
-                                                                <div className="font-medium text-gray-900">
-                                                                    {isOneDay ? startDate : `${startDate} - ${endDate}`}
-                                                                </div>
-                                                                <div className="text-gray-700 text-sm">
-                                                                    {`${formatTime(session.start_time)} - ${formatTime(session.end_time)}`}
-                                                                    {duration && (
-                                                                        <span className="ml-2 text-xs text-gray-500">({duration})</span>
-                                                                    )}
-                                                                </div>
-                                                            </div>
-                                                            <div className="mt-2 md:mt-0 md:ml-4 flex items-center gap-2">
-                                                                <button
-                                                                    onClick={() => {
-                                                                        if (isAdminOrInstructor) {
-                                                                            setRoleEnrollError('Admins and instructors cannot enroll in classes.');
-                                                                            return;
-                                                                        }
-                                                                        handleDateSelection(index);
-                                                                    }}
-                                                                    className={`px-4 py-2 rounded text-white font-medium transition-colors ${selectedDateIndex === index ? 'bg-black' : 'bg-blue-600 hover:bg-blue-700'}${isAdminOrInstructor ? ' opacity-50 cursor-not-allowed' : ''}`}
-                                                                    disabled={isFull && !waitlistStatus || isAdminOrInstructor}
-                                                                >
-                                                                    {isEnrolled && selectedDateIndex === index ? 'Cancel Enrollment' : 'Enroll Now'}
-                                                                </button>
-                                                                {isFull && classData.waitlist_enabled && (
-                                                                    waitlistStatus ? (
-                                                                        <button
-                                                                            onClick={handleWaitlistAction}
-                                                                            disabled={waitlistLoading}
-                                                                            className="px-4 py-2 rounded text-white bg-red-600 hover:bg-red-700"
-                                                                        >
-                                                                            {waitlistLoading ? 'Processing...' : 'Leave Waitlist'}
-                                                                        </button>
-                                                                    ) : (
-                                                                        <button
-                                                                            onClick={handleWaitlistAction}
-                                                                            disabled={waitlistLoading}
-                                                                            className="px-4 py-2 rounded text-white bg-blue-400 hover:bg-blue-500"
-                                                                        >
-                                                                            {waitlistLoading ? 'Processing...' : 'Join Waitlist'}
-                                                                        </button>
-                                                                    )
-                                                                )}
-                                                            </div>
-                                                        </div>
-                                                    );
-                                                })}
+                                    {sessions.map((session) => (
+                                        <div key={session.id} className="border rounded-lg p-4">
+                                            <div className="font-medium text-gray-900">
+                                                {formatDate(session.session_date)}
                                             </div>
+                                            <div className="text-gray-700 text-sm">
+                                                {formatTime(session.start_time)} - {formatTime(session.end_time)}
+                                            </div>
+                                            <div className="text-gray-700 text-sm">
+                                                Available Spots: {session.available_spots} of {session.capacity}
+                                            </div>
+                                            <div className="text-gray-700 text-sm">
+                                                Instructor: {session.instructor_name || 'TBA'}
+                                            </div>
+                                            {/* Add more session fields as needed */}
                                         </div>
                                     ))}
                                 </div>

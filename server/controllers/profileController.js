@@ -1,7 +1,7 @@
 const { getProfileWithDetails: getUserProfileWithDetails, updateProfile: updateUserProfile, getUserById, updatePassword: updateUserPassword } = require('../models/userModel');
 const {Certificate} = require('../models/certificateModel');
 const {PaymentMethod} = require('../models/paymentMethodModel');
-const {ActivityLog} = require('../models/activityLogModel');
+const { createActivityLog } = require('../models/activityLogModel');
 const {Notification} = require('../models/notificationModel');
 const bcrypt = require('bcrypt');
 
@@ -22,7 +22,7 @@ const getProfileWithDetails = async (req, res) => {
 const updateProfile = async (req, res) => {
     try {
         const { first_name, last_name, phone_number, profile_picture_url, email_notifications, sms_notifications } = req.body;
-        const updatedProfile = await updateUserProfile(req.user.id, {
+        await updateUserProfile(req.user.id, {
             first_name,
             last_name,
             phone_number,
@@ -31,11 +31,13 @@ const updateProfile = async (req, res) => {
             sms_notifications
         });
         
-        await ActivityLog.createActivityLog(req.user.id, 'update_profile', {
+        await createActivityLog(req.user.id, 'update_profile', {
             updated_fields: Object.keys(req.body)
         });
 
-        res.json(updatedProfile);
+        // Fetch and return the full profile after update
+        const fullProfile = await getUserProfileWithDetails(req.user.id);
+        res.json(fullProfile);
     } catch (error) {
         res.status(500).json({ message: 'Error updating profile', error: error.message });
     }
@@ -60,7 +62,7 @@ const updatePassword = async (req, res) => {
         const hashedPassword = await bcrypt.hash(newPassword, 10);
         await updateUserPassword(req.user.id, hashedPassword);
         
-        await ActivityLog.createActivityLog(req.user.id, 'update_password', {
+        await createActivityLog(req.user.id, 'update_password', {
             timestamp: new Date()
         });
 
@@ -101,11 +103,7 @@ const addPaymentMethod = async (req, res) => {
             is_default
         });
         
-        await ActivityLog.create({
-            user_id: req.user.id,
-            action: 'add_payment_method',
-            details: { payment_type, last_four }
-        });
+        await createActivityLog(req.user.id, 'add_payment_method', { payment_type, last_four });
 
         res.status(201).json(paymentMethod);
     } catch (error) {
@@ -120,11 +118,7 @@ const setDefaultPaymentMethod = async (req, res) => {
             return res.status(404).json({ message: 'Payment method not found' });
         }
         
-        await ActivityLog.create({
-            user_id: req.user.id,
-            action: 'set_default_payment_method',
-            details: { payment_method_id: req.params.id }
-        });
+        await createActivityLog(req.user.id, 'set_default_payment_method', { payment_method_id: req.params.id });
 
         res.json(paymentMethod);
     } catch (error) {
@@ -139,11 +133,7 @@ const deletePaymentMethod = async (req, res) => {
             return res.status(404).json({ message: 'Payment method not found' });
         }
         
-        await ActivityLog.create({
-            user_id: req.user.id,
-            action: 'delete_payment_method',
-            details: { payment_method_id: req.params.id }
-        });
+        await createActivityLog(req.user.id, 'delete_payment_method', { payment_method_id: req.params.id });
 
         res.json({ message: 'Payment method deleted successfully' });
     } catch (error) {
@@ -155,7 +145,7 @@ const deletePaymentMethod = async (req, res) => {
 const getActivityLog = async (req, res) => {
     try {
         const { limit = 50, offset = 0 } = req.query;
-        const activities = await ActivityLog.getByUserId(req.user.id, parseInt(limit), parseInt(offset));
+        const activities = await createActivityLog.getByUserId(req.user.id, parseInt(limit), parseInt(offset));
         res.json(activities);
     } catch (error) {
         res.status(500).json({ message: 'Error fetching activity log', error: error.message });

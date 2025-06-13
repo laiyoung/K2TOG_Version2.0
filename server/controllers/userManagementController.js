@@ -315,10 +315,10 @@ const deleteUserAccount = async (req, res) => {
             reason: reason || 'No reason provided'
         });
 
-        // If user is an instructor, set instructor_id to NULL in classes
+        // If user is an instructor, set instructor_id to NULL in class_sessions
         if (user.role === 'instructor') {
-            console.log('Setting instructor_id to NULL for classes taught by user:', id);
-            await client.query('UPDATE classes SET instructor_id = NULL WHERE instructor_id = $1', [id]);
+            console.log('Setting instructor_id to NULL for class_sessions taught by user:', id);
+            await client.query('UPDATE class_sessions SET instructor_id = NULL WHERE instructor_id = $1', [id]);
         }
 
         // Set sender_id to NULL in notifications where this user is the sender

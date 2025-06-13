@@ -29,16 +29,6 @@ const approveEnrollment = async (enrollmentId, adminId, adminNotes = null) => {
     [adminNotes, adminId, enrollmentId]
   );
   
-  if (result.rows[0]) {
-    // Increment the class enrollment count
-    await pool.query(
-      `UPDATE classes 
-       SET enrolled_count = enrolled_count + 1 
-       WHERE id = $1`,
-      [result.rows[0].class_id]
-    );
-  }
-  
   return result.rows[0];
 };
 
@@ -76,12 +66,18 @@ const setEnrollmentPending = async (enrollmentId, adminId, adminNotes = null) =>
 const getPendingEnrollments = async () => {
   const result = await pool.query(`
     SELECT e.*, 
-           u.name as user_name, u.email as user_email,
-           c.title as class_title, c.date as class_date,
+           u.name as user_name, 
+           u.email as user_email,
+           c.title as class_title,
+           c.location_details,
+           cs.session_date as class_date,
+           cs.start_time,
+           cs.end_time,
            a.name as reviewer_name
     FROM enrollments e
     JOIN users u ON u.id = e.user_id
     JOIN classes c ON c.id = e.class_id
+    LEFT JOIN class_sessions cs ON cs.id = e.session_id
     LEFT JOIN users a ON a.id = e.reviewed_by
     WHERE e.enrollment_status = 'pending'
     ORDER BY e.enrolled_at DESC
@@ -93,12 +89,18 @@ const getPendingEnrollments = async () => {
 const getEnrollmentById = async (enrollmentId) => {
   const result = await pool.query(`
     SELECT e.*, 
-           u.name as user_name, u.email as user_email,
-           c.title as class_title, c.date as class_date,
+           u.name as user_name, 
+           u.email as user_email,
+           c.title as class_title,
+           c.location_details,
+           cs.session_date as class_date,
+           cs.start_time,
+           cs.end_time,
            a.name as reviewer_name
     FROM enrollments e
     JOIN users u ON u.id = e.user_id
     JOIN classes c ON c.id = e.class_id
+    LEFT JOIN class_sessions cs ON cs.id = e.session_id
     LEFT JOIN users a ON a.id = e.reviewed_by
     WHERE e.id = $1
   `, [enrollmentId]);
@@ -116,16 +118,6 @@ const cancelEnrollment = async (userId, classId) => {
     [userId, classId]
   );
   
-  if (result.rows[0]) {
-    // Decrement the class enrollment count
-    await pool.query(
-      `UPDATE classes 
-       SET enrolled_count = GREATEST(enrolled_count - 1, 0) 
-       WHERE id = $1`,
-      [classId]
-    );
-  }
-  
   return result.rows[0];
 };
 
@@ -135,7 +127,11 @@ const getUserEnrollments = async (userId) => {
     `SELECT 
       classes.id as class_id,
       classes.title as class_title,
-      TO_CHAR(classes.date, 'MM/DD/YY') as formatted_date,
+      class_sessions.id as session_id,
+      TO_CHAR(class_sessions.session_date, 'MM/DD/YY') as formatted_date,
+      class_sessions.session_date,
+      class_sessions.start_time,
+      class_sessions.end_time,
       enrollments.payment_status, 
       enrollments.enrollment_status,
       enrollments.enrolled_at,
@@ -144,9 +140,10 @@ const getUserEnrollments = async (userId) => {
       users.name as reviewer_name
      FROM enrollments
      JOIN classes ON classes.id = enrollments.class_id
+     LEFT JOIN class_sessions ON class_sessions.id = enrollments.session_id
      LEFT JOIN users ON users.id = enrollments.reviewed_by
      WHERE enrollments.user_id = $1
-     ORDER BY classes.date`,
+     ORDER BY class_sessions.session_date ASC, class_sessions.start_time ASC`,
     [userId]
   );
   return result.rows;
@@ -171,15 +168,16 @@ const getAllEnrollments = async (filters = {}) => {
       u.name as student_name,
       u.email as student_email,
       c.title as class_name,
-      c.date as class_date,
-      c.start_time,
-      c.end_time,
       c.location_details,
+      cs.session_date as class_date,
+      cs.start_time,
+      cs.end_time,
       reviewer.name as reviewer_name,
       TO_CHAR(e.enrolled_at, 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as enrollment_date
     FROM enrollments e
     JOIN users u ON u.id = e.user_id
     JOIN classes c ON c.id = e.class_id
+    LEFT JOIN class_sessions cs ON cs.id = e.session_id
     LEFT JOIN users reviewer ON reviewer.id = e.reviewed_by
     WHERE u.role NOT IN ('admin', 'instructor')
   `;

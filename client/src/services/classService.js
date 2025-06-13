@@ -112,6 +112,39 @@ const classService = {
     // Update class status (admin only)
     updateClassStatus: async (classId, status) => {
         return api.put(`/classes/${classId}/status`, { status });
+    },
+
+    // Get sessions for a class
+    getClassSessions: async (classId) => {
+        return classService.fetchWithAuth(`/classes/${classId}/sessions`);
+    },
+
+    // Get a single session (admin/instructor)
+    getSessionById: async (sessionId) => {
+        return classService.fetchWithAuth(`/sessions/${sessionId}`);
+    },
+
+    // Create a session (admin/instructor)
+    createSession: async (sessionData) => {
+        return classService.fetchWithAuth('/sessions', {
+            method: 'POST',
+            body: JSON.stringify(sessionData)
+        });
+    },
+
+    // Update a session (admin/instructor)
+    updateSession: async (sessionId, sessionData) => {
+        return classService.fetchWithAuth(`/sessions/${sessionId}`, {
+            method: 'PUT',
+            body: JSON.stringify(sessionData)
+        });
+    },
+
+    // Delete a session (admin/instructor)
+    deleteSession: async (sessionId) => {
+        return classService.fetchWithAuth(`/sessions/${sessionId}`, {
+            method: 'DELETE'
+        });
     }
 };
 

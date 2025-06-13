@@ -60,6 +60,14 @@ import {
 import adminService from "../../services/adminService";
 import { useNotifications } from '../../utils/notificationUtils';
 
+function formatTime(timeStr) {
+    if (!timeStr) return '';
+    const [hour, minute] = timeStr.split(':');
+    const date = new Date();
+    date.setHours(Number(hour), Number(minute));
+    return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+}
+
 const UserManagement = () => {
     const { showSuccess, showError } = useNotifications();
     const [users, setUsers] = useState([]);
@@ -408,14 +416,12 @@ const UserManagement = () => {
                             placeholder="Search users..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            slotProps={{
-                                input: {
-                                    startAdornment: (
-                                        <InputAdornment position="start">
-                                            <SearchIcon />
-                                        </InputAdornment>
-                                    ),
-                                },
+                            InputProps={{
+                                startAdornment: (
+                                    <InputAdornment position="start">
+                                        <SearchIcon />
+                                    </InputAdornment>
+                                ),
                             }}
                         />
                     </Grid>
@@ -1055,16 +1061,50 @@ const UserManagement = () => {
                                                 <TableHead>
                                                     <TableRow>
                                                         <TableCell>Class</TableCell>
-                                                        <TableCell>Date</TableCell>
+                                                        <TableCell>Session Date</TableCell>
+                                                        <TableCell>Time</TableCell>
                                                         <TableCell>Status</TableCell>
+                                                        <TableCell>Payment Status</TableCell>
                                                     </TableRow>
                                                 </TableHead>
                                                 <TableBody>
                                                     {userEnrollments.map((enrollment) => (
-                                                        <TableRow key={enrollment.id || (enrollment.class_id + '-' + enrollment.formatted_date)}>
+                                                        <TableRow key={enrollment.id || (enrollment.class_id + '-' + enrollment.session_id)}>
                                                             <TableCell>{enrollment.class_title}</TableCell>
-                                                            <TableCell>{enrollment.formatted_date}</TableCell>
-                                                            <TableCell>{enrollment.enrollment_status}</TableCell>
+                                                            <TableCell>
+                                                                {enrollment.session_date ?
+                                                                    new Date(enrollment.session_date).toLocaleDateString() :
+                                                                    'No session date'}
+                                                            </TableCell>
+                                                            <TableCell>
+                                                                {enrollment.start_time && enrollment.end_time ?
+                                                                    `${formatTime(enrollment.start_time)} - ${formatTime(enrollment.end_time)}` :
+                                                                    'No time set'}
+                                                            </TableCell>
+                                                            <TableCell>
+                                                                <Chip
+                                                                    label={enrollment.enrollment_status}
+                                                                    color={
+                                                                        enrollment.enrollment_status === 'approved' ? 'success' :
+                                                                            enrollment.enrollment_status === 'pending' ? 'warning' :
+                                                                                enrollment.enrollment_status === 'rejected' ? 'error' :
+                                                                                    'default'
+                                                                    }
+                                                                    size="small"
+                                                                />
+                                                            </TableCell>
+                                                            <TableCell>
+                                                                <Chip
+                                                                    label={enrollment.payment_status}
+                                                                    color={
+                                                                        enrollment.payment_status === 'paid' ? 'success' :
+                                                                            enrollment.payment_status === 'pending' ? 'warning' :
+                                                                                enrollment.payment_status === 'refunded' ? 'info' :
+                                                                                    'default'
+                                                                    }
+                                                                    size="small"
+                                                                />
+                                                            </TableCell>
                                                         </TableRow>
                                                     ))}
                                                 </TableBody>
@@ -1187,16 +1227,50 @@ const UserManagement = () => {
                             <TableHead>
                                 <TableRow>
                                     <TableCell>Class</TableCell>
-                                    <TableCell>Date</TableCell>
+                                    <TableCell>Session Date</TableCell>
+                                    <TableCell>Time</TableCell>
                                     <TableCell>Status</TableCell>
+                                    <TableCell>Payment Status</TableCell>
                                 </TableRow>
                             </TableHead>
                             <TableBody>
                                 {userEnrollments.map((enrollment) => (
-                                    <TableRow key={enrollment.id || (enrollment.class_id + '-' + enrollment.formatted_date)}>
+                                    <TableRow key={enrollment.id || (enrollment.class_id + '-' + enrollment.session_id)}>
                                         <TableCell>{enrollment.class_title}</TableCell>
-                                        <TableCell>{enrollment.formatted_date}</TableCell>
-                                        <TableCell>{enrollment.enrollment_status}</TableCell>
+                                        <TableCell>
+                                            {enrollment.session_date ?
+                                                new Date(enrollment.session_date).toLocaleDateString() :
+                                                'No session date'}
+                                        </TableCell>
+                                        <TableCell>
+                                            {enrollment.start_time && enrollment.end_time ?
+                                                `${formatTime(enrollment.start_time)} - ${formatTime(enrollment.end_time)}` :
+                                                'No time set'}
+                                        </TableCell>
+                                        <TableCell>
+                                            <Chip
+                                                label={enrollment.enrollment_status}
+                                                color={
+                                                    enrollment.enrollment_status === 'approved' ? 'success' :
+                                                        enrollment.enrollment_status === 'pending' ? 'warning' :
+                                                            enrollment.enrollment_status === 'rejected' ? 'error' :
+                                                                'default'
+                                                }
+                                                size="small"
+                                            />
+                                        </TableCell>
+                                        <TableCell>
+                                            <Chip
+                                                label={enrollment.payment_status}
+                                                color={
+                                                    enrollment.payment_status === 'paid' ? 'success' :
+                                                        enrollment.payment_status === 'pending' ? 'warning' :
+                                                            enrollment.payment_status === 'refunded' ? 'info' :
+                                                                'default'
+                                                }
+                                                size="small"
+                                            />
+                                        </TableCell>
                                     </TableRow>
                                 ))}
                             </TableBody>

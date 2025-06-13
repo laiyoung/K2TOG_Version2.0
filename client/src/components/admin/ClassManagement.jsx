@@ -438,11 +438,6 @@ function ClassManagement() {
             <TableHead>
               <TableRow>
                 <TableCell>Title</TableCell>
-                <TableCell>Instructor</TableCell>
-                <TableCell>Date</TableCell>
-                <TableCell>Location</TableCell>
-                <TableCell>Capacity</TableCell>
-                <TableCell>Enrolled</TableCell>
                 <TableCell align="right">Actions</TableCell>
               </TableRow>
             </TableHead>
@@ -453,31 +448,6 @@ function ClassManagement() {
                     <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                       <PersonIcon color="action" fontSize="small" />
                       {cls.title}
-                    </Box>
-                  </TableCell>
-                  <TableCell>{cls.instructor}</TableCell>
-                  <TableCell>
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                      <EventIcon color="action" fontSize="small" />
-                      {formatDate(cls.date)}
-                    </Box>
-                  </TableCell>
-                  <TableCell>
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                      <LocationIcon color="action" fontSize="small" />
-                      {cls.location}
-                    </Box>
-                  </TableCell>
-                  <TableCell>{cls.capacity}</TableCell>
-                  <TableCell>
-                    <Box sx={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 1,
-                      color: cls.enrolled_count >= cls.capacity ? 'error.main' : 'inherit'
-                    }}>
-                      <PeopleIcon color="action" fontSize="small" />
-                      {cls.enrolled_count || 0} / {cls.capacity}
                     </Box>
                   </TableCell>
                   <TableCell align="right">

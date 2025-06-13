@@ -41,24 +41,12 @@ CREATE TABLE IF NOT EXISTS classes (
   id SERIAL PRIMARY KEY,
   title VARCHAR(100) NOT NULL UNIQUE,
   description TEXT,
-  date TIMESTAMP NOT NULL,
-  start_time TIME,
-  end_time TIME,
-  duration_minutes INTEGER,
+  price DECIMAL(10,2) NOT NULL,
   location_type VARCHAR(20) CHECK (location_type IN ('zoom', 'in-person')),
   location_details TEXT,
-  price DECIMAL(10,2) NOT NULL,
-  capacity INTEGER NOT NULL,
-  enrolled_count INTEGER DEFAULT 0,
-  is_recurring BOOLEAN DEFAULT false,
   recurrence_pattern JSONB,
-  min_enrollment INTEGER DEFAULT 1,
-  status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('in_progress', 'cancelled', 'completed', 'scheduled')),
   prerequisites TEXT,
   materials_needed TEXT,
-  instructor_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
-  waitlist_enabled BOOLEAN DEFAULT false,
-  waitlist_capacity INTEGER DEFAULT 0,
   image_url VARCHAR(255),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
@@ -71,8 +59,15 @@ CREATE TABLE IF NOT EXISTS class_sessions (
   session_date DATE NOT NULL,
   start_time TIME NOT NULL,
   end_time TIME NOT NULL,
+  capacity INTEGER NOT NULL,
+  enrolled_count INTEGER DEFAULT 0,
+  min_enrollment INTEGER DEFAULT 1,
+  waitlist_enabled BOOLEAN DEFAULT false,
+  waitlist_capacity INTEGER DEFAULT 0,
+  instructor_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
   status VARCHAR(20) DEFAULT 'scheduled' CHECK (status IN ('scheduled', 'cancelled', 'completed')),
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Create class waitlist table

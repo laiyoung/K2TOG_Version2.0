@@ -5,46 +5,42 @@ const getAllClassesFromDB = async (filters = {}) => {
   const { status, instructor_id, start_date, end_date } = filters;
   let query = `
     SELECT 
-      c.id, c.title, c.description, c.date, c.start_time, c.end_time, 
-      c.duration_minutes, c.location_type, c.location_details, 
-      c.price, c.capacity, c.is_recurring, 
-      c.recurrence_pattern, c.min_enrollment, c.status, 
-      c.prerequisites, c.materials_needed, c.instructor_id, 
-      c.waitlist_enabled, c.waitlist_capacity, c.image_url,
-      c.created_at, c.updated_at,
-      COUNT(DISTINCT CASE WHEN e.enrollment_status = 'approved' THEN e.id END) as enrolled_count
+      c.id, c.title, c.description, c.price, c.location_type, c.location_details, 
+      c.recurrence_pattern, c.prerequisites, c.materials_needed, c.image_url,
+      c.created_at, c.updated_at
     FROM classes c
-    LEFT JOIN enrollments e ON c.id = e.class_id
-    WHERE 1=1
   `;
   const queryParams = [];
   let paramCount = 1;
+
+  // If filtering by instructor_id, join class_sessions
+  if (instructor_id) {
+    query += ' JOIN class_sessions cs ON cs.class_id = c.id';
+  }
+  query += ' WHERE 1=1';
 
   if (status) {
     query += ` AND c.status = $${paramCount}`;
     queryParams.push(status);
     paramCount++;
   }
-
   if (instructor_id) {
-    query += ` AND c.instructor_id = $${paramCount}`;
+    query += ` AND cs.instructor_id = $${paramCount}`;
     queryParams.push(instructor_id);
     paramCount++;
   }
-
   if (start_date) {
-    query += ` AND c.date >= $${paramCount}`;
+    query += ` AND c.created_at >= $${paramCount}`;
     queryParams.push(start_date);
     paramCount++;
   }
-
   if (end_date) {
-    query += ` AND c.date <= $${paramCount}`;
+    query += ` AND c.created_at <= $${paramCount}`;
     queryParams.push(end_date);
     paramCount++;
   }
 
-  query += ' GROUP BY c.id ORDER BY c.date DESC';
+  query += ' ORDER BY c.created_at DESC';
 
   const result = await pool.query(query, queryParams);
   return result.rows;
@@ -53,129 +49,45 @@ const getAllClassesFromDB = async (filters = {}) => {
 // Get a single class by ID
 const getClassById = async (id) => {
   const result = await pool.query(
-    'SELECT * FROM classes WHERE id = $1',
+    'SELECT id, title, description, price, location_type, location_details, recurrence_pattern, prerequisites, materials_needed, image_url, created_at, updated_at FROM classes WHERE id = $1',
     [id]
   );
   return result.rows[0];
 };
 
-// Create a new class with enhanced features
+// Create a new class (general info only)
 const createClass = async ({
   title,
   description,
-  date,
-  start_time,
-  end_time,
-  duration_minutes,
+  price,
   location_type,
   location_details,
-  price,
-  capacity,
-  is_recurring = false,
   recurrence_pattern = null,
-  min_enrollment = 1,
   prerequisites = null,
   materials_needed = null,
-  instructor_id = null,
-  waitlist_enabled = false,
-  waitlist_capacity = 0,
   image_url = null
 }) => {
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
-
-    // Insert the main class record
-    const classResult = await client.query(
-      `INSERT INTO classes (
-        title, description, date, start_time, end_time, duration_minutes,
-        location_type, location_details, price, capacity, is_recurring,
-        recurrence_pattern, min_enrollment, prerequisites, materials_needed,
-        instructor_id, waitlist_enabled, waitlist_capacity, enrolled_count, status,
-        image_url
-      )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, 0, 'scheduled', $19)
-      RETURNING *`,
-      [
-        title, description, date, start_time, end_time, duration_minutes,
-        location_type, location_details, price, capacity, is_recurring,
-        recurrence_pattern, min_enrollment, prerequisites, materials_needed,
-        instructor_id, waitlist_enabled, waitlist_capacity,
-        image_url
-      ]
-    );
-
-    const newClass = classResult.rows[0];
-
-    // If it's a recurring class, create the sessions
-    if (is_recurring && recurrence_pattern) {
-      const sessions = generateRecurringSessions(date, recurrence_pattern, start_time, end_time);
-      for (const session of sessions) {
-        await client.query(
-          `INSERT INTO class_sessions (class_id, session_date, start_time, end_time)
-           VALUES ($1, $2, $3, $4)`,
-          [newClass.id, session.date, session.start_time, session.end_time]
-        );
-      }
-    } else {
-      // For non-recurring classes, create a single session
-      await client.query(
-        `INSERT INTO class_sessions (class_id, session_date, start_time, end_time)
-         VALUES ($1, $2, $3, $4)`,
-        [newClass.id, date, start_time, end_time]
-      );
-    }
-
-    await client.query('COMMIT');
-    return newClass;
-  } catch (err) {
-    await client.query('ROLLBACK');
-    throw err;
-  } finally {
-    client.release();
-  }
-};
-
-// Generate recurring sessions based on pattern
-const generateRecurringSessions = (startDate, pattern, startTime, endTime) => {
-  const sessions = [];
-  const { frequency, interval, endDate, daysOfWeek, days } = pattern;
-  const start = new Date(startDate);
-  const end = new Date(endDate);
-  let current = new Date(start);
-
-  // Map day names to numbers if daysOfWeek is not provided
-  const dayNameToNumber = {
-    'Sunday': 0,
-    'Monday': 1,
-    'Tuesday': 2,
-    'Wednesday': 3,
-    'Thursday': 4,
-    'Friday': 5,
-    'Saturday': 6
-  };
-  const daysArray = daysOfWeek || (days ? days.map(day => dayNameToNumber[day]) : []);
-
-  while (current <= end) {
-    if (daysArray.includes(current.getDay())) {
-      sessions.push({
-        date: current.toISOString().split('T')[0],
-        start_time: startTime,
-        end_time: endTime
-      });
-    }
-    current.setDate(current.getDate() + interval);
-  }
-
-  return sessions;
+  const result = await pool.query(
+    `INSERT INTO classes (
+      title, description, price, location_type, location_details, recurrence_pattern, prerequisites, materials_needed, image_url
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+    RETURNING *`,
+    [title, description, price, location_type, location_details, recurrence_pattern, prerequisites, materials_needed, image_url]
+  );
+  return result.rows[0];
 };
 
 // Get class sessions
 const getClassSessions = async (classId) => {
   const result = await pool.query(
-    `SELECT * FROM class_sessions 
-     WHERE class_id = $1 
-     ORDER BY session_date, start_time`,
+    `SELECT 
+      cs.*,
+      CONCAT(u.first_name, ' ', u.last_name) as instructor_name,
+      (cs.capacity - cs.enrolled_count) as available_spots
+     FROM class_sessions cs
+     LEFT JOIN users u ON u.id = cs.instructor_id
+     WHERE cs.class_id = $1 
+     ORDER BY cs.session_date, cs.start_time`,
     [classId]
   );
   return result.rows;
@@ -255,21 +167,23 @@ const addToWaitlist = async (classId, userId) => {
 // Get user's waitlist entries
 const getUserWaitlistEntries = async (userId) => {
   const result = await pool.query(
-    `SELECT w.*,
-            c.title as class_title,
-            c.capacity,
-            c.enrolled_count,
-            c.start_date,
-            c.end_date,
-            c.location_details,
-            u.name as instructor_name,
+    `SELECT w.*, 
+            c.title as class_title, 
+            c.capacity, 
+            c.enrolled_count, 
+            c.start_date, 
+            c.end_date, 
+            c.location_details, 
+            cs.instructor_id, 
+            u.name as instructor_name, 
             COUNT(DISTINCT w2.id) FILTER (WHERE w2.created_at < w.created_at AND w2.status = 'waiting') as position
      FROM class_waitlist w
      JOIN classes c ON c.id = w.class_id
-     LEFT JOIN users u ON u.id = c.instructor_id
+     LEFT JOIN class_sessions cs ON cs.class_id = c.id
+     LEFT JOIN users u ON u.id = cs.instructor_id
      LEFT JOIN class_waitlist w2 ON w2.class_id = w.class_id
      WHERE w.user_id = $1
-     GROUP BY w.id, c.id, u.name
+     GROUP BY w.id, c.id, cs.instructor_id, u.name
      ORDER BY w.created_at DESC`,
     [userId]
   );
@@ -341,21 +255,23 @@ const getClassWaitlist = async (classId) => {
             u.name as user_name,
             u.email as user_email,
             u.phone_number as user_phone,
+            cs.capacity as session_capacity,
             DATE_PART('day', CURRENT_TIMESTAMP - w.created_at) as days_on_waitlist,
             CASE 
               WHEN w.status = 'waiting' THEN
                 ROUND(AVG(DATE_PART('day', e.enrolled_at - w2.created_at)) * 
                       (COUNT(DISTINCT w2.id) FILTER (WHERE w2.created_at < w.created_at AND w2.status = 'waiting')::float / 
-                       NULLIF(c.capacity, 0)))
+                       NULLIF(cs.capacity, 0)))
               ELSE NULL
             END as estimated_wait_time
      FROM class_waitlist w
      JOIN users u ON u.id = w.user_id
      JOIN classes c ON c.id = w.class_id
+     LEFT JOIN class_sessions cs ON cs.class_id = w.class_id
      LEFT JOIN enrollments e ON e.class_id = w.class_id AND e.enrollment_status = 'approved'
      LEFT JOIN class_waitlist w2 ON w2.class_id = w.class_id
      WHERE w.class_id = $1
-     GROUP BY w.id, u.name, u.email, u.phone_number, c.capacity
+     GROUP BY w.id, u.name, u.email, u.phone_number, cs.capacity
      ORDER BY 
        CASE WHEN w.status = 'waiting' THEN 0 ELSE 1 END,
        w.position`,
@@ -391,16 +307,11 @@ const updateClassStatus = async (classId, status) => {
 const getClassWithDetails = async (classId) => {
   // First get the class details
   const classResult = await pool.query(
-    `SELECT c.*, 
-            u.name as instructor_name,
-            COUNT(DISTINCT e.id) as total_enrollments,
-            COUNT(DISTINCT w.id) as waitlist_count
+    `SELECT c.id, c.title, c.description, c.price, c.location_type, c.location_details,
+            c.recurrence_pattern, c.prerequisites, c.materials_needed, c.image_url,
+            c.created_at, c.updated_at
      FROM classes c
-     LEFT JOIN users u ON u.id = c.instructor_id
-     LEFT JOIN enrollments e ON e.class_id = c.id AND e.enrollment_status = 'approved'
-     LEFT JOIN class_waitlist w ON w.class_id = c.id AND w.status = 'pending'
-     WHERE c.id = $1
-     GROUP BY c.id, u.name`,
+     WHERE c.id = $1`,
     [classId]
   );
 
@@ -420,97 +331,40 @@ const getClassWithDetails = async (classId) => {
   const classDetails = classResult.rows[0];
   classDetails.sessions = sessionsResult.rows;
 
-  // Group sessions into date ranges
-  const dateRanges = [];
-  let currentRange = null;
+  // Optionally, group sessions into date ranges or add more logic here
 
-  sessionsResult.rows.forEach(session => {
-    const sessionDate = new Date(session.session_date);
-    const formattedDate = sessionDate.toISOString().split('T')[0];
-    
-    if (!currentRange || 
-        new Date(currentRange.end_date) < new Date(formattedDate) - 86400000) { // 86400000 ms = 1 day
-      currentRange = {
-        start_date: formattedDate,
-        end_date: formattedDate,
-        time: `${session.start_time} - ${session.end_time}`,
-        days: [sessionDate.toLocaleDateString('en-US', { weekday: 'long' })],
-        sessions: [session]
-      };
-      dateRanges.push(currentRange);
-    } else {
-      currentRange.end_date = formattedDate;
-      const dayName = sessionDate.toLocaleDateString('en-US', { weekday: 'long' });
-      if (!currentRange.days.includes(dayName)) {
-        currentRange.days.push(dayName);
-      }
-      currentRange.sessions.push(session);
-    }
-  });
-
-  // Format the days array into a string
-  dateRanges.forEach(range => {
-    range.days = range.days.join(', ');
-  });
-
-  classDetails.available_dates = dateRanges;
   return classDetails;
 };
 
-// Update a class (admin use)
+// Update a class (general info only)
 const updateClass = async (id, updates) => {
   const {
     title,
     description,
-    date,
+    price,
     location_type,
     location_details,
-    price,
-    capacity,
-    enrolled_count,
-    deletedSessionIds
+    recurrence_pattern,
+    prerequisites,
+    materials_needed,
+    image_url
   } = updates;
-
-  // If there are sessions to delete, delete enrollments referencing them first, then the sessions
-  if (Array.isArray(deletedSessionIds) && deletedSessionIds.length > 0) {
-    // Delete enrollments referencing these sessions
-    await pool.query(
-      `DELETE FROM enrollments WHERE session_id = ANY($1::int[])`,
-      [deletedSessionIds]
-    );
-    // Delete the sessions
-    await pool.query(
-      `DELETE FROM class_sessions WHERE id = ANY($1::int[])`,
-      [deletedSessionIds]
-    );
-  }
-
-  // Insert new sessions if provided in updates.dates
-  if (Array.isArray(updates.dates)) {
-    for (const session of updates.dates) {
-      if (!session.id && session.date && session.start_time && session.end_time) {
-        await pool.query(
-          `INSERT INTO class_sessions (class_id, session_date, start_time, end_time)
-           VALUES ($1, $2, $3, $4)`,
-          [id, session.date, session.start_time, session.end_time]
-        );
-      }
-    }
-  }
 
   const result = await pool.query(
     `UPDATE classes 
      SET title = $1, 
          description = $2, 
-         date = $3, 
+         price = $3, 
          location_type = $4, 
          location_details = $5, 
-         price = $6, 
-         capacity = $7,
-         enrolled_count = $8
-     WHERE id = $9
+         recurrence_pattern = $6, 
+         prerequisites = $7, 
+         materials_needed = $8, 
+         image_url = $9, 
+         updated_at = CURRENT_TIMESTAMP
+     WHERE id = $10
      RETURNING *`,
-    [title, description, date, location_type, location_details, price, capacity, enrolled_count, id]
+    [title, description, price, location_type, location_details, recurrence_pattern, prerequisites, materials_needed, image_url, id]
   );
   return result.rows[0];
 };
@@ -587,6 +441,5 @@ module.exports = {
   updateClassStatus,
   getClassWithDetails,
   getClassParticipants,
-  addToWaitlist,
-  generateRecurringSessions
+  addToWaitlist
 };

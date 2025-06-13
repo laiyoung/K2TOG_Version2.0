@@ -1,15 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const { getClassSessionsWithStudents, updateSessionStatus } = require('../controllers/sessionController');
+const { getClassSessionsWithStudents, updateSessionStatus, getSessionById, createSession, updateSession, deleteSession } = require('../controllers/sessionController');
 const { requireAuth, authorizeRole } = require('../middleware/auth');
-
-// Debug logging for middleware and route handlers
-console.log('Session route handlers:', {
-  requireAuth: typeof requireAuth,
-  authorizeRole: typeof authorizeRole,
-  getClassSessionsWithStudents: typeof getClassSessionsWithStudents,
-  updateSessionStatus: typeof updateSessionStatus
-});
 
 // Get all sessions with students for a class
 router.get(
@@ -27,4 +19,36 @@ router.patch(
   updateSessionStatus
 );
 
-module.exports = router; 
+// Get a single session (admin/instructor)
+router.get(
+  '/sessions/:sessionId',
+  requireAuth,
+  authorizeRole(['admin', 'instructor']),
+  getSessionById
+);
+
+// Create a session (admin/instructor)
+router.post(
+  '/sessions',
+  requireAuth,
+  authorizeRole(['admin', 'instructor']),
+  createSession
+);
+
+// Update a session (admin/instructor)
+router.put(
+  '/sessions/:sessionId',
+  requireAuth,
+  authorizeRole(['admin', 'instructor']),
+  updateSession
+);
+
+// Delete a session (admin/instructor)
+router.delete(
+  '/sessions/:sessionId',
+  requireAuth,
+  authorizeRole(['admin', 'instructor']),
+  deleteSession
+);
+
+module.exports = router;  

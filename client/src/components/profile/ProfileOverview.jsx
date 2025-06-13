@@ -5,10 +5,21 @@ import './ProfileOverview.css';
 const ProfileOverview = ({ profile, onSectionChange }) => {
     console.log('Profile data in Overview:', profile); // Debug log
 
+    const getActiveClassesCount = (enrollments) => {
+        if (!enrollments) return 0;
+        // If sessions exist, count total sessions in approved enrollments
+        const approved = enrollments.filter(e => e.enrollment_status === 'approved');
+        if (approved.length > 0 && approved[0].sessions) {
+            return approved.reduce((acc, e) => acc + (e.sessions?.length || 0), 0);
+        }
+        // Fallback: count approved enrollments
+        return approved.length;
+    };
+
     const stats = [
         {
             label: 'Active Classes',
-            value: profile?.enrollments?.filter(e => e.enrollment_status === 'approved').length || 0,
+            value: getActiveClassesCount(profile?.enrollments),
             icon: 'fa-book',
             section: 'enrollments'
         },

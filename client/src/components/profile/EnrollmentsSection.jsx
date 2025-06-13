@@ -156,6 +156,18 @@ const EnrollmentsSection = ({ enrollments }) => {
                                                 </Box>
                                             </Box>
                                         </Box>
+                                        {enrollment.sessions && enrollment.sessions.length > 0 && (
+                                            <Box sx={{ mt: 2 }}>
+                                                <Typography variant="subtitle2">Sessions:</Typography>
+                                                {enrollment.sessions.map((session) => (
+                                                    <Box key={session.session_id} sx={{ pl: 2, mb: 0.5 }}>
+                                                        <Typography variant="body2">
+                                                            {session.date ? formatDate(session.date) : ''} {session.start_time} - {session.end_time}
+                                                        </Typography>
+                                                    </Box>
+                                                ))}
+                                            </Box>
+                                        )}
                                     </Box>
 
                                     <Box className="enrollment-footer">

@@ -36,10 +36,15 @@ const seed = async () => {
 
     // Get instructor IDs
     const { rows: instructorRows } = await pool.query(`
-      SELECT id, email FROM users WHERE email IN ('instructor1@example.com', 'instructor2@example.com')
+      SELECT id, email FROM users WHERE role = 'instructor'
     `);
     const instructorOneId = instructorRows.find(u => u.email === 'instructor1@example.com')?.id;
     const instructorTwoId = instructorRows.find(u => u.email === 'instructor2@example.com')?.id;
+
+    if (!instructorOneId || !instructorTwoId) {
+      console.error('Failed to find instructor IDs');
+      return;
+    }
 
     // Get student user IDs
     const { rows: studentRows } = await pool.query(`
@@ -48,75 +53,50 @@ const seed = async () => {
     const janeId = studentRows.find(u => u.email === 'jane@example.com')?.id;
     const johnId = studentRows.find(u => u.email === 'john@example.com')?.id;
 
-    // Seed classes
+    // Seed classes (general info only)
     const classes = [
       {
         title: 'Child Development Associate (CDA)',
-        description: 'This comprehensive course prepares you for the CDA credential, covering all aspects of early childhood education.',
-        date: new Date('2025-06-01'),
-        start_time: '09:00',
-        end_time: '17:00',
-        duration_minutes: 480,
+        description: 'This comprehensive course prepares you for the CDA credential, covering all aspects of early childhood education. This 2-month program runs Monday through Friday from 7:00 PM to 10:00 PM.',
         location_type: 'zoom',
         location_details: 'Online via Zoom',
         price: 299.99,
-        capacity: 20,
-        enrolled_count: 0,
-        is_recurring: true,
-        recurrence_pattern: { frequency: 'weekly', interval: 1, days: ['Monday', 'Wednesday'] },
-        min_enrollment: 5,
-        status: 'scheduled',
+        recurrence_pattern: { 
+          frequency: 'weekly', 
+          interval: 1, 
+          days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
+          endDate: '2025-07-31' // 2 months from start date
+        },
         prerequisites: 'None required',
         materials_needed: 'Computer with internet access, webcam, and microphone',
-        waitlist_enabled: true,
-        waitlist_capacity: 10,
-        image_url: 'https://res.cloudinary.com/dufbdy0z0/image/upload/v1747786188/class-1_mlye6d.jpg',
-        instructor_id: instructorOneId
+        image_url: 'https://res.cloudinary.com/dufbdy0z0/image/upload/v1747786188/class-1_mlye6d.jpg'
       },
       {
         title: 'Development and Operations',
-        description: 'Master the essential skills needed to run a successful childcare program.',
-        date: new Date('2025-06-15'),
-        start_time: '10:00',
-        end_time: '16:00',
-        duration_minutes: 360,
+        description: 'Master the essential skills needed to run a successful childcare program. Choose between our 2-week evening program (Monday-Friday, 7:00 PM - 10:00 PM) or our 5-day Saturday intensive (9:00 AM - 3:00 PM).',
         location_type: 'in-person',
         location_details: 'Main Training Center, Room 101',
         price: 349.99,
-        capacity: 15,
-        enrolled_count: 0,
-        is_recurring: true,
-        recurrence_pattern: { frequency: 'weekly', interval: 1, days: ['Tuesday', 'Thursday'] },
-        min_enrollment: 5,
-        status: 'scheduled',
+        recurrence_pattern: { 
+          frequency: 'weekly', 
+          interval: 1, 
+          days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
+          endDate: '2025-06-14' // 2 weeks from start date
+        },
         prerequisites: 'Basic childcare experience recommended',
         materials_needed: 'Notebook, laptop (optional)',
-        waitlist_enabled: true,
-        waitlist_capacity: 5,
-        image_url: 'https://res.cloudinary.com/dufbdy0z0/image/upload/v1747786188/class-2_vpqyct.jpg',
-        instructor_id: instructorTwoId
+        image_url: 'https://res.cloudinary.com/dufbdy0z0/image/upload/v1747786188/class-2_vpqyct.jpg'
       },
       {
         title: 'CPR and First Aid Certification',
-        description: 'Essential training for childcare providers. Learn life-saving techniques including CPR, AED use, and first aid procedures.',
-        date: new Date('2025-06-01'),
-        start_time: '08:00',
-        end_time: '17:00',
-        duration_minutes: 540,
+        description: 'Essential training for childcare providers. Learn life-saving techniques including CPR, AED use, and first aid procedures. This one-day Saturday program runs from 9:00 AM to 2:00 PM.',
         location_type: 'in-person',
         location_details: 'Training Center, Room 203',
         price: 149.99,
-        capacity: 12,
-        enrolled_count: 0,
-        is_recurring: false,
-        min_enrollment: 4,
-        status: 'scheduled',
+        recurrence_pattern: null,
         prerequisites: 'None required',
         materials_needed: 'Comfortable clothing for practical exercises',
-        waitlist_enabled: true,
-        waitlist_capacity: 8,
-        image_url: 'https://res.cloudinary.com/dufbdy0z0/image/upload/v1747786180/class-3_fealxp.jpg',
-        instructor_id: instructorOneId
+        image_url: 'https://res.cloudinary.com/dufbdy0z0/image/upload/v1747786180/class-3_fealxp.jpg'
       }
     ];
 
@@ -124,35 +104,19 @@ const seed = async () => {
     for (const classData of classes) {
       await pool.query(`
         INSERT INTO classes (
-          title, description, date, start_time, end_time, duration_minutes,
-          location_type, location_details, price, capacity, enrolled_count,
-          is_recurring, recurrence_pattern, min_enrollment, status,
-          prerequisites, materials_needed, waitlist_enabled, waitlist_capacity,
-          image_url, instructor_id
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
+          title, description, price, location_type, location_details, recurrence_pattern, prerequisites, materials_needed, image_url
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         ON CONFLICT (title) DO NOTHING
       `, [
         classData.title,
         classData.description,
-        classData.date,
-        classData.start_time,
-        classData.end_time,
-        classData.duration_minutes,
+        classData.price,
         classData.location_type,
         classData.location_details,
-        classData.price,
-        classData.capacity,
-        classData.enrolled_count,
-        classData.is_recurring,
         JSON.stringify(classData.recurrence_pattern || null),
-        classData.min_enrollment,
-        classData.status,
         classData.prerequisites,
         classData.materials_needed,
-        classData.waitlist_enabled,
-        classData.waitlist_capacity,
-        classData.image_url,
-        classData.instructor_id
+        classData.image_url
       ]);
     }
 
@@ -160,32 +124,41 @@ const seed = async () => {
     const { rows: classRows } = await pool.query('SELECT id, title FROM classes');
     const classMap = new Map(classRows.map(c => [c.title, c.id]));
 
-    // Seed CDA Class Sessions (two sessions, one Monday and one Friday, 7pm-10pm, spaced 3 months apart)
+    // Seed class sessions with instructors
     await pool.query(`
-      INSERT INTO class_sessions (class_id, session_date, start_time, end_time)
+      INSERT INTO class_sessions (
+        class_id, 
+        session_date, 
+        start_time, 
+        end_time, 
+        capacity, 
+        enrolled_count, 
+        min_enrollment, 
+        waitlist_enabled, 
+        waitlist_capacity, 
+        instructor_id, 
+        status
+      )
       VALUES
-        ($1, '2025-06-02', '19:00', '22:00'),  -- Monday
-        ($1, '2025-08-29', '19:00', '22:00')   -- Friday (about 3 months later)
+        -- Child Development Associate (CDA) sessions with Instructor One
+        ($1, '2025-06-02', '19:00', '22:00', 20, 0, 5, true, 10, $2, 'scheduled'),
+        ($1, '2025-07-01', '19:00', '22:00', 20, 0, 5, true, 10, $2, 'scheduled'),
+        
+        -- Development and Operations sessions with Instructor Two
+        ($3, '2025-06-03', '19:00', '22:00', 15, 0, 5, true, 5, $4, 'scheduled'),
+        ($3, '2025-06-10', '19:00', '22:00', 15, 0, 5, true, 5, $4, 'scheduled'),
+        
+        -- CPR and First Aid Certification sessions with Instructor One
+        ($5, '2025-06-07', '09:00', '14:00', 12, 0, 4, true, 8, $2, 'scheduled'),
+        ($5, '2025-06-14', '09:00', '14:00', 12, 0, 4, true, 8, $2, 'scheduled')
       ON CONFLICT DO NOTHING;
-    `, [classMap.get('Child Development Associate (CDA)')]);
-
-    // Seed Development and Operations Class Sessions (two consecutive Saturdays, 9am-4pm)
-    await pool.query(`
-      INSERT INTO class_sessions (class_id, session_date, start_time, end_time)
-      VALUES
-        ($1, '2025-06-21', '09:00', '16:00'),  -- Saturday
-        ($1, '2025-06-28', '09:00', '16:00')   -- Next Saturday
-      ON CONFLICT DO NOTHING;
-    `, [classMap.get('Development and Operations')]);
-
-    // Seed CPR and First Aid Class Sessions (two Saturdays, 10am-2pm)
-    await pool.query(`
-      INSERT INTO class_sessions (class_id, session_date, start_time, end_time)
-      VALUES
-        ($1, '2025-06-07', '10:00', '14:00'),   -- Saturday
-        ($1, '2025-06-14', '10:00', '14:00')    -- Next Saturday
-      ON CONFLICT DO NOTHING;
-    `, [classMap.get('CPR and First Aid Certification')]);
+    `, [
+      classMap.get('Child Development Associate (CDA)'),
+      instructorOneId,
+      classMap.get('Development and Operations'),
+      instructorTwoId,
+      classMap.get('CPR and First Aid Certification')
+    ]);
 
     // Seed waitlist entries
     await pool.query(`

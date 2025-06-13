@@ -49,7 +49,11 @@ async function getRevenueByClass({ startDate, endDate }) {
         LEFT JOIN payments p ON c.id = p.class_id 
             AND p.status = 'completed'
             AND p.created_at BETWEEN $1 AND $2
-        WHERE c.status IN ('scheduled', 'active')
+        WHERE EXISTS (
+            SELECT 1 FROM class_sessions cs 
+            WHERE cs.class_id = c.id 
+            AND cs.status IN ('scheduled', 'completed')
+        )
         GROUP BY c.id, c.title
         ORDER BY net_revenue DESC
     `;
@@ -92,21 +96,22 @@ async function getClassEnrollmentStats({ startDate, endDate }) {
         SELECT 
             c.id as class_id,
             c.title as class_name,
-            c.capacity,
+            cs.capacity,
             COUNT(DISTINCT e.id) as total_enrollments,
             COUNT(DISTINCT CASE WHEN e.enrollment_status IN ('active', 'approved') THEN e.id END) as approved_enrollments,
             COUNT(DISTINCT CASE WHEN e.enrollment_status = 'pending' THEN e.id END) as pending_enrollments,
             COUNT(DISTINCT CASE WHEN e.enrollment_status = 'rejected' THEN e.id END) as rejected_enrollments,
             COUNT(DISTINCT w.id) as waitlist_count,
             ROUND((COUNT(DISTINCT CASE WHEN e.enrollment_status IN ('active', 'approved') THEN e.id END)::numeric / 
-                   NULLIF(c.capacity, 0) * 100), 2) as enrollment_rate
+                   NULLIF(cs.capacity, 0) * 100), 2) as enrollment_rate
         FROM classes c
+        JOIN class_sessions cs ON cs.class_id = c.id
         LEFT JOIN enrollments e ON c.id = e.class_id 
             AND e.enrolled_at BETWEEN $1 AND $2
         LEFT JOIN class_waitlist w ON c.id = w.class_id 
             AND w.created_at BETWEEN $1 AND $2
-        WHERE c.status IN ('scheduled', 'active')
-        GROUP BY c.id, c.title, c.capacity
+        WHERE cs.status IN ('scheduled', 'completed')
+        GROUP BY c.id, c.title, cs.capacity
         ORDER BY total_enrollments DESC
     `;
     const { rows } = await pool.query(query, [startDate, endDate]);
@@ -123,7 +128,6 @@ async function getUserEngagementMetrics({ startDate, endDate }) {
                 u.last_name,
                 COUNT(DISTINCT e.id) as enrolled_classes,
                 COUNT(DISTINCT p.id) as completed_payments,
-                COUNT(DISTINCT c.id) as certificates_earned,
                 COUNT(DISTINCT a.id) as activity_count,
                 MAX(a.created_at) as last_activity
             FROM users u
@@ -133,8 +137,6 @@ async function getUserEngagementMetrics({ startDate, endDate }) {
             LEFT JOIN payments p ON u.id = p.user_id 
                 AND p.status = 'completed' 
                 AND p.created_at BETWEEN $1 AND $2
-            LEFT JOIN user_certificates c ON u.id = c.user_id 
-                AND c.created_at BETWEEN $1 AND $2
             LEFT JOIN user_activity_log a ON u.id = a.user_id 
                 AND a.created_at BETWEEN $1 AND $2
             WHERE u.status = 'active'
@@ -146,7 +148,6 @@ async function getUserEngagementMetrics({ startDate, endDate }) {
             last_name,
             enrolled_classes,
             completed_payments,
-            certificates_earned,
             activity_count,
             last_activity,
             CASE 
@@ -202,9 +203,10 @@ async function getDashboardSummary({ startDate, endDate }) {
                      AND a.created_at BETWEEN $1 AND $2
                  )) as active_users,
                 
-                (SELECT COUNT(*) 
+                (SELECT COUNT(DISTINCT c.id) 
                  FROM classes c 
-                 WHERE c.status IN ('scheduled', 'active') 
+                 JOIN class_sessions cs ON cs.class_id = c.id
+                 WHERE cs.status IN ('scheduled', 'completed') 
                  AND EXISTS (
                      SELECT 1 FROM enrollments e 
                      WHERE e.class_id = c.id 
@@ -228,10 +230,6 @@ async function getDashboardSummary({ startDate, endDate }) {
                  AND p.created_at BETWEEN $1 AND $2) as monthly_revenue,
                 
                 (SELECT COUNT(*) 
-                 FROM user_certificates c 
-                 WHERE c.created_at BETWEEN $1 AND $2) as recent_certificates,
-                
-                (SELECT COUNT(*) 
                  FROM class_waitlist w 
                  WHERE w.status = 'waiting' 
                  AND w.created_at BETWEEN $1 AND $2) as waitlist_count
@@ -242,7 +240,6 @@ async function getDashboardSummary({ startDate, endDate }) {
             active_enrollments,
             recent_payments,
             COALESCE(monthly_revenue, 0) as monthly_revenue,
-            recent_certificates,
             waitlist_count,
             ROUND((active_enrollments::numeric / NULLIF(active_users, 0) * 100), 2) as enrollment_rate
         FROM summary

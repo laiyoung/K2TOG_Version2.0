@@ -202,7 +202,18 @@ async function getUserActivity(userId, { action, startDate, endDate, limit = 50,
 
 // Update user profile
 async function updateProfile(id, updates) {
-  const { first_name, last_name, phone_number, email_notifications, sms_notifications } = updates;
+  // Fetch current values
+  const current = await pool.query('SELECT * FROM users WHERE id = $1', [id]);
+  const user = current.rows[0];
+
+  const {
+    first_name = user.first_name,
+    last_name = user.last_name,
+    phone_number = user.phone_number,
+    email_notifications = user.email_notifications ?? false,
+    sms_notifications = user.sms_notifications ?? false
+  } = updates;
+
   const result = await pool.query(
     `UPDATE users SET first_name = $1, last_name = $2, phone_number = $3, email_notifications = $4, sms_notifications = $5 WHERE id = $6 RETURNING *`,
     [first_name, last_name, phone_number, email_notifications, sms_notifications, id]
@@ -289,15 +300,15 @@ async function getProfileWithDetails(userId) {
                c.title as class_name,
                c.description as class_description,
                c.location_details as location,
-               c.capacity,
-               COALESCE(cs.session_date, c.date) as start_date,
-               COALESCE(cs.start_time, c.start_time) as start_time,
-               COALESCE(cs.end_time, c.end_time) as end_time,
+               cs.capacity,
+               cs.session_date as start_date,
+               cs.start_time,
+               cs.end_time,
                u.name as instructor_name
         FROM enrollments e
         JOIN classes c ON c.id = e.class_id
         LEFT JOIN class_sessions cs ON cs.id = e.session_id
-        LEFT JOIN users u ON u.id = c.instructor_id
+        LEFT JOIN users u ON u.id = cs.instructor_id
         WHERE e.user_id = $1
         ORDER BY e.enrolled_at DESC
       `, [userId]);

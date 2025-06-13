@@ -93,6 +93,11 @@ const userService = {
     // Get user payment history
     getPaymentHistory: async () => {
         return api.get('/users/payment-history');
+    },
+
+    // Update user password
+    updatePassword: async (currentPassword, newPassword) => {
+        return api.put('/profile/password', { currentPassword, newPassword });
     }
 };
 

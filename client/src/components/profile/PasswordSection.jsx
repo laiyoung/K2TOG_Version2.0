@@ -15,6 +15,7 @@ import {
     Lock as LockIcon
 } from '@mui/icons-material';
 import './PasswordSection.css';
+import userService from '../../services/userService';
 
 const PasswordSection = () => {
     const [passwords, setPasswords] = useState({
@@ -70,10 +71,7 @@ const PasswordSection = () => {
         }
 
         try {
-            // TODO: Replace with actual API call
-            // Simulating API call
-            await new Promise(resolve => setTimeout(resolve, 1000));
-
+            await userService.updatePassword(passwords.current, passwords.new);
             setSuccess('Password updated successfully');
             setPasswords({
                 current: '',
@@ -86,7 +84,10 @@ const PasswordSection = () => {
                 confirm: false
             });
         } catch (err) {
-            setError('Failed to update password. Please try again.');
+            setError(
+                err.response?.data?.message ||
+                'Failed to update password. Please try again.'
+            );
         }
     };
 

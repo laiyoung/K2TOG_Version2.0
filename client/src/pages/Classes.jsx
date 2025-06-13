@@ -6,6 +6,15 @@ import classService from '../services/classService';
 // Default image for fallback
 const defaultClassImage = 'https://res.cloudinary.com/your-cloud-name/image/upload/v1/yj-childcare-classes/default-class';
 
+// Helper to convert string to Title Case
+function toTitleCase(str) {
+    if (!str) return '';
+    return str
+        .replace(/-/g, ' ') // Replace dashes with spaces
+        .replace(/\b\w/g, char => char.toUpperCase()) // Capitalize first letter of each word
+        .replace(/\s+/g, ' '); // Remove extra spaces
+}
+
 function Classes() {
     const [classes, setClasses] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -194,7 +203,7 @@ function Classes() {
                                             <span className="font-medium">Duration:</span> {getDurationString(classItem)}
                                         </p>
                                         <p className="text-gray-700" style={{ fontSize: '16px', fontFamily: 'Montserrat, sans-serif' }}>
-                                            <span className="font-medium">Location:</span> {classItem.location}
+                                            <span className="font-medium">Location:</span> {toTitleCase(classItem.location_type)}{classItem.location_details && ` - ${classItem.location_details}`}
                                         </p>
                                         <p className="text-gray-700" style={{ fontSize: '16px', fontFamily: 'Montserrat, sans-serif' }}>
                                             <span className="font-medium">Price:</span> ${classItem.price}

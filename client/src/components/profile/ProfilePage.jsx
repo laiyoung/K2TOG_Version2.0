@@ -60,7 +60,7 @@ const ProfilePage = () => {
             setLoading(true);
             const response = await userService.updateProfile(updatedData);
             console.log('Profile update response:', response); // Debug log
-            setProfile(response.data);
+            setProfile(response);
             setError(null);
         } catch (err) {
             console.error('Profile update error:', err);
@@ -119,7 +119,7 @@ const ProfilePage = () => {
         );
     }
 
-    if (!profile) {
+    if (!profile || typeof profile !== 'object') {
         return (
             <div className="profile-page error">
                 <div className="error-message">
