@@ -8,19 +8,29 @@ import {
     History as HistoryIcon,
     Notifications as NotificationIcon,
     Lock as LockIcon,
-    Payment as PaymentsDueIcon
+    Payment as PaymentsDueIcon,
+    AccessTime as WaitlistIcon
 } from '@mui/icons-material';
 import './ProfileNavigation.css';
 
 const ProfileNavigation = ({ activeSection, onSectionChange, profile }) => {
     const notifications = profile?.notifications || [];
     const payments = profile?.payments || [];
+    const waitlistEntries = profile?.waitlist_entries || [];
     const unreadNotifications = notifications.filter(n => !n.is_read).length;
     const paymentsDue = payments.filter(p => p.status !== 'paid').length;
+    const waitlistCount = waitlistEntries.length;
 
     const menuItems = [
         { value: 'overview', label: 'Overview', icon: <PersonIcon /> },
         { value: 'enrollments', label: 'Enrollments', icon: <SchoolIcon /> },
+        {
+            value: 'waitlist',
+            label: 'My Waitlist',
+            icon: <Badge badgeContent={waitlistCount} color="info">
+                <WaitlistIcon />
+            </Badge>
+        },
         { value: 'certificates', label: 'Certificates', icon: <CertificateIcon /> },
         {
             value: 'payments',

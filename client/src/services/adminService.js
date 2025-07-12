@@ -63,7 +63,13 @@ const adminService = {
 
     // Get analytics data - updated to use fetch API and handle all analytics endpoints
     getAnalytics: async (type, filters = {}) => {
-        const queryParams = new URLSearchParams(filters).toString();
+        // Default date range: Jan 1 of current year to today
+        const now = new Date();
+        const defaultStart = new Date(now.getFullYear(), 0, 1);
+        const defaultEnd = now;
+        const startDate = filters.startDate || defaultStart.toISOString().slice(0, 10);
+        const endDate = filters.endDate || defaultEnd.toISOString().slice(0, 10);
+        const queryParams = new URLSearchParams({ ...filters, startDate, endDate }).toString();
         const endpoint = type === 'summary' ? 'summary' :
                         type === 'revenue' ? 'revenue' :
                         type === 'revenue-by-class' ? 'revenue/classes' :
@@ -87,7 +93,14 @@ const adminService = {
     },
 
     // Fetch all analytics data in parallel
-    fetchAllAnalytics: async (filters) => {
+    fetchAllAnalytics: async (filters = {}) => {
+        // Always ensure startDate and endDate are present
+        const now = new Date();
+        const defaultStart = new Date(now.getFullYear(), 0, 1);
+        const defaultEnd = now;
+        const startDate = filters.startDate || defaultStart.toISOString().slice(0, 10);
+        const endDate = filters.endDate || defaultEnd.toISOString().slice(0, 10);
+        const dateFilters = { ...filters, startDate, endDate };
         const [
             summary,
             revenue,
@@ -97,13 +110,13 @@ const adminService = {
             userEngagement,
             userActivity
         ] = await Promise.all([
-            adminService.getAnalytics('summary', filters),
-            adminService.getAnalytics('revenue', filters),
-            adminService.getAnalytics('revenue-by-class', filters),
-            adminService.getAnalytics('enrollments', filters),
-            adminService.getAnalytics('class-enrollments', filters),
-            adminService.getAnalytics('user-engagement', filters),
-            adminService.getAnalytics('user-activity', filters)
+            adminService.getAnalytics('summary', dateFilters),
+            adminService.getAnalytics('revenue', dateFilters),
+            adminService.getAnalytics('revenue-by-class', dateFilters),
+            adminService.getAnalytics('enrollments', dateFilters),
+            adminService.getAnalytics('class-enrollments', dateFilters),
+            adminService.getAnalytics('user-engagement', dateFilters),
+            adminService.getAnalytics('user-activity', dateFilters)
         ]);
 
         return {
@@ -370,8 +383,18 @@ const adminService = {
     },
 
     // Get class waitlist
-    getClassWaitlist: async (classId) => {
+    async getClassWaitlist(classId) {
         return api.get(`/admin/classes/${classId}/waitlist`);
+    },
+
+    // Get all enrollments (active and historical) for a class
+    async getAllEnrollments(classId) {
+        return api.get(`/admin/classes/${classId}/enrollments`);
+    },
+
+    // Get historical enrollments for a class
+    async getHistoricalEnrollments(classId) {
+        return api.get(`/admin/classes/${classId}/enrollments/historical`);
     },
 
     // Get all instructors

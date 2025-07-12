@@ -5,16 +5,9 @@ import Footer from '../components/layout/Footer';
 import classService from '../services/classService';
 import enrollmentService from '../services/enrollmentService';
 import { useNotifications } from '../utils/notificationUtils';
-import { format, parseISO, eachDayOfInterval, isWithinInterval } from 'date-fns';
+import { format, parseISO, addDays, addWeeks, addMonths } from 'date-fns';
 
-// Utility functions
-const getDaysInRange = (startDate, endDate) => {
-    if (!startDate || !endDate) return [];
-    const start = parseISO(startDate);
-    const end = parseISO(endDate);
-    return eachDayOfInterval({ start, end });
-};
-
+// Helper function to format date
 const formatDate = (date) => {
     if (!date) return '';
     return format(parseISO(date), 'MMMM d, yyyy');
@@ -23,19 +16,52 @@ const formatDate = (date) => {
 // Helper function to format time to user-friendly format
 const formatTime = (timeStr) => {
     if (!timeStr) return '';
-    const [hour, minute] = timeStr.split(':');
+    const [hour, minute] = timeStr.split(':').map(Number);
     const date = new Date();
     date.setHours(Number(hour), Number(minute));
     return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 };
 
-// Helper to get the class date range (min and max session dates)
-const getClassDateRange = (sessions) => {
-    if (!sessions || sessions.length === 0) return null;
-    const dates = sessions.map(s => parseISO(s.session_date || s.date));
-    const minDate = new Date(Math.min(...dates));
-    const maxDate = new Date(Math.max(...dates));
-    return { minDate, maxDate };
+// Helper function to get duration string based on class title
+const getDurationString = (classItem) => {
+    if (!classItem) return '';
+    if (classItem.title === "Development and Operations") return "4 weeks";
+    if (classItem.title === "Child Development Associate (CDA)") return "3 months";
+    if (classItem.title === "CPR and First Aid Certification") return "1 day";
+    // fallback if needed
+    return "";
+};
+
+// Helper function to calculate end date from start date and duration string
+const calculateEndDate = (startDateStr, durationStr) => {
+    if (!startDateStr || !durationStr) return null;
+    let startDate;
+    try {
+        startDate = parseISO(startDateStr);
+    } catch {
+        return null;
+    }
+    const [amountStr, unit] = durationStr.split(' ');
+    const amount = parseInt(amountStr, 10);
+    if (isNaN(amount)) return null;
+    let daysToAdd = 0;
+    switch (unit.toLowerCase()) {
+        case 'day':
+        case 'days':
+            daysToAdd = amount - 1;
+            break;
+        case 'week':
+        case 'weeks':
+            daysToAdd = (amount * 7) - 1;
+            break;
+        case 'month':
+        case 'months':
+            daysToAdd = (amount * 30) - 1;
+            break;
+        default:
+            return null;
+    }
+    return addDays(startDate, daysToAdd);
 };
 
 function ClassDetails() {
@@ -51,10 +77,10 @@ function ClassDetails() {
     const [enrollLoading, setEnrollLoading] = useState(false);
     const [enrollError, setEnrollError] = useState('');
     const [selectedDateIndex, setSelectedDateIndex] = useState(null);
-    const [waitlistStatus, setWaitlistStatus] = useState(null);
+    const [waitlistStatus, setWaitlistStatus] = useState({});
     const [waitlistLoading, setWaitlistLoading] = useState(false);
     const [userEnrollments, setUserEnrollments] = useState([]);
-    const [userWaitlist, setUserWaitlist] = useState([]);
+    const [userWaitlist, setUserWaitlist] = useState({});
     const isAdminOrInstructor = user && (user.role === 'admin' || user.role === 'instructor');
     const [roleEnrollError, setRoleEnrollError] = useState('');
 
@@ -78,24 +104,32 @@ function ClassDetails() {
                         const isUserEnrolled = enrollments.some(enrollment => enrollment.class_id === id);
                         setIsEnrolled(isUserEnrolled);
                         setUserEnrollments(enrollments);
-                        // Only check waitlist status if class is full
-                        if (data.enrolled_count >= data.capacity) {
-                            const waitlistData = await enrollmentService.getWaitlistStatus(id).catch(err => {
-                                if (err.response?.status === 404) {
-                                    // Not on waitlist is not an error, just return null
-                                    return null;
+
+                        // Check waitlist status for each session
+                        const sessionWaitlistStatus = {};
+                        for (const session of sessionData) {
+                            if (session.available_spots === 0) {
+                                try {
+                                    const waitlistData = await enrollmentService.getWaitlistStatus(id, session.id);
+                                    sessionWaitlistStatus[session.id] = waitlistData;
+                                } catch (err) {
+                                    // Handle 404 'Not on waitlist' gracefully without logging
+                                    if (err.message === 'Not on waitlist' ||
+                                        (err.response?.status === 404 && err.message === 'Not on waitlist')) {
+                                        // Not on waitlist for this session - this is expected
+                                        sessionWaitlistStatus[session.id] = null;
+                                    } else {
+                                        console.error(`Error fetching waitlist status for session ${session.id}:`, err);
+                                    }
                                 }
-                                throw err;
-                            });
-                            setWaitlistStatus(waitlistData);
-                            setUserWaitlist(waitlistData);
-                        } else {
-                            setWaitlistStatus(null);
-                            setUserWaitlist(null);
+                            }
                         }
+                        setWaitlistStatus(sessionWaitlistStatus);
+                        setUserWaitlist(sessionWaitlistStatus);
                     } catch (err) {
-                        // Only log if not a 404 from waitlist or error message is not 'Not on waitlist'
-                        if (!(err.response?.status === 404 && err.message === 'Not on waitlist') && err.message !== 'Not on waitlist') {
+                        // Only log if not a waitlist-related error
+                        if (err.message !== 'Not on waitlist' &&
+                            !(err.response?.status === 404 && err.message === 'Not on waitlist')) {
                             console.error('Error fetching user enrollment data:', err);
                         }
                         // Don't set error state for enrollment data, as it's not critical
@@ -111,32 +145,21 @@ function ClassDetails() {
         fetchClassDetails();
     }, [id, user, initialized]);
 
-    const handleEnroll = async () => {
+    const handleEnroll = async (sessionId) => {
         if (!user) {
             navigate('/login', { state: { from: `/classes/${id}` } });
             return;
         }
-
-        if (!selectedDateIndex) {
-            setEnrollError('Please select a date');
+        if (user.role === 'admin' || user.role === 'instructor') {
+            setRoleEnrollError('Admins and Instructors cannot enroll in classes.');
             return;
         }
-
         setEnrollLoading(true);
         setEnrollError('');
         try {
-            if (isEnrolled) {
-                await enrollmentService.cancelEnrollment(id);
-                setIsEnrolled(false);
-                showSuccess('Successfully unenrolled from class');
-            } else {
-                // Get the session ID from the selected date index
-                const [rangeIndex, dayIndex] = selectedDateIndex.split('-');
-                const session = classData.available_dates[rangeIndex].sessions[dayIndex];
-                await enrollmentService.enrollInClass(id, { sessionId: session.id });
-                setIsEnrolled(true);
-                showSuccess('Successfully enrolled in class');
-            }
+            await enrollmentService.enrollInClass(id, { sessionId });
+            setIsEnrolled(true);
+            showSuccess('Successfully enrolled in class');
         } catch (err) {
             setEnrollError(err.message || 'Enrollment operation failed');
             showError(err.message || 'Enrollment operation failed');
@@ -145,16 +168,7 @@ function ClassDetails() {
         }
     };
 
-    const handleDateSelection = (index) => {
-        if (!user) {
-            navigate('/login', { state: { from: `/classes/${id}` } });
-            return;
-        }
-        setSelectedDateIndex(index);
-        setEnrollError('');
-    };
-
-    const handleWaitlistAction = async () => {
+    const handleWaitlistAction = async (sessionId) => {
         if (!user) {
             navigate('/login', { state: { from: `/classes/${id}` } });
             return;
@@ -162,13 +176,13 @@ function ClassDetails() {
 
         setWaitlistLoading(true);
         try {
-            if (waitlistStatus) {
-                await enrollmentService.leaveWaitlist(id);
-                setWaitlistStatus(null);
+            if (waitlistStatus[sessionId]) {
+                await enrollmentService.leaveWaitlist(id, sessionId);
+                setWaitlistStatus({ ...waitlistStatus, [sessionId]: null });
                 showSuccess('Removed from waitlist');
             } else {
-                const result = await enrollmentService.joinWaitlist(id);
-                setWaitlistStatus(result);
+                const result = await enrollmentService.joinWaitlist(id, sessionId);
+                setWaitlistStatus({ ...waitlistStatus, [sessionId]: result });
                 showSuccess('Added to waitlist');
             }
         } catch (err) {
@@ -177,49 +191,6 @@ function ClassDetails() {
             setWaitlistLoading(false);
         }
     };
-
-    // Memoize the formatted dates to prevent unnecessary recalculations
-    const formattedDates = useMemo(() => {
-        if (!classData?.available_dates) return [];
-
-        // Get all sessions for the class (flattened)
-        const allSessions = classData.available_dates.flatMap(dateRange => dateRange.sessions);
-        const classDateRange = getClassDateRange(allSessions);
-
-        return classData.available_dates.map((dateRange, rangeIndex) => {
-            const availableSpots = classData.capacity - classData.enrolled_count;
-            const isFull = availableSpots <= 0;
-            const days = getDaysInRange(dateRange.start_date, dateRange.end_date);
-
-            return {
-                rangeIndex,
-                startDate: new Date(dateRange.start_date).toLocaleDateString(),
-                endDate: new Date(dateRange.end_date).toLocaleDateString(),
-                days: days.map((day, dayIndex) => ({
-                    date: day,
-                    index: `${rangeIndex}-${dayIndex}`,
-                    session: dateRange.sessions[dayIndex]
-                })),
-                isFull,
-                classDateRange
-            };
-        });
-    }, [classData]);
-
-    // Memoize the class schedule
-    const classSchedule = useMemo(() => {
-        if (!classData) return [];
-        return getDaysInRange(classData.startDate, classData.endDate)
-            .filter(date => {
-                const dayOfWeek = format(date, 'EEEE').toLowerCase();
-                return classData.schedule[dayOfWeek];
-            })
-            .map(date => ({
-                date,
-                formattedDate: format(date, 'EEEE, MMMM d, yyyy'),
-                time: classData.schedule[format(date, 'EEEE').toLowerCase()]
-            }));
-    }, [classData]);
 
     // Show loading state while auth is initializing or class data is loading
     if (authLoading || !initialized || loading) {
@@ -255,8 +226,6 @@ function ClassDetails() {
         );
     }
 
-    const isFull = classData.enrolled_count >= classData.capacity;
-
     return (
         <div className="min-h-screen bg-white font-montserrat">
             {/* Hero Section */}
@@ -285,23 +254,79 @@ function ClassDetails() {
                             <div>
                                 <h2 className="text-2xl font-semibold mb-4 text-gray-900">Available Sessions</h2>
                                 <div className="space-y-6">
-                                    {sessions.map((session) => (
-                                        <div key={session.id} className="border rounded-lg p-4">
-                                            <div className="font-medium text-gray-900">
-                                                {formatDate(session.session_date)}
+                                    {sessions.map((session) => {
+                                        // Calculate hours per day
+                                        const [startHour, startMinute] = session.start_time.split(':').map(Number);
+                                        const [endHour, endMinute] = session.end_time.split(':').map(Number);
+                                        const hoursPerDay = ((endHour + endMinute / 60) - (startHour + startMinute / 60)).toFixed(2);
+
+                                        // Use explicit end_date from database
+                                        const formattedStartDate = formatDate(session.start_date || session.session_date);
+                                        const formattedEndDate = session.end_date ? formatDate(session.end_date) : null;
+                                        const showEndDate = formattedEndDate && formattedEndDate !== formattedStartDate;
+
+                                        // Button logic
+                                        const notLoggedIn = !user;
+                                        const isAdminOrInstructor = user && (user.role === 'admin' || user.role === 'instructor');
+                                        const canEnroll = !notLoggedIn && !isAdminOrInstructor;
+
+                                        return (
+                                            <div key={session.id} className="border rounded-lg p-4">
+                                                <div className="font-medium text-gray-900">
+                                                    {formattedStartDate}
+                                                    {showEndDate ? ` - ${formattedEndDate}` : ''}
+                                                </div>
+                                                <div className="text-gray-700 text-sm">
+                                                    {formatTime(session.start_time)} - {formatTime(session.end_time)} ({hoursPerDay} hours/day)
+                                                </div>
+                                                <div className="text-gray-700 text-sm">
+                                                    Duration: {getDurationString(classData)}
+                                                </div>
+                                                <div className="text-gray-700 text-sm">
+                                                    Available Spots: {session.available_spots} of {session.capacity}
+                                                </div>
+                                                <div className="text-gray-700 text-sm">
+                                                    Instructor: {session.instructor_name || 'TBA'}
+                                                </div>
+                                                <button
+                                                    className={`mt-2 px-4 py-2 rounded ${canEnroll ? 'bg-blue-600 text-white' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`}
+                                                    disabled={!canEnroll}
+                                                    onClick={() => canEnroll && handleEnroll(session.id)}
+                                                >
+                                                    Enroll
+                                                </button>
+                                                {notLoggedIn && <div className="text-xs text-red-500 mt-1">Log in to enroll</div>}
+                                                {isAdminOrInstructor && <div className="text-xs text-red-500 mt-1">Admins/Instructors cannot enroll</div>}
+
+                                                {/* Waitlist section */}
+                                                {session.available_spots === 0 && canEnroll && (
+                                                    <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded">
+                                                        <p className="text-sm text-yellow-800 mb-2">This session is full</p>
+                                                        {waitlistStatus[session.id] ? (
+                                                            <div className="space-y-2">
+                                                                <p className="text-xs text-yellow-700">You are on the waitlist</p>
+                                                                <button
+                                                                    className="px-3 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600"
+                                                                    onClick={() => handleWaitlistAction(session.id)}
+                                                                    disabled={waitlistLoading}
+                                                                >
+                                                                    {waitlistLoading ? 'Removing...' : 'Leave Waitlist'}
+                                                                </button>
+                                                            </div>
+                                                        ) : (
+                                                            <button
+                                                                className="px-3 py-1 text-xs bg-yellow-600 text-white rounded hover:bg-yellow-700"
+                                                                onClick={() => handleWaitlistAction(session.id)}
+                                                                disabled={waitlistLoading}
+                                                            >
+                                                                {waitlistLoading ? 'Adding...' : 'Join Waitlist'}
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                )}
                                             </div>
-                                            <div className="text-gray-700 text-sm">
-                                                {formatTime(session.start_time)} - {formatTime(session.end_time)}
-                                            </div>
-                                            <div className="text-gray-700 text-sm">
-                                                Available Spots: {session.available_spots} of {session.capacity}
-                                            </div>
-                                            <div className="text-gray-700 text-sm">
-                                                Instructor: {session.instructor_name || 'TBA'}
-                                            </div>
-                                            {/* Add more session fields as needed */}
-                                        </div>
-                                    ))}
+                                        );
+                                    })}
                                 </div>
                             </div>
                         )}
@@ -323,6 +348,7 @@ function ClassDetails() {
                                 <h2 className="text-2xl font-semibold mb-2 text-gray-900">Enrollment</h2>
                                 <p className="text-3xl font-semibold text-blue-600">${classData.price}</p>
                             </div>
+
                             <div className="space-y-4">
                                 <div className="flex items-center space-x-2">
                                     <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -353,23 +379,6 @@ function ClassDetails() {
                 <div className="max-w-2xl mx-auto text-center">
                     <h2 className="text-3xl font-semibold mb-4 text-gray-900">Ready to Learn?</h2>
                     <p className="mb-8 text-gray-700">Join us for this exciting class and take the next step in your professional development.</p>
-                    {user ? (
-                        !isEnrolled && classData.enrolled_count < classData.capacity && (
-                            <button
-                                onClick={handleEnroll}
-                                className="bg-black text-white px-8 py-4 font-normal border-0 hover:bg-gray-900 transition-colors"
-                            >
-                                Enroll Now
-                            </button>
-                        )
-                    ) : (
-                        <button
-                            onClick={() => navigate('/login', { state: { from: `/classes/${id}` } })}
-                            className="bg-black text-white px-8 py-4 font-normal border-0 hover:bg-gray-900 transition-colors"
-                        >
-                            Log in to Enroll
-                        </button>
-                    )}
                 </div>
             </section>
 

@@ -42,7 +42,6 @@ import {
   Announcement as BroadcastIcon,
   Edit as EditIcon,
 } from "@mui/icons-material";
-import { mockData } from "../../mockData/adminDashboardData";
 import adminService from "../../services/adminService";
 import { useSnackbar } from "notistack";
 

@@ -102,6 +102,7 @@ async function createSession(req, res) {
   const {
     class_id,
     session_date,
+    end_date,
     start_time,
     end_time,
     capacity,
@@ -114,10 +115,10 @@ async function createSession(req, res) {
   try {
     const result = await pool.query(
       `INSERT INTO class_sessions (
-        class_id, session_date, start_time, end_time, capacity, min_enrollment, waitlist_enabled, waitlist_capacity, instructor_id, status
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        class_id, session_date, end_date, start_time, end_time, capacity, min_enrollment, waitlist_enabled, waitlist_capacity, instructor_id, status
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
       RETURNING *`,
-      [class_id, session_date, start_time, end_time, capacity, min_enrollment, waitlist_enabled, waitlist_capacity, instructor_id, status || 'scheduled']
+      [class_id, session_date, end_date, start_time, end_time, capacity, min_enrollment, waitlist_enabled, waitlist_capacity, instructor_id, status || 'scheduled']
     );
     res.status(201).json(result.rows[0]);
   } catch (error) {
@@ -131,6 +132,7 @@ async function updateSession(req, res) {
   const { sessionId } = req.params;
   const {
     session_date,
+    end_date,
     start_time,
     end_time,
     capacity,
@@ -144,18 +146,19 @@ async function updateSession(req, res) {
     const result = await pool.query(
       `UPDATE class_sessions SET
         session_date = COALESCE($1, session_date),
-        start_time = COALESCE($2, start_time),
-        end_time = COALESCE($3, end_time),
-        capacity = COALESCE($4, capacity),
-        min_enrollment = COALESCE($5, min_enrollment),
-        waitlist_enabled = COALESCE($6, waitlist_enabled),
-        waitlist_capacity = COALESCE($7, waitlist_capacity),
-        instructor_id = COALESCE($8, instructor_id),
-        status = COALESCE($9, status),
+        end_date = COALESCE($2, end_date),
+        start_time = COALESCE($3, start_time),
+        end_time = COALESCE($4, end_time),
+        capacity = COALESCE($5, capacity),
+        min_enrollment = COALESCE($6, min_enrollment),
+        waitlist_enabled = COALESCE($7, waitlist_enabled),
+        waitlist_capacity = COALESCE($8, waitlist_capacity),
+        instructor_id = COALESCE($9, instructor_id),
+        status = COALESCE($10, status),
         updated_at = CURRENT_TIMESTAMP
-      WHERE id = $10
+      WHERE id = $11
       RETURNING *`,
-      [session_date, start_time, end_time, capacity, min_enrollment, waitlist_enabled, waitlist_capacity, instructor_id, status, sessionId]
+      [session_date, end_date, start_time, end_time, capacity, min_enrollment, waitlist_enabled, waitlist_capacity, instructor_id, status, sessionId]
     );
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Session not found' });

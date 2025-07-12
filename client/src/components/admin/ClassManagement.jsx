@@ -69,7 +69,7 @@ function ClassManagement() {
     title: "",
     instructor_id: "",
     description: "",
-    dates: [{ date: "", start_time: "", end_time: "" }],
+    dates: [{ date: "", end_date: "", start_time: "", end_time: "" }],
     location: "",
     capacity: "",
     price: "",
@@ -79,6 +79,7 @@ function ClassManagement() {
   const [statusClass, setStatusClass] = useState(null);
   const [newStatus, setNewStatus] = useState("");
   const [selectedClass, setSelectedClass] = useState(null);
+  const [allEnrollmentsClass, setAllEnrollmentsClass] = useState(null);
   const [anchorEl, setAnchorEl] = useState(null);
   const [selectedClassForMenu, setSelectedClassForMenu] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -126,7 +127,7 @@ function ClassManagement() {
       title: "",
       instructor_id: "",
       description: "",
-      dates: [{ date: "", start_time: "", end_time: "" }],
+      dates: [{ date: "", end_date: "", start_time: "", end_time: "" }],
       location: "",
       capacity: "",
       price: "",
@@ -138,12 +139,9 @@ function ClassManagement() {
     try {
       setError(null);
       setLoading(true);
-      console.log('Fetching class details for class:', cls);
       // Fetch complete class details including sessions using admin endpoint
       const response = await adminService.getClassDetails(cls.id);
-      console.log('Class details response:', response);
       const classDetails = response;  // Remove .data since response is already the class details
-      console.log('Class details data:', classDetails);
 
       if (!classDetails) {
         console.error('No class details found in response');
@@ -151,19 +149,17 @@ function ClassManagement() {
       }
 
       // Initialize with empty dates array if no sessions exist
-      let formattedDates = [{ date: "", start_time: "", end_time: "" }];
+      let formattedDates = [{ date: "", end_date: "", start_time: "", end_time: "" }];
 
       // Only try to format dates if sessions exist and are in the expected format
       if (Array.isArray(classDetails.sessions) && classDetails.sessions.length > 0) {
-        console.log('Found sessions:', classDetails.sessions);
         formattedDates = classDetails.sessions.map(session => ({
           id: session.id,
           date: session.session_date ? new Date(session.session_date).toISOString().split('T')[0] : "",
+          end_date: session.end_date ? new Date(session.end_date).toISOString().split('T')[0] : "",
           start_time: session.start_time ? session.start_time.substring(0, 5) : "",
           end_time: session.end_time ? session.end_time.substring(0, 5) : ""
         }));
-      } else {
-        console.log('No sessions found or sessions is not an array');
       }
 
       setForm({
@@ -227,7 +223,7 @@ function ClassManagement() {
   const handleAddDate = () => {
     setForm(prev => ({
       ...prev,
-      dates: [...prev.dates, { date: "", start_time: "", end_time: "" }]
+      dates: [...prev.dates, { date: "", end_date: "", start_time: "", end_time: "" }]
     }));
   };
 
@@ -246,12 +242,29 @@ function ClassManagement() {
   };
 
   const handleDateChange = (index, field, value) => {
-    setForm(prev => ({
-      ...prev,
-      dates: prev.dates.map((date, i) =>
-        i === index ? { ...date, [field]: value } : date
-      )
-    }));
+    setForm(prev => {
+      const updatedDates = prev.dates.map((date, i) => {
+        if (i === index) {
+          const updatedDate = { ...date, [field]: value };
+
+          // If start date is changed, automatically set end date to the same date if it's currently empty or different
+          if (field === 'date' && value) {
+            const currentEndDate = date.end_date;
+            if (!currentEndDate || currentEndDate !== value) {
+              updatedDate.end_date = value;
+            }
+          }
+
+          return updatedDate;
+        }
+        return date;
+      });
+
+      return {
+        ...prev,
+        dates: updatedDates
+      };
+    });
   };
 
   const handleSave = async () => {
@@ -268,8 +281,15 @@ function ClassManagement() {
 
       // Validate dates
       for (const date of form.dates) {
-        if (!date.date || !date.start_time || !date.end_time) {
+        if (!date.date || !date.end_date || !date.start_time || !date.end_time) {
           throw new Error("Please fill in all date fields");
+        }
+
+        // Validate that end_date is not before start date
+        const startDate = new Date(date.date);
+        const endDate = new Date(date.end_date);
+        if (endDate < startDate) {
+          throw new Error("End date cannot be before start date");
         }
       }
 
@@ -339,6 +359,18 @@ function ClassManagement() {
     }
   };
 
+  const handleViewAllEnrollments = async (cls) => {
+    try {
+      setLoading(true);
+      const enrollments = await adminService.getAllEnrollments(cls.id);
+      setAllEnrollmentsClass({ ...cls, enrollments });
+    } catch (error) {
+      handleError(error, "Failed to fetch all enrollments");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleUpdateStatus = (cls) => {
     setStatusClass(cls);
     setNewStatus(cls.status || "scheduled");
@@ -392,6 +424,9 @@ function ClassManagement() {
           break;
         case "status":
           handleUpdateStatus(selectedClassForMenu);
+          break;
+        case "enrollments":
+          handleViewAllEnrollments(selectedClassForMenu);
           break;
         default:
           break;
@@ -487,6 +522,12 @@ function ClassManagement() {
                         </ListItemIcon>
                         <ListItemText>Edit Class</ListItemText>
                       </MenuItem>
+                      <MenuItem onClick={() => handleMenuAction('enrollments')}>
+                        <ListItemIcon>
+                          <PeopleIcon fontSize="small" />
+                        </ListItemIcon>
+                        <ListItemText>View All Enrollments</ListItemText>
+                      </MenuItem>
                       <MenuItem onClick={() => handleMenuAction('waitlist')}>
                         <ListItemIcon>
                           <QueueIcon fontSize="small" />
@@ -569,45 +610,60 @@ function ClassManagement() {
               <Typography variant="subtitle1" sx={{ mt: 2 }}>
                 Class Dates and Times
               </Typography>
-              {form.dates.map((date, index) => (
-                <Stack key={index} direction="row" spacing={2} alignItems="center">
-                  <TextField
-                    label="Date"
-                    type="date"
-                    value={date.date}
-                    onChange={(e) => handleDateChange(index, 'date', e.target.value)}
-                    InputLabelProps={{ shrink: true }}
-                    required
-                  />
-                  <TextField
-                    label="Start Time"
-                    type="time"
-                    value={date.start_time}
-                    onChange={(e) => handleDateChange(index, 'start_time', e.target.value)}
-                    InputLabelProps={{ shrink: true }}
-                    inputProps={{ step: 300 }}
-                    required
-                  />
-                  <TextField
-                    label="End Time"
-                    type="time"
-                    value={date.end_time}
-                    onChange={(e) => handleDateChange(index, 'end_time', e.target.value)}
-                    InputLabelProps={{ shrink: true }}
-                    inputProps={{ step: 300 }}
-                    required
-                  />
-                  {form.dates.length > 1 && (
-                    <IconButton
-                      color="error"
-                      onClick={() => handleRemoveDate(index)}
-                      size="small"
-                    >
-                      <DeleteIcon />
-                    </IconButton>
-                  )}
-                </Stack>
-              ))}
+              <Typography variant="caption" color="text.secondary" sx={{ mb: 2, display: 'block' }}>
+                For one-day classes (like CPR), set the same date for both start and end dates.
+              </Typography>
+              {form.dates.map((date, index) => {
+                return (
+                  <Stack key={index} direction="row" spacing={2} alignItems="center">
+                    <TextField
+                      label="Date"
+                      type="date"
+                      value={date.date}
+                      onChange={(e) => handleDateChange(index, 'date', e.target.value)}
+                      InputLabelProps={{ shrink: true }}
+                      required
+                    />
+                    <Tooltip title="For one-day classes, set the same date as the start date" placement="top" arrow>
+                      <TextField
+                        label="End Date"
+                        type="date"
+                        value={date.end_date}
+                        onChange={(e) => handleDateChange(index, 'end_date', e.target.value)}
+                        InputLabelProps={{ shrink: true }}
+                        required
+                      />
+                    </Tooltip>
+                    <TextField
+                      label="Start Time"
+                      type="time"
+                      value={date.start_time}
+                      onChange={(e) => handleDateChange(index, 'start_time', e.target.value)}
+                      InputLabelProps={{ shrink: true }}
+                      inputProps={{ step: 300 }}
+                      required
+                    />
+                    <TextField
+                      label="End Time"
+                      type="time"
+                      value={date.end_time}
+                      onChange={(e) => handleDateChange(index, 'end_time', e.target.value)}
+                      InputLabelProps={{ shrink: true }}
+                      inputProps={{ step: 300 }}
+                      required
+                    />
+                    {form.dates.length > 1 && (
+                      <IconButton
+                        color="error"
+                        onClick={() => handleRemoveDate(index)}
+                        size="small"
+                      >
+                        <DeleteIcon />
+                      </IconButton>
+                    )}
+                  </Stack>
+                );
+              })}
               <Button
                 startIcon={<AddIcon />}
                 onClick={handleAddDate}
@@ -824,6 +880,133 @@ function ClassManagement() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* All Enrollments Modal */}
+      {allEnrollmentsClass && (
+        <Dialog
+          open={!!allEnrollmentsClass}
+          onClose={() => setAllEnrollmentsClass(null)}
+          maxWidth="lg"
+          fullWidth
+        >
+          <DialogTitle>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <PeopleIcon color="primary" />
+              All Enrollments for {allEnrollmentsClass.title}
+            </Box>
+          </DialogTitle>
+          <DialogContent>
+            {loading ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
+                <CircularProgress />
+              </Box>
+            ) : (
+              <Box sx={{ mt: 2 }}>
+                {/* Active Enrollments */}
+                <Typography variant="h6" sx={{ mb: 2, color: 'primary.main' }}>
+                  Active Enrollments ({allEnrollmentsClass.enrollments?.active?.length || 0})
+                </Typography>
+                {allEnrollmentsClass.enrollments?.active?.length > 0 ? (
+                  <TableContainer component={Paper} sx={{ mb: 3 }}>
+                    <Table size="small">
+                      <TableHead>
+                        <TableRow>
+                          <TableCell>Student</TableCell>
+                          <TableCell>Email</TableCell>
+                          <TableCell>Session Date</TableCell>
+                          <TableCell>Status</TableCell>
+                          <TableCell>Enrolled</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {allEnrollmentsClass.enrollments.active.map((enrollment) => (
+                          <TableRow key={enrollment.enrollment_id}>
+                            <TableCell>{enrollment.name}</TableCell>
+                            <TableCell>{enrollment.email}</TableCell>
+                            <TableCell>
+                              {enrollment.session_date ? new Date(enrollment.session_date).toLocaleDateString() : 'N/A'}
+                            </TableCell>
+                            <TableCell>
+                              <Chip
+                                label={enrollment.enrollment_status}
+                                color={enrollment.enrollment_status === 'approved' ? 'success' : 'warning'}
+                                size="small"
+                              />
+                            </TableCell>
+                            <TableCell>
+                              {new Date(enrollment.enrolled_at).toLocaleDateString()}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                ) : (
+                  <Typography color="text.secondary" sx={{ mb: 3 }}>
+                    No active enrollments
+                  </Typography>
+                )}
+
+                {/* Historical Enrollments */}
+                <Typography variant="h6" sx={{ mb: 2, color: 'text.secondary' }}>
+                  Historical Enrollments ({allEnrollmentsClass.enrollments?.historical?.length || 0})
+                </Typography>
+                {allEnrollmentsClass.enrollments?.historical?.length > 0 ? (
+                  <TableContainer component={Paper}>
+                    <Table size="small">
+                      <TableHead>
+                        <TableRow>
+                          <TableCell>Student</TableCell>
+                          <TableCell>Email</TableCell>
+                          <TableCell>Session Date</TableCell>
+                          <TableCell>Status</TableCell>
+                          <TableCell>Archived</TableCell>
+                          <TableCell>Reason</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {allEnrollmentsClass.enrollments.historical.map((enrollment) => (
+                          <TableRow key={enrollment.enrollment_id}>
+                            <TableCell>{enrollment.name}</TableCell>
+                            <TableCell>{enrollment.email}</TableCell>
+                            <TableCell>
+                              {enrollment.session_date ? new Date(enrollment.session_date).toLocaleDateString() : 'N/A'}
+                            </TableCell>
+                            <TableCell>
+                              <Chip
+                                label={enrollment.enrollment_status}
+                                color={enrollment.enrollment_status === 'approved' ? 'success' : 'warning'}
+                                size="small"
+                              />
+                            </TableCell>
+                            <TableCell>
+                              {new Date(enrollment.archived_at).toLocaleDateString()}
+                            </TableCell>
+                            <TableCell>
+                              <Tooltip title={enrollment.archived_reason}>
+                                <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                                  {enrollment.archived_reason?.substring(0, 20)}...
+                                </Typography>
+                              </Tooltip>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                ) : (
+                  <Typography color="text.secondary">
+                    No historical enrollments
+                  </Typography>
+                )}
+              </Box>
+            )}
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setAllEnrollmentsClass(null)}>Close</Button>
+          </DialogActions>
+        </Dialog>
       )}
     </Box>
   );

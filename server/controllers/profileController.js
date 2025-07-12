@@ -3,6 +3,7 @@ const {Certificate} = require('../models/certificateModel');
 const {PaymentMethod} = require('../models/paymentMethodModel');
 const { createActivityLog } = require('../models/activityLogModel');
 const {Notification} = require('../models/notificationModel');
+const { getHistoricalEnrollmentsByUserId } = require('../models/enrollmentModel');
 const bcrypt = require('bcrypt');
 
 // Get user profile with all details
@@ -185,6 +186,16 @@ const markAllNotificationsAsRead = async (req, res) => {
     }
 };
 
+// Get historical enrollments for user profile
+const getHistoricalEnrollments = async (req, res) => {
+    try {
+        const historicalEnrollments = await getHistoricalEnrollmentsByUserId(req.user.id);
+        res.json(historicalEnrollments);
+    } catch (error) {
+        res.status(500).json({ message: 'Error fetching historical enrollments', error: error.message });
+    }
+};
+
 module.exports = {
     getProfileWithDetails,
     updateProfile,
@@ -197,5 +208,6 @@ module.exports = {
     getActivityLog,
     getNotifications,
     markNotificationAsRead,
-    markAllNotificationsAsRead
+    markAllNotificationsAsRead,
+    getHistoricalEnrollments
 }; 

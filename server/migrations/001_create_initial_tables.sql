@@ -57,6 +57,7 @@ CREATE TABLE IF NOT EXISTS class_sessions (
   id SERIAL PRIMARY KEY,
   class_id INTEGER REFERENCES classes(id) ON DELETE CASCADE,
   session_date DATE NOT NULL,
+  end_date DATE,
   start_time TIME NOT NULL,
   end_time TIME NOT NULL,
   capacity INTEGER NOT NULL,

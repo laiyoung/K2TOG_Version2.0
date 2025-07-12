@@ -14,7 +14,12 @@ const {
     updateClassStatus,
     updateWaitlistStatus,
     getClassWithDetails,
-    getClassParticipants
+    getClassParticipants,
+    createClassWithSessions,
+    updateClassWithSessions,
+    addToWaitlist,
+    getHistoricalEnrollments,
+    getAllEnrollmentsForClass
   } = require('../models/classModel');
   
   const {
@@ -99,10 +104,42 @@ const {
       const classItem = await getClassById(classId);
       if (!classItem) return res.status(404).json({ error: 'Class not found' });
   
-      // Pass deletedSessionIds to updateClass if present
-      const updatedClass = await updateClass(classId, updates);
+      // Validate dates array if provided
+      if (updates.dates && Array.isArray(updates.dates)) {
+        for (const dateData of updates.dates) {
+          if (!dateData.date || !dateData.start_time || !dateData.end_time) {
+            return res.status(400).json({ error: 'Each session must have date, start_time, and end_time' });
+          }
+          
+          // Validate date format
+          const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+          if (!dateRegex.test(dateData.date)) {
+            return res.status(400).json({ error: 'Date must be in YYYY-MM-DD format' });
+          }
+          
+          // Validate time format
+          const timeRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
+          if (!timeRegex.test(dateData.start_time) || !timeRegex.test(dateData.end_time)) {
+            return res.status(400).json({ error: 'Time must be in HH:MM format' });
+          }
+          
+          // Validate end_date if provided
+          if (dateData.end_date && !dateRegex.test(dateData.end_date)) {
+            return res.status(400).json({ error: 'End date must be in YYYY-MM-DD format' });
+          }
+          
+          // Validate that end_date is not before start date
+          if (dateData.end_date && new Date(dateData.end_date) < new Date(dateData.date)) {
+            return res.status(400).json({ error: 'End date cannot be before start date' });
+          }
+        }
+      }
+  
+      // Use the new function that handles sessions
+      const updatedClass = await updateClassWithSessions(classId, updates);
       res.json(updatedClass);
     } catch (err) {
+      console.error('Update class error:', err);
       res.status(500).json({ error: 'Failed to update class' });
     }
   };
@@ -319,28 +356,20 @@ const {
     const {
       title,
       description,
-      date,
-      start_time,
-      end_time,
-      duration_minutes,
+      dates,
       location_type,
       location_details,
       price,
       capacity,
-      is_recurring,
-      recurrence_pattern,
-      min_enrollment,
+      instructor_id,
       prerequisites,
       materials_needed,
-      instructor_id,
-      waitlist_enabled,
-      waitlist_capacity
+      image_url
     } = req.body;
   
     // Validate required fields
     const requiredFields = [
-      'title', 'description', 'date', 'start_time', 'end_time',
-      'location_type', 'location_details', 'price', 'capacity'
+      'title', 'description', 'dates', 'location_details', 'price', 'capacity'
     ];
     const missingFields = requiredFields.filter(field => !req.body[field]);
     
@@ -349,6 +378,40 @@ const {
         error: 'Missing required fields', 
         fields: missingFields 
       });
+    }
+  
+    // Validate dates array
+    if (!Array.isArray(dates) || dates.length === 0) {
+      return res.status(400).json({ error: 'At least one session date is required' });
+    }
+  
+    // Validate each date entry
+    for (const dateData of dates) {
+      if (!dateData.date || !dateData.start_time || !dateData.end_time) {
+        return res.status(400).json({ error: 'Each session must have date, start_time, and end_time' });
+      }
+      
+      // Validate date format
+      const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+      if (!dateRegex.test(dateData.date)) {
+        return res.status(400).json({ error: 'Date must be in YYYY-MM-DD format' });
+      }
+      
+      // Validate time format
+      const timeRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
+      if (!timeRegex.test(dateData.start_time) || !timeRegex.test(dateData.end_time)) {
+        return res.status(400).json({ error: 'Time must be in HH:MM format' });
+      }
+      
+      // Validate end_date if provided
+      if (dateData.end_date && !dateRegex.test(dateData.end_date)) {
+        return res.status(400).json({ error: 'End date must be in YYYY-MM-DD format' });
+      }
+      
+      // Validate that end_date is not before start date
+      if (dateData.end_date && new Date(dateData.end_date) < new Date(dateData.date)) {
+        return res.status(400).json({ error: 'End date cannot be before start date' });
+      }
     }
   
     // Validate field types
@@ -360,50 +423,19 @@ const {
       return res.status(400).json({ error: 'Capacity must be a positive number' });
     }
   
-    if (duration_minutes && (typeof duration_minutes !== 'number' || duration_minutes <= 0)) {
-      return res.status(400).json({ error: 'Duration must be a positive number' });
-    }
-  
-    // Validate date and time format
-    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-    const timeRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
-  
-    if (!dateRegex.test(date)) {
-      return res.status(400).json({ error: 'Date must be in YYYY-MM-DD format' });
-    }
-  
-    if (!timeRegex.test(start_time) || !timeRegex.test(end_time)) {
-      return res.status(400).json({ error: 'Time must be in HH:MM format' });
-    }
-  
-    // Validate recurring class pattern if provided
-    if (is_recurring && recurrence_pattern) {
-      const { frequency, interval, endDate, daysOfWeek } = recurrence_pattern;
-      if (!frequency || !interval || !endDate || !Array.isArray(daysOfWeek)) {
-        return res.status(400).json({ error: 'Invalid recurrence pattern' });
-      }
-    }
-  
     try {
-      const newClass = await createClass({
+      const newClass = await createClassWithSessions({
         title,
         description,
-        date,
-        start_time,
-        end_time,
-        duration_minutes,
-        location_type,
+        dates,
+        location_type: location_type || 'in-person',
         location_details,
         price,
         capacity,
-        is_recurring,
-        recurrence_pattern,
-        min_enrollment,
+        instructor_id,
         prerequisites,
         materials_needed,
-        instructor_id,
-        waitlist_enabled,
-        waitlist_capacity
+        image_url
       });
   
       res.status(201).json(newClass);
@@ -507,6 +539,26 @@ const {
     }
   };
   
+  // @desc    Add user to class waitlist (admin)
+  // @route   POST /api/admin/classes/:classId/waitlist
+  // @access  Admin
+  const adminAddToWaitlist = async (req, res) => {
+    const { classId } = req.params;
+    const { userId } = req.body;
+  
+    if (!userId) {
+      return res.status(400).json({ error: 'User ID is required' });
+    }
+  
+    try {
+      const waitlistEntry = await addToWaitlist(classId, userId);
+      res.status(201).json(waitlistEntry);
+    } catch (err) {
+      console.error('Add to waitlist error:', err);
+      res.status(500).json({ error: err.message || 'Failed to add user to waitlist' });
+    }
+  };
+  
   // @desc    Get outstanding payments
   // @route   GET /api/admin/financial/payments/outstanding
   // @access  Admin
@@ -569,6 +621,32 @@ const {
     }
   };
   
+  // @desc    Get all enrollments (active and historical) for a class
+  // @route   GET /api/admin/classes/:classId/enrollments
+  // @access  Admin
+  const adminGetAllEnrollments = async (req, res) => {
+    try {
+      const enrollments = await getAllEnrollmentsForClass(req.params.classId);
+      res.json(enrollments);
+    } catch (err) {
+      console.error('Get all enrollments error:', err);
+      res.status(500).json({ error: 'Failed to fetch enrollments' });
+    }
+  };
+  
+  // @desc    Get historical enrollments for a class
+  // @route   GET /api/admin/classes/:classId/enrollments/historical
+  // @access  Admin
+  const adminGetHistoricalEnrollments = async (req, res) => {
+    try {
+      const historicalEnrollments = await getHistoricalEnrollments(req.params.classId);
+      res.json(historicalEnrollments);
+    } catch (err) {
+      console.error('Get historical enrollments error:', err);
+      res.status(500).json({ error: 'Failed to fetch historical enrollments' });
+    }
+  };
+  
   module.exports = {
     adminGetUsers,
     adminDeleteUser,
@@ -592,8 +670,11 @@ const {
     adminUpdateClassStatus,
     adminGetClassWaitlist,
     adminUpdateWaitlistStatus,
+    adminAddToWaitlist,
     adminGetOutstandingPayments,
     getStats,
-    adminGetClassStudents
+    adminGetClassStudents,
+    adminGetAllEnrollments,
+    adminGetHistoricalEnrollments
   };
   

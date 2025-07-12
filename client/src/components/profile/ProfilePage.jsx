@@ -10,6 +10,7 @@ import NotificationsSection from './NotificationsSection';
 import EnrollmentsSection from './EnrollmentsSection';
 import PasswordSection from './PasswordSection';
 import PaymentsDueSection from './PaymentsDueSection';
+import MyWaitlist from '../user/MyWaitlist';
 import userService from '../../services/userService';
 import './ProfilePage.css';
 
@@ -133,6 +134,28 @@ const ProfilePage = () => {
         );
     }
 
+    // Only filter enrollments after profile is loaded and valid
+    let currentEnrollments = [];
+    let pastEnrollments = [];
+    if (profile && Array.isArray(profile.enrollments)) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        currentEnrollments = profile.enrollments.filter((enrollment) => {
+            if (enrollment.enrollment_type) {
+                return enrollment.enrollment_type === 'active';
+            }
+            const end = enrollment.end_date ? new Date(enrollment.end_date) : (enrollment.session_date ? new Date(enrollment.session_date) : null);
+            return !end || end >= today;
+        });
+        pastEnrollments = profile.enrollments.filter((enrollment) => {
+            if (enrollment.enrollment_type) {
+                return enrollment.enrollment_type === 'historical';
+            }
+            const end = enrollment.end_date ? new Date(enrollment.end_date) : (enrollment.session_date ? new Date(enrollment.session_date) : null);
+            return end && end < today;
+        });
+    }
+
     console.log('Rendering profile page with data:', profile); // Debug log
 
     return (
@@ -167,7 +190,7 @@ const ProfilePage = () => {
                         />
                     )}
                     {activeSection === 'enrollments' && (
-                        <EnrollmentsSection enrollments={profile.enrollments} />
+                        <EnrollmentsSection enrollments={currentEnrollments} historicalEnrollments={pastEnrollments} />
                     )}
                     {activeSection === 'password' && (
                         <PasswordSection onUpdate={handleProfileUpdate} />
@@ -177,6 +200,9 @@ const ProfilePage = () => {
                             payments={profile.payments}
                             onPaymentComplete={handlePaymentComplete}
                         />
+                    )}
+                    {activeSection === 'waitlist' && (
+                        <MyWaitlist />
                     )}
                 </div>
             </div>

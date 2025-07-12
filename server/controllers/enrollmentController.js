@@ -12,8 +12,6 @@ const {
 } = require("../models/enrollmentModel");
 
 const {
-  incrementEnrolledCount,
-  decrementEnrolledCount,
   getClassById,
   getClassWithDetails
 } = require("../models/classModel");
@@ -66,13 +64,12 @@ const enrollInClass = async (req, res) => {
       return res.status(400).json({ error: "Session has already started or ended" });
     }
 
-    if (classDetails.enrolled_count >= classDetails.capacity) {
-      return res.status(400).json({ error: "Class is full" });
+    if (session.rows[0].enrolled_count >= session.rows[0].capacity) {
+      return res.status(400).json({ error: "Session is full" });
     }
 
     // Create enrollment
     const enrollment = await enrollUserInClass(userId, classId, sessionId, "paid");
-    await incrementEnrolledCount(classId);
 
     // Send confirmation email
     try {
@@ -127,8 +124,6 @@ const cancelClassEnrollment = async (req, res) => {
       return res.status(404).json({ error: "Enrollment not found" });
     }
 
-    await decrementEnrolledCount(classId);
-
     // Send cancellation email
     try {
       await sendEmail({
@@ -176,11 +171,13 @@ const getAllEnrollmentsAdmin = async (req, res) => {
       class_id: req.query.classId,
       user_id: req.query.userId,
       start_date: req.query.startDate,
-      end_date: req.query.endDate
+      end_date: req.query.endDate,
+      page: req.query.page ? parseInt(req.query.page, 10) : 1,
+      limit: req.query.limit ? parseInt(req.query.limit, 10) : 20
     };
 
-    const enrollments = await getAllEnrollments(filters);
-    res.json(enrollments);
+    const { enrollments, total } = await getAllEnrollments(filters);
+    res.json({ enrollments, total });
   } catch (err) {
     console.error("Admin fetch error:", err);
     res.status(500).json({ error: "Failed to fetch all enrollments" });

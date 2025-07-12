@@ -14,7 +14,8 @@ const {
     getActivityLog,
     getNotifications,
     markNotificationAsRead,
-    markAllNotificationsAsRead
+    markAllNotificationsAsRead,
+    getHistoricalEnrollments
 } = require('../controllers/profileController');
 
 // Profile routes
@@ -33,6 +34,9 @@ router.delete('/payment-methods/:id', requireAuth, deletePaymentMethod);
 
 // Activity log routes
 router.get('/activity', requireAuth, getActivityLog);
+
+// Historical enrollments route
+router.get('/historical-enrollments', requireAuth, getHistoricalEnrollments);
 
 // Notification routes
 router.get('/notifications', requireAuth, getNotifications);

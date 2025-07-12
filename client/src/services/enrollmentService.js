@@ -4,7 +4,11 @@ const enrollmentService = {
     // Get all enrollments (admin view)
     getEnrollments: async (filters = {}) => {
         const queryParams = new URLSearchParams(filters).toString();
-        return api.get(`/enrollments?${queryParams}`);
+        const response = await api.get(`/enrollments?${queryParams}`);
+        return {
+            enrollments: response.enrollments,
+            total: response.total
+        };
     },
 
     // Get all enrollments for the current user
@@ -78,27 +82,27 @@ const enrollmentService = {
     getUserWaitlistEntries: async () => {
         try {
             const response = await api.get('/enrollments/waitlist');
-            return response.data;
+            return response;
         } catch (error) {
-            throw handleApiError(error);
+            throw error;
         }
     },
 
     acceptWaitlistOffer: async (classId) => {
         try {
             const response = await api.post(`/enrollments/waitlist/${classId}/accept`);
-            return response.data;
+            return response;
         } catch (error) {
-            throw handleApiError(error);
+            throw error;
         }
     },
 
     declineWaitlistOffer: async (classId) => {
         try {
             const response = await api.post(`/enrollments/waitlist/${classId}/decline`);
-            return response.data;
+            return response;
         } catch (error) {
-            throw handleApiError(error);
+            throw error;
         }
     }
 };

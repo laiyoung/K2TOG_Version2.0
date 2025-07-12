@@ -83,7 +83,7 @@ const UserManagement = () => {
     const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [enrollmentDialogOpen, setEnrollmentDialogOpen] = useState(false);
-    const [userEnrollments, setUserEnrollments] = useState([]);
+    const [userEnrollments, setUserEnrollments] = useState({ active: [], historical: [] });
     const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
     const [notificationDialogOpen, setNotificationDialogOpen] = useState(false);
     const [pagination, setPagination] = useState({
@@ -104,6 +104,7 @@ const UserManagement = () => {
     const [updatingRole, setUpdatingRole] = useState(false);
     const [enrollmentsLoading, setEnrollmentsLoading] = useState(false);
     const [updatingStatus, setUpdatingStatus] = useState(false);
+    const [tabValue, setTabValue] = useState(0);
 
     useEffect(() => {
         fetchUsers();
@@ -200,7 +201,9 @@ const UserManagement = () => {
         try {
             setLoading(true);
             const enrollments = await adminService.getUserEnrollments(user.id);
-            setUserEnrollments(enrollments);
+            const active = enrollments.filter(e => e.enrollment_type === 'active');
+            const historical = enrollments.filter(e => e.enrollment_type === 'historical');
+            setUserEnrollments({ active, historical });
             setSelectedUser(user);
             setEnrollmentDialogOpen(true);
         } catch (error) {
@@ -214,7 +217,7 @@ const UserManagement = () => {
         setEnrollmentDialogOpen(false);
         setTimeout(() => {
             setSelectedUser(null);
-            setUserEnrollments([]);
+            setUserEnrollments({ active: [], historical: [] });
         }, 150);
     };
 
@@ -268,6 +271,7 @@ const UserManagement = () => {
         setProfileDialogOpen(true);
         await fetchUserProfile(user.id);
         await fetchUserActivity(user.id);
+        await fetchUserEnrollments(user.id);
     };
 
     const handleActivityPageChange = async (_, newPage) => {
@@ -367,21 +371,20 @@ const UserManagement = () => {
         }));
     };
 
-    const handleTabChange = async (_, newValue) => {
-        setActiveTab(newValue);
-        if (newValue === 2 && selectedUser) { // 2 is the enrollments tab
-            await fetchUserEnrollments(selectedUser.id);
-        }
+    const handleTabChange = (event, newValue) => {
+        setTabValue(newValue);
     };
 
     const fetchUserEnrollments = async (userId) => {
         try {
             setEnrollmentsLoading(true);
             const enrollments = await adminService.getUserEnrollments(userId);
-            setUserEnrollments(enrollments);
+            const active = enrollments.filter(e => e.enrollment_type === 'active');
+            const historical = enrollments.filter(e => e.enrollment_type === 'historical');
+            setUserEnrollments({ active, historical });
         } catch (error) {
             handleError(error, "Failed to fetch user enrollments");
-            setUserEnrollments([]);
+            setUserEnrollments({ active: [], historical: [] });
         } finally {
             setEnrollmentsLoading(false);
         }
@@ -447,7 +450,7 @@ const UserManagement = () => {
             <TableContainer component={Paper}>
                 <Table>
                     <TableHead>
-                        <TableRow>
+                        <TableRow key="header">
                             <TableCell>User</TableCell>
                             <TableCell>Role</TableCell>
                             <TableCell>Status</TableCell>
@@ -458,19 +461,19 @@ const UserManagement = () => {
                     </TableHead>
                     <TableBody>
                         {loading ? (
-                            <TableRow>
+                            <TableRow key="loading">
                                 <TableCell colSpan={6} align="center" sx={{ py: 3 }}>
                                     <CircularProgress />
                                 </TableCell>
                             </TableRow>
                         ) : error ? (
-                            <TableRow>
+                            <TableRow key="error">
                                 <TableCell colSpan={6} align="center" sx={{ py: 3 }}>
                                     <Alert severity="error">{error}</Alert>
                                 </TableCell>
                             </TableRow>
                         ) : users.length === 0 ? (
-                            <TableRow>
+                            <TableRow key="empty">
                                 <TableCell colSpan={6} align="center" sx={{ py: 3 }}>
                                     <Typography color="text.secondary">No users found</Typography>
                                 </TableCell>
@@ -945,9 +948,9 @@ const UserManagement = () => {
                                         Recent Activity
                                     </Typography>
                                     <List>
-                                        {userActivity.map((activity) => (
+                                        {userActivity.map((activity, index) => (
                                             <ListItem
-                                                key={activity.id}
+                                                key={activity.id || `activity-${index}`}
                                                 alignItems="flex-start"
                                                 sx={{
                                                     borderLeft: "4px solid",
@@ -1012,9 +1015,9 @@ const UserManagement = () => {
                                                                     sx={{ display: "block", mt: 0.5 }}
                                                                 >
                                                                     {Object.entries(activity.details).map(
-                                                                        ([key, value]) => (
+                                                                        ([key, value], index) => (
                                                                             <Box
-                                                                                key={key}
+                                                                                key={`${activity.id}-${key}-${index}`}
                                                                                 component="span"
                                                                                 sx={{ display: "flex", gap: 1 }}
                                                                             >
@@ -1055,66 +1058,103 @@ const UserManagement = () => {
                                         <Box sx={{ display: "flex", justifyContent: "center", py: 3 }}>
                                             <CircularProgress />
                                         </Box>
-                                    ) : userEnrollments.length > 0 ? (
-                                        <TableContainer>
-                                            <Table>
-                                                <TableHead>
-                                                    <TableRow>
-                                                        <TableCell>Class</TableCell>
-                                                        <TableCell>Session Date</TableCell>
-                                                        <TableCell>Time</TableCell>
-                                                        <TableCell>Status</TableCell>
-                                                        <TableCell>Payment Status</TableCell>
-                                                    </TableRow>
-                                                </TableHead>
-                                                <TableBody>
-                                                    {userEnrollments.map((enrollment) => (
-                                                        <TableRow key={enrollment.id || (enrollment.class_id + '-' + enrollment.session_id)}>
-                                                            <TableCell>{enrollment.class_title}</TableCell>
-                                                            <TableCell>
-                                                                {enrollment.session_date ?
-                                                                    new Date(enrollment.session_date).toLocaleDateString() :
-                                                                    'No session date'}
-                                                            </TableCell>
-                                                            <TableCell>
-                                                                {enrollment.start_time && enrollment.end_time ?
-                                                                    `${formatTime(enrollment.start_time)} - ${formatTime(enrollment.end_time)}` :
-                                                                    'No time set'}
-                                                            </TableCell>
-                                                            <TableCell>
-                                                                <Chip
-                                                                    label={enrollment.enrollment_status}
-                                                                    color={
-                                                                        enrollment.enrollment_status === 'approved' ? 'success' :
-                                                                            enrollment.enrollment_status === 'pending' ? 'warning' :
-                                                                                enrollment.enrollment_status === 'rejected' ? 'error' :
-                                                                                    'default'
-                                                                    }
-                                                                    size="small"
-                                                                />
-                                                            </TableCell>
-                                                            <TableCell>
-                                                                <Chip
-                                                                    label={enrollment.payment_status}
-                                                                    color={
-                                                                        enrollment.payment_status === 'paid' ? 'success' :
-                                                                            enrollment.payment_status === 'pending' ? 'warning' :
-                                                                                enrollment.payment_status === 'refunded' ? 'info' :
-                                                                                    'default'
-                                                                    }
-                                                                    size="small"
-                                                                />
-                                                            </TableCell>
-                                                        </TableRow>
-                                                    ))}
-                                                </TableBody>
-                                            </Table>
-                                        </TableContainer>
                                     ) : (
-                                        <Box sx={{ textAlign: 'center', py: 3 }}>
-                                            <Typography color="text.secondary">
-                                                No enrollments found
+                                        <Box>
+                                            {/* Active Enrollments */}
+                                            <Typography variant="h6" sx={{ mb: 2, color: 'primary.main' }}>
+                                                Active Enrollments ({userEnrollments.active?.length || 0})
                                             </Typography>
+                                            {userEnrollments.active?.length > 0 ? (
+                                                <TableContainer component={Paper} sx={{ mb: 3 }}>
+                                                    <Table size="small">
+                                                        <TableHead>
+                                                            <TableRow key="enrollment-dialog-active-header">
+                                                                <TableCell>Class</TableCell>
+                                                                <TableCell>Session Date</TableCell>
+                                                                <TableCell>Status</TableCell>
+                                                                <TableCell>Enrolled</TableCell>
+                                                            </TableRow>
+                                                        </TableHead>
+                                                        <TableBody>
+                                                            {(userEnrollments.active || []).map((enrollment, index) => (
+                                                                <TableRow key={enrollment.enrollment_id || `active-${enrollment.class_title}-${index}`}>
+                                                                    <TableCell>{enrollment.class_title || 'N/A'}</TableCell>
+                                                                    <TableCell>
+                                                                        {enrollment.session_date ?
+                                                                            new Date(enrollment.session_date).toLocaleDateString() :
+                                                                            'N/A'}
+                                                                    </TableCell>
+                                                                    <TableCell>
+                                                                        <Chip
+                                                                            label={enrollment.enrollment_status}
+                                                                            color={enrollment.enrollment_status === 'approved' ? 'success' : 'warning'}
+                                                                            size="small"
+                                                                        />
+                                                                    </TableCell>
+                                                                    <TableCell>
+                                                                        {new Date(enrollment.enrolled_at).toLocaleDateString()}
+                                                                    </TableCell>
+                                                                </TableRow>
+                                                            ))}
+                                                        </TableBody>
+                                                    </Table>
+                                                </TableContainer>
+                                            ) : (
+                                                <Typography color="text.secondary" sx={{ mb: 3 }}>
+                                                    No active enrollments found
+                                                </Typography>
+                                            )}
+
+                                            {/* Historical Enrollments */}
+                                            <Typography variant="h6" sx={{ mb: 2, color: 'text.secondary' }}>
+                                                Historical Enrollments ({userEnrollments.historical?.length || 0})
+                                            </Typography>
+                                            {userEnrollments.historical?.length > 0 ? (
+                                                <TableContainer component={Paper}>
+                                                    <Table size="small">
+                                                        <TableHead>
+                                                            <TableRow key="enrollment-dialog-historical-header">
+                                                                <TableCell>Class</TableCell>
+                                                                <TableCell>Session Date</TableCell>
+                                                                <TableCell>Status</TableCell>
+                                                                <TableCell>Archived</TableCell>
+                                                                <TableCell>Reason</TableCell>
+                                                            </TableRow>
+                                                        </TableHead>
+                                                        <TableBody>
+                                                            {(userEnrollments.historical || []).map((enrollment, index) => (
+                                                                <TableRow key={enrollment.enrollment_id || `historical-${enrollment.class_title}-${index}`}>
+                                                                    <TableCell>{enrollment.class_title || 'N/A'}</TableCell>
+                                                                    <TableCell>
+                                                                        {enrollment.session_date ? new Date(enrollment.session_date).toLocaleDateString() : 'N/A'}
+                                                                    </TableCell>
+                                                                    <TableCell>
+                                                                        <Chip
+                                                                            label={enrollment.enrollment_status}
+                                                                            color={enrollment.enrollment_status === 'approved' ? 'success' : 'warning'}
+                                                                            size="small"
+                                                                        />
+                                                                    </TableCell>
+                                                                    <TableCell>
+                                                                        {new Date(enrollment.archived_at).toLocaleDateString()}
+                                                                    </TableCell>
+                                                                    <TableCell>
+                                                                        <Tooltip title={enrollment.archived_reason}>
+                                                                            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                                                                                {enrollment.archived_reason?.substring(0, 20)}...
+                                                                            </Typography>
+                                                                        </Tooltip>
+                                                                    </TableCell>
+                                                                </TableRow>
+                                                            ))}
+                                                        </TableBody>
+                                                    </Table>
+                                                </TableContainer>
+                                            ) : (
+                                                <Typography color="text.secondary">
+                                                    No historical enrollments found
+                                                </Typography>
+                                            )}
                                         </Box>
                                     )}
                                 </>
@@ -1206,15 +1246,13 @@ const UserManagement = () => {
             <Dialog
                 open={enrollmentDialogOpen}
                 onClose={handleCloseEnrollmentDialog}
-                maxWidth="md"
+                maxWidth="lg"
                 fullWidth
-                disableEnforceFocus
-                keepMounted={false}
             >
                 <DialogTitle>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <Typography variant="h6">
-                            Enrollments for {selectedUser?.first_name} {selectedUser?.last_name}
+                            Enrollment History for {selectedUser?.first_name} {selectedUser?.last_name}
                         </Typography>
                         <IconButton onClick={handleCloseEnrollmentDialog} size="small">
                             <CloseIcon />
@@ -1222,60 +1260,98 @@ const UserManagement = () => {
                     </Box>
                 </DialogTitle>
                 <DialogContent>
-                    <TableContainer>
-                        <Table>
-                            <TableHead>
-                                <TableRow>
-                                    <TableCell>Class</TableCell>
-                                    <TableCell>Session Date</TableCell>
-                                    <TableCell>Time</TableCell>
-                                    <TableCell>Status</TableCell>
-                                    <TableCell>Payment Status</TableCell>
-                                </TableRow>
-                            </TableHead>
-                            <TableBody>
-                                {userEnrollments.map((enrollment) => (
-                                    <TableRow key={enrollment.id || (enrollment.class_id + '-' + enrollment.session_id)}>
-                                        <TableCell>{enrollment.class_title}</TableCell>
-                                        <TableCell>
-                                            {enrollment.session_date ?
-                                                new Date(enrollment.session_date).toLocaleDateString() :
-                                                'No session date'}
-                                        </TableCell>
-                                        <TableCell>
-                                            {enrollment.start_time && enrollment.end_time ?
-                                                `${formatTime(enrollment.start_time)} - ${formatTime(enrollment.end_time)}` :
-                                                'No time set'}
-                                        </TableCell>
-                                        <TableCell>
-                                            <Chip
-                                                label={enrollment.enrollment_status}
-                                                color={
-                                                    enrollment.enrollment_status === 'approved' ? 'success' :
-                                                        enrollment.enrollment_status === 'pending' ? 'warning' :
-                                                            enrollment.enrollment_status === 'rejected' ? 'error' :
-                                                                'default'
-                                                }
-                                                size="small"
-                                            />
-                                        </TableCell>
-                                        <TableCell>
-                                            <Chip
-                                                label={enrollment.payment_status}
-                                                color={
-                                                    enrollment.payment_status === 'paid' ? 'success' :
-                                                        enrollment.payment_status === 'pending' ? 'warning' :
-                                                            enrollment.payment_status === 'refunded' ? 'info' :
-                                                                'default'
-                                                }
-                                                size="small"
-                                            />
-                                        </TableCell>
+                    <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
+                        <Tabs value={tabValue} onChange={handleTabChange}>
+                            <Tab
+                                label={`Active (${userEnrollments.active?.length || 0})`}
+                                icon={<InstructorIcon />}
+                                iconPosition="start"
+                            />
+                            <Tab
+                                label={`Historical (${userEnrollments.historical?.length || 0})`}
+                                icon={<HistoryIcon />}
+                                iconPosition="start"
+                            />
+                        </Tabs>
+                    </Box>
+
+                    {tabValue === 0 && (
+                        <TableContainer component={Paper}>
+                            <Table size="small">
+                                <TableHead>
+                                    <TableRow key="enrollment-dialog-active-header">
+                                        <TableCell>Class</TableCell>
+                                        <TableCell>Session Date</TableCell>
+                                        <TableCell>Status</TableCell>
+                                        <TableCell>Enrolled</TableCell>
                                     </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    </TableContainer>
+                                </TableHead>
+                                <TableBody>
+                                    {(userEnrollments.active || []).map((enrollment, index) => (
+                                        <TableRow key={enrollment.enrollment_id || `active-${enrollment.class_title}-${index}`}>
+                                            <TableCell>{enrollment.class_title || 'N/A'}</TableCell>
+                                            <TableCell>
+                                                {enrollment.session_date ? new Date(enrollment.session_date).toLocaleDateString() : 'N/A'}
+                                            </TableCell>
+                                            <TableCell>
+                                                <Chip
+                                                    label={enrollment.enrollment_status}
+                                                    color={enrollment.enrollment_status === 'approved' ? 'success' : 'warning'}
+                                                    size="small"
+                                                />
+                                            </TableCell>
+                                            <TableCell>
+                                                {new Date(enrollment.enrolled_at).toLocaleDateString()}
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </TableContainer>
+                    )}
+
+                    {tabValue === 1 && (
+                        <TableContainer component={Paper}>
+                            <Table size="small">
+                                <TableHead>
+                                    <TableRow key="enrollment-dialog-historical-header">
+                                        <TableCell>Class</TableCell>
+                                        <TableCell>Session Date</TableCell>
+                                        <TableCell>Status</TableCell>
+                                        <TableCell>Archived</TableCell>
+                                        <TableCell>Reason</TableCell>
+                                    </TableRow>
+                                </TableHead>
+                                <TableBody>
+                                    {(userEnrollments.historical || []).map((enrollment, index) => (
+                                        <TableRow key={enrollment.enrollment_id || `historical-${enrollment.class_title}-${index}`}>
+                                            <TableCell>{enrollment.class_title || 'N/A'}</TableCell>
+                                            <TableCell>
+                                                {enrollment.session_date ? new Date(enrollment.session_date).toLocaleDateString() : 'N/A'}
+                                            </TableCell>
+                                            <TableCell>
+                                                <Chip
+                                                    label={enrollment.enrollment_status}
+                                                    color={enrollment.enrollment_status === 'approved' ? 'success' : 'warning'}
+                                                    size="small"
+                                                />
+                                            </TableCell>
+                                            <TableCell>
+                                                {new Date(enrollment.archived_at).toLocaleDateString()}
+                                            </TableCell>
+                                            <TableCell>
+                                                <Tooltip title={enrollment.archived_reason}>
+                                                    <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                                                        {enrollment.archived_reason?.substring(0, 20)}...
+                                                    </Typography>
+                                                </Tooltip>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </TableContainer>
+                    )}
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={handleCloseEnrollmentDialog}>Close</Button>

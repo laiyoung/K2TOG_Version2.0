@@ -9,7 +9,7 @@ import EnrollmentManagement from '../components/admin/EnrollmentManagement';
 import FinancialManagement from '../components/admin/FinancialManagement';
 import NotificationCenter from '../components/admin/NotificationCenter';
 // import SystemSettings from '../components/admin/SystemSettings';
-import mockData from '../mock/adminDashboardData.json';
+import adminService from '../services/adminService';
 
 function AdminDashboard({ defaultSection = 'analytics' }) {
     const { user, loading: authLoading } = useAuth();
@@ -31,15 +31,25 @@ function AdminDashboard({ defaultSection = 'analytics' }) {
         { id: 'notifications', label: 'Notifications', icon: '🔔' },
     ], []);
 
+    // Fetch analytics data from backend
+    const fetchAnalyticsData = async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            const analyticsData = await adminService.fetchAllAnalytics();
+            setDashboardData(analyticsData);
+        } catch (err) {
+            setError(err.message || 'Failed to load analytics data');
+            console.error('Error fetching analytics data:', err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     // Only load data for analytics section
     useEffect(() => {
         if (activeSection === 'analytics' && !dashboardData && !authLoading) {
-            setLoading(true);
-            // Simulate API call with timeout
-            setTimeout(() => {
-                setDashboardData(mockData);
-                setLoading(false);
-            }, 100);
+            fetchAnalyticsData();
         }
     }, [activeSection, dashboardData, authLoading]);
 

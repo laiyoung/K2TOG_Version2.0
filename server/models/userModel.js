@@ -287,7 +287,8 @@ async function getProfileWithDetails(userId) {
       payment_methods: [],
       recent_activity: [],
       notifications: [],
-      enrollments: []
+      enrollments: [],
+      waitlist_entries: []
     };
 
     // Try to get user's enrollments if the table exists
@@ -302,8 +303,15 @@ async function getProfileWithDetails(userId) {
                c.location_details as location,
                cs.capacity,
                cs.session_date as start_date,
+               cs.end_date as end_date,
                cs.start_time,
                cs.end_time,
+               CASE 
+                 WHEN cs.end_date IS NULL OR cs.session_date = cs.end_date THEN
+                   TO_CHAR(cs.session_date, 'MM/DD/YY')
+                 ELSE
+                   TO_CHAR(cs.session_date, 'MM/DD/YY') || ' - ' || TO_CHAR(cs.end_date, 'MM/DD/YY')
+               END AS display_date,
                u.name as instructor_name
         FROM enrollments e
         JOIN classes c ON c.id = e.class_id
@@ -353,6 +361,38 @@ async function getProfileWithDetails(userId) {
       profile.notifications = notificationsResult.rows;
     } catch (err) {
       console.log('Notifications table not available:', err.message);
+    }
+
+    // Try to get user's waitlist entries if the table exists
+    try {
+      const waitlistResult = await pool.query(`
+        SELECT 
+          cw.id,
+          cw.class_id,
+          cw.user_id,
+          cw.position,
+          cw.status,
+          cw.created_at,
+          cw.updated_at,
+          c.title as class_title,
+          c.description as class_description,
+          c.location_details,
+          cs.session_date as start_date,
+          COALESCE(cs.end_date, cs.session_date) as end_date,
+          cs.start_time,
+          cs.end_time,
+          cs.capacity,
+          u.name as instructor_name
+        FROM class_waitlist cw
+        JOIN classes c ON c.id = cw.class_id
+        LEFT JOIN class_sessions cs ON cs.class_id = c.id
+        LEFT JOIN users u ON u.id = cs.instructor_id
+        WHERE cw.user_id = $1
+        ORDER BY cw.created_at DESC
+      `, [userId]);
+      profile.waitlist_entries = waitlistResult.rows;
+    } catch (err) {
+      console.log('Waitlist table not available:', err.message);
     }
 
     return profile;

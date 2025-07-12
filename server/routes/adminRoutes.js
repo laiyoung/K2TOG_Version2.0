@@ -29,9 +29,12 @@ const {
   adminUpdateClassStatus,
   adminGetClassWaitlist,
   adminUpdateWaitlistStatus,
+  adminAddToWaitlist,
   adminGetOutstandingPayments,
   getStats,
   adminGetClassStudents,
+  adminGetAllEnrollments,
+  adminGetHistoricalEnrollments,
 } = require('../controllers/dashboardController');
 
 const {
@@ -79,8 +82,11 @@ router.get('/classes/:classId', adminGetClassDetails);
 router.get('/classes/:classId/sessions', adminGetClassSessions);
 router.put('/classes/:classId/status', adminUpdateClassStatus);
 router.get('/classes/:classId/waitlist', adminGetClassWaitlist);
+router.post('/classes/:classId/waitlist', adminAddToWaitlist);
 router.put('/classes/:classId/waitlist/:waitlistId', adminUpdateWaitlistStatus);
 router.get('/classes/:classId/students', adminGetClassStudents);
+router.get('/classes/:classId/enrollments', adminGetAllEnrollments);
+router.get('/classes/:classId/enrollments/historical', adminGetHistoricalEnrollments);
 
 // User Management Routes
 router.get('/users/search', searchUsers);

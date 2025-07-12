@@ -1,13 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import adminService from '../../services/adminService';
 import enrollmentService from '../../services/enrollmentService';
-import { Box, TableContainer, Table, TableHead, TableBody, TableRow, TableCell, Chip, IconButton, Paper, Grid, Card, CardContent, Typography, CircularProgress, Alert, Select, MenuItem, FormControl, InputLabel, Button, Dialog, DialogTitle, DialogContent, DialogActions, Tooltip } from '@mui/material';
+import { Box, TableContainer, Table, TableHead, TableBody, TableRow, TableCell, Chip, IconButton, Paper, Grid, Card, CardContent, Typography, CircularProgress, Alert, Select, MenuItem, FormControl, InputLabel, Button, Dialog, DialogTitle, DialogContent, DialogActions, Tooltip, Pagination } from '@mui/material';
 import { Visibility as VisibilityIcon, Check as CheckIcon, Block, Download as DownloadIcon, Close as CloseIcon, Pending as PendingIcon } from '@mui/icons-material';
 import { useNotifications } from '../../utils/notificationUtils';
 
 function EnrollmentManagement() {
     const { showSuccess, showError } = useNotifications();
     const [enrollments, setEnrollments] = useState([]);
+    const [total, setTotal] = useState(0);
+    const [page, setPage] = useState(1);
+    const [pageSize, setPageSize] = useState(20);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [selectedEnrollment, setSelectedEnrollment] = useState(null);
@@ -27,25 +30,31 @@ function EnrollmentManagement() {
         fetchEnrollments();
         fetchDashboardStats();
         fetchAnalytics();
-    }, [filters]);
+    }, [filters, page, pageSize]);
 
     const fetchDashboardStats = async () => {
         try {
+            console.log('Fetching dashboard stats...');
             const data = await adminService.getDashboardStats();
+            console.log('Dashboard stats received:', data);
             setStats(data);
         } catch (error) {
+            console.error('Error fetching dashboard stats:', error);
             handleError(error, 'Failed to fetch dashboard statistics');
         }
     };
 
     const fetchAnalytics = async () => {
         try {
+            console.log('Fetching analytics...');
             const data = await adminService.getAnalytics('enrollments', {
                 startDate: filters.dateRange.start.toISOString(),
                 endDate: filters.dateRange.end.toISOString()
             });
+            console.log('Analytics data received:', data);
             setAnalytics(data);
         } catch (error) {
+            console.error('Error fetching analytics:', error);
             handleError(error, 'Failed to fetch analytics data');
         }
     };
@@ -56,14 +65,20 @@ function EnrollmentManagement() {
             const formattedFilters = {
                 ...filters,
                 startDate: filters.dateRange.start.toISOString(),
-                endDate: filters.dateRange.end.toISOString()
+                endDate: filters.dateRange.end.toISOString(),
+                page,
+                limit: pageSize
             };
             // Remove the dateRange object as we've extracted its values
             delete formattedFilters.dateRange;
 
-            const data = await enrollmentService.getEnrollments(formattedFilters);
+            console.log('Fetching enrollments with filters:', formattedFilters);
+            const { enrollments: data, total } = await enrollmentService.getEnrollments(formattedFilters);
+            console.log('Enrollments data received:', data, 'Total:', total);
             setEnrollments(data);
+            setTotal(total);
         } catch (error) {
+            console.error('Error fetching enrollments:', error);
             handleError(error, 'Failed to fetch enrollments');
         } finally {
             setLoading(false);
@@ -353,6 +368,15 @@ function EnrollmentManagement() {
                     </TableBody>
                 </Table>
             </TableContainer>
+            {/* Pagination Controls */}
+            <Box display="flex" justifyContent="center" mt={2}>
+                <Pagination
+                    count={Math.ceil(total / pageSize)}
+                    page={page}
+                    onChange={(_, value) => setPage(value)}
+                    color="primary"
+                />
+            </Box>
 
             {/* Enrollment Details Dialog */}
             {enrollmentDialogOpen && selectedEnrollment && (

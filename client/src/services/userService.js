@@ -85,6 +85,11 @@ const userService = {
         return api.get('/users/enrolled-classes');
     },
 
+    // Get user historical enrollments
+    getHistoricalEnrollments: async () => {
+        return api.get('/profile/historical-enrollments');
+    },
+
     // Get user waitlisted classes
     getWaitlistedClasses: async () => {
         return api.get('/users/waitlisted-classes');
