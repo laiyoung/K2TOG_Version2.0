@@ -916,16 +916,7 @@ const UserManagement = () => {
                                                         : "Disabled"}
                                                 </Typography>
                                             </Box>
-                                            <Box sx={{ mb: 2 }}>
-                                                <Typography variant="body2" color="text.secondary">
-                                                    SMS Notifications
-                                                </Typography>
-                                                <Typography variant="body1">
-                                                    {userProfile.sms_notifications
-                                                        ? "Enabled"
-                                                        : "Disabled"}
-                                                </Typography>
-                                            </Box>
+
                                             <Box sx={{ mb: 2 }}>
                                                 <Typography variant="body2" color="text.secondary">
                                                     Last Login

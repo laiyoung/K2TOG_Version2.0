@@ -53,10 +53,10 @@ async function getUserById(id) {
 
 // Create user
 async function createUser(data) {
-  const { name, email, password, role, status, first_name, last_name, phone_number, email_notifications, sms_notifications } = data;
+  const { name, email, password, role, status, first_name, last_name, phone_number, email_notifications } = data;
   const result = await pool.query(
-    'INSERT INTO users (name, email, password, role, status, first_name, last_name, phone_number, email_notifications, sms_notifications) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *',
-    [name, email, password, role, status, first_name, last_name, phone_number, email_notifications, sms_notifications]
+    'INSERT INTO users (name, email, password, role, status, first_name, last_name, phone_number, email_notifications) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *',
+    [name, email, password, role, status, first_name, last_name, phone_number, email_notifications]
   );
   return result.rows[0];
 }
@@ -210,13 +210,12 @@ async function updateProfile(id, updates) {
     first_name = user.first_name,
     last_name = user.last_name,
     phone_number = user.phone_number,
-    email_notifications = user.email_notifications ?? false,
-    sms_notifications = user.sms_notifications ?? false
+    email_notifications = user.email_notifications ?? false
   } = updates;
 
   const result = await pool.query(
-    `UPDATE users SET first_name = $1, last_name = $2, phone_number = $3, email_notifications = $4, sms_notifications = $5 WHERE id = $6 RETURNING *`,
-    [first_name, last_name, phone_number, email_notifications, sms_notifications, id]
+    `UPDATE users SET first_name = $1, last_name = $2, phone_number = $3, email_notifications = $4 WHERE id = $5 RETURNING *`,
+    [first_name, last_name, phone_number, email_notifications, id]
   );
   return result.rows[0];
 }

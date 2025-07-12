@@ -160,8 +160,7 @@ const updateUserProfile = async (req, res) => {
             first_name,
             last_name,
             phone_number,
-            email_notifications,
-            sms_notifications
+            email_notifications
         } = req.body;
 
         // Validate email if provided
@@ -179,8 +178,7 @@ const updateUserProfile = async (req, res) => {
             first_name,
             last_name,
             phone_number,
-            email_notifications,
-            sms_notifications
+            email_notifications
         });
 
         // Log the profile update

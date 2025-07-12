@@ -83,7 +83,7 @@ const Signup = () => {
                 last_name: formFields.lastName,
                 phone_number: null,
                 email_notifications: true,
-                sms_notifications: false
+        
             };
             await register(signupData);
             navigate('/');

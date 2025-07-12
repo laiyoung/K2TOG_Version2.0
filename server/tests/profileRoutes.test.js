@@ -29,8 +29,7 @@ jest.mock('../models/userModel', () => ({
             email: 'test@example.com',
             role: 'student',
             status: 'active',
-            email_notifications: true,
-            sms_notifications: false
+            email_notifications: true
         });
     }),
     updatePassword: jest.fn().mockResolvedValue(true)
@@ -156,8 +155,7 @@ describe('Profile Routes', () => {
                     email: 'test@example.com',
                     role: 'student',
                     status: 'active',
-                    email_notifications: true,
-                    sms_notifications: false
+                    email_notifications: true
                 };
 
                 User.getProfileWithDetails.mockResolvedValue(mockProfile);
@@ -189,7 +187,6 @@ describe('Profile Routes', () => {
                     role: 'student',
                     status: 'active',
                     email_notifications: true,
-                    sms_notifications: true,
                     phone_number: '1234567890'
                 };
 
@@ -202,8 +199,7 @@ describe('Profile Routes', () => {
                     .send({
                         name: 'Updated Name',
                         phone_number: '1234567890',
-                        email_notifications: true,
-                        sms_notifications: true
+                        email_notifications: true
                     });
 
                 expect(res.status).toBe(200);
@@ -227,8 +223,7 @@ describe('Profile Routes', () => {
                         email: 'test@example.com',
                         role: 'student',
                         status: 'active',
-                        email_notifications: true,
-                        sms_notifications: false
+                        email_notifications: true
                     });
                 });
             });

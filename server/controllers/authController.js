@@ -33,8 +33,7 @@ const registerUser = async (req, res) => {
     first_name,
     last_name,
     phone_number = null,
-    email_notifications = true,
-    sms_notifications = false
+    email_notifications = true
   } = req.body;
 
   try {
@@ -53,8 +52,7 @@ const registerUser = async (req, res) => {
       first_name,
       last_name,
       phone_number,
-      email_notifications,
-      sms_notifications
+      email_notifications
     });
 
     const token = jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET, {

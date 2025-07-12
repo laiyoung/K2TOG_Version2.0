@@ -313,10 +313,12 @@ function ClassManagement() {
       // Format the data before sending
       const formattedData = {
         ...form,
+        location_details: form.location,
         price: Number(form.price),
         capacity: Number(form.capacity),
         deletedSessionIds: deletedSessionIds
       };
+      delete formattedData.location;
 
       if (editClass) {
         await classService.updateClass(editClass.id, formattedData);

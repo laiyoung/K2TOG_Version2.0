@@ -134,7 +134,6 @@ describe('User Routes', () => {
         role: 'student',
         status: 'active',
         email_notifications: true,
-        sms_notifications: false,
         phone_number: null,
         first_name: undefined,
         last_name: undefined
@@ -197,7 +196,6 @@ describe('User Routes', () => {
         role: 'student',
         status: 'active',
         email_notifications: true,
-        sms_notifications: false,
         phone_number: null,
         first_name: undefined,
         last_name: undefined
@@ -229,7 +227,6 @@ describe('User Routes', () => {
         role: 'student',
         status: 'active',
         email_notifications: true,
-        sms_notifications: false,
         phone_number: null,
         first_name: undefined,
         last_name: undefined
@@ -268,7 +265,6 @@ describe('User Routes', () => {
         role: 'student',
         status: 'active',
         email_notifications: true,
-        sms_notifications: false,
         phone_number: null,
         first_name: undefined,
         last_name: undefined
@@ -283,8 +279,7 @@ describe('User Routes', () => {
         .send({
           name: 'Updated Name',
           phone_number: null,
-          email_notifications: true,
-          sms_notifications: false
+          email_notifications: true
         });
 
       // Log the full response for debugging

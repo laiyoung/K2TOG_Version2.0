@@ -22,14 +22,13 @@ const getProfileWithDetails = async (req, res) => {
 // Update user profile
 const updateProfile = async (req, res) => {
     try {
-        const { first_name, last_name, phone_number, profile_picture_url, email_notifications, sms_notifications } = req.body;
+        const { first_name, last_name, phone_number, profile_picture_url, email_notifications } = req.body;
         await updateUserProfile(req.user.id, {
             first_name,
             last_name,
             phone_number,
             profile_picture_url,
-            email_notifications,
-            sms_notifications
+            email_notifications
         });
         
         await createActivityLog(req.user.id, 'update_profile', {

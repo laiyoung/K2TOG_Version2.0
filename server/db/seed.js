@@ -20,15 +20,15 @@ const seed = async () => {
     const adminPassword = await bcrypt.hash('admin123', 10);
     
     await pool.query(`
-      INSERT INTO users (name, email, password, role, status, first_name, last_name, phone_number, email_notifications, sms_notifications)
+      INSERT INTO users (name, email, password, role, status, first_name, last_name, phone_number, email_notifications)
       SELECT * FROM (
         VALUES
-          ('Jane Doe', 'jane@example.com', $1, 'user', 'active', 'Jane', 'Doe', '555-0123', true, false),
-          ('John Smith', 'john@example.com', $1, 'user', 'active', 'John', 'Smith', '555-0124', true, true),
-          ('Admin User', 'admin@example.com', $2, 'admin', 'active', 'Admin', 'User', '555-0125', true, false),
-          ('Instructor One', 'instructor1@example.com', $1, 'instructor', 'active', 'Instructor', 'One', '555-0126', true, true),
-          ('Instructor Two', 'instructor2@example.com', $1, 'instructor', 'active', 'Instructor', 'Two', '555-0127', true, false)
-      ) AS new_users(name, email, password, role, status, first_name, last_name, phone_number, email_notifications, sms_notifications)
+          ('Jane Doe', 'jane@example.com', $1, 'user', 'active', 'Jane', 'Doe', '555-0123', true),
+          ('John Smith', 'john@example.com', $1, 'user', 'active', 'John', 'Smith', '555-0124', true),
+          ('Admin User', 'admin@example.com', $2, 'admin', 'active', 'Admin', 'User', '555-0125', true),
+          ('Instructor One', 'instructor1@example.com', $1, 'instructor', 'active', 'Instructor', 'One', '555-0126', true),
+          ('Instructor Two', 'instructor2@example.com', $1, 'instructor', 'active', 'Instructor', 'Two', '555-0127', true)
+      ) AS new_users(name, email, password, role, status, first_name, last_name, phone_number, email_notifications)
       WHERE NOT EXISTS (
         SELECT 1 FROM users WHERE email = new_users.email
       )
@@ -98,17 +98,7 @@ const seed = async () => {
         materials_needed: 'Comfortable clothing for practical exercises',
         image_url: 'https://res.cloudinary.com/dufbdy0z0/image/upload/v1747786180/class-3_fealxp.jpg'
       },
-      {
-        title: 'Waitlist Test Class',
-        description: 'This is a test class specifically designed to test waitlist functionality. It has a very small capacity to easily trigger the waitlist.',
-        location_type: 'zoom',
-        location_details: 'Online via Zoom - Test Session',
-        price: 99.99,
-        recurrence_pattern: null,
-        prerequisites: 'None required',
-        materials_needed: 'Computer with internet access',
-        image_url: 'https://res.cloudinary.com/dufbdy0z0/image/upload/v1747786188/class-1_mlye6d.jpg'
-      }
+
     ];
 
     // Insert classes
@@ -197,18 +187,14 @@ const seed = async () => {
         
         -- Future sessions
         ($5, '2025-08-09', NULL, '09:00', '14:00', 12, 3, 4, true, 8, $2, 'scheduled'),
-        ($5, '2025-08-16', NULL, '09:00', '14:00', 12, 1, 4, true, 8, $2, 'scheduled'),
-        
-        -- Waitlist Test Class session (very small capacity to test waitlist)
-        ($6, '2025-07-20', NULL, '10:00', '12:00', 2, 2, 1, true, 5, $2, 'scheduled')
+        ($5, '2025-08-16', NULL, '09:00', '14:00', 12, 1, 4, true, 8, $2, 'scheduled')
       ON CONFLICT DO NOTHING;
     `, [
       classMap.get('Child Development Associate (CDA)'),
       instructorOneId,
       classMap.get('Development and Operations'),
       instructorTwoId,
-      classMap.get('CPR and First Aid Certification'),
-      classMap.get('Waitlist Test Class')
+      classMap.get('CPR and First Aid Certification')
     ]);
 
     // Seed waitlist entries
@@ -267,11 +253,7 @@ const seed = async () => {
     const devOpsFutureSession = sessionMap.get(`${classMap.get('Development and Operations')}-5`);
     const cprFutureSession = sessionMap.get(`${classMap.get('CPR and First Aid Certification')}-5`);
     
-    // Waitlist test session
-    const waitlistTestSession = sessionMap.get(`${classMap.get('Waitlist Test Class')}-1`);
 
-    console.log('waitlistTestSession:', waitlistTestSession, typeof waitlistTestSession);
-    console.log('Waitlist Test Class id:', classMap.get('Waitlist Test Class'), typeof classMap.get('Waitlist Test Class'));
 
     await pool.query(`
       INSERT INTO enrollments (user_id, class_id, session_id, payment_status, enrollment_status, admin_notes, reviewed_at, reviewed_by, enrolled_at)
@@ -290,11 +272,7 @@ const seed = async () => {
         -- Future session enrollments
         (${janeId}, $1, $12, 'paid', 'approved', 'Future session enrollment', $7, 3, $8),
         (${johnId}, $2, $13, 'paid', 'approved', 'Future session enrollment', $7, 3, $8),
-        (${johnId}, $3, $14, 'paid', 'pending', NULL, NULL::timestamptz, NULL, $8),
-        
-        -- Waitlist test class enrollments (making it full)
-        (${janeId}, $16, $15, 'paid', 'approved', 'Test enrollment 1', $7, 3, $8),
-        (${johnId}, $16, $15, 'paid', 'approved', 'Test enrollment 2', $7, 3, $8)
+        (${johnId}, $3, $14, 'paid', 'pending', NULL, NULL::timestamptz, NULL, $8)
       ON CONFLICT DO NOTHING
     `, [
       classMap.get('Child Development Associate (CDA)'),
@@ -310,9 +288,7 @@ const seed = async () => {
       cprCurrentSession,
       cdaFutureSession,
       devOpsFutureSession,
-      cprFutureSession,
-      waitlistTestSession,
-      classMap.get('Waitlist Test Class')
+      cprFutureSession
     ]);
 
     // Then, update user roles for users with approved enrollments
