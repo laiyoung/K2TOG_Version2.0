@@ -410,6 +410,65 @@ async function updatePassword(userId, hashedPassword) {
   return result.rows[0];
 }
 
+// Generate password reset token
+async function generatePasswordResetToken(email) {
+  const resetToken = require('crypto').randomBytes(32).toString('hex');
+  const resetTokenExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour from now
+  
+  const result = await pool.query(
+    'UPDATE users SET reset_token = $1, reset_token_expires = $2, updated_at = NOW() WHERE email = $3 RETURNING id, email, first_name, last_name',
+    [resetToken, resetTokenExpires, email]
+  );
+  
+  if (result.rows.length === 0) {
+    throw new Error('User not found');
+  }
+  
+  return {
+    user: result.rows[0],
+    resetToken,
+    resetTokenExpires
+  };
+}
+
+// Verify password reset token
+async function verifyPasswordResetToken(token) {
+  const result = await pool.query(
+    'SELECT id, email, first_name, last_name FROM users WHERE reset_token = $1 AND reset_token_expires > NOW()',
+    [token]
+  );
+  
+  if (result.rows.length === 0) {
+    throw new Error('Invalid or expired reset token');
+  }
+  
+  return result.rows[0];
+}
+
+// Reset password with token
+async function resetPasswordWithToken(token, newPassword) {
+  const hashedPassword = await require('bcrypt').hash(newPassword, 10);
+  
+  const result = await pool.query(
+    'UPDATE users SET password = $1, reset_token = NULL, reset_token_expires = NULL, updated_at = NOW() WHERE reset_token = $2 AND reset_token_expires > NOW() RETURNING id, email, first_name, last_name',
+    [hashedPassword, token]
+  );
+  
+  if (result.rows.length === 0) {
+    throw new Error('Invalid or expired reset token');
+  }
+  
+  return result.rows[0];
+}
+
+// Clear password reset token
+async function clearPasswordResetToken(email) {
+  await pool.query(
+    'UPDATE users SET reset_token = NULL, reset_token_expires = NULL, updated_at = NOW() WHERE email = $1',
+    [email]
+  );
+}
+
 module.exports = {
   getAllUsers,
   getUserById,
@@ -426,5 +485,9 @@ module.exports = {
   getUsersByStatus,
   getUserByEmail,
   getProfileWithDetails,
-  updatePassword
+  updatePassword,
+  generatePasswordResetToken,
+  verifyPasswordResetToken,
+  resetPasswordWithToken,
+  clearPasswordResetToken
 };

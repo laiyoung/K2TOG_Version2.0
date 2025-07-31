@@ -1,5 +1,6 @@
 const Notification = require('../models/notificationModel');
 const {getUsersByIds, getUsersByStatus} = require('../models/userModel');
+const emailService = require('../utils/emailService');
 
 // @desc    Get user notifications
 // @route   GET /api/notifications
@@ -159,6 +160,30 @@ const sendBulkNotification = async (req, res) => {
             req.user.id
         );
 
+        // Send email alerts to all recipients
+        try {
+            const users = await getUsersByIds(user_ids);
+            const notificationTitle = variables.title || 'New Notification';
+            
+            for (const user of users) {
+                try {
+                    await emailService.sendNotificationAlertEmail(
+                        user.email,
+                        user.first_name && user.last_name ? `${user.first_name} ${user.last_name}` : user.email,
+                        'notification',
+                        notificationTitle
+                    );
+                    console.log(`Notification alert email sent to: ${user.email}`);
+                } catch (emailError) {
+                    console.error(`Failed to send notification alert email to ${user.email}:`, emailError);
+                    // Continue with other users even if one email fails
+                }
+            }
+        } catch (emailError) {
+            console.error('Failed to send notification alert emails:', emailError);
+            // Don't fail the notification creation if emails fail
+        }
+
         res.status(201).json({
             success: true,
             sent_count: result.sent_count,
@@ -197,6 +222,29 @@ const broadcastNotification = async (req, res) => {
             user_ids,
             req.user.id
         );
+
+        // Send email alerts to all broadcast recipients
+        try {
+            const users = await getUsersByStatus('active');
+            
+            for (const user of users) {
+                try {
+                    await emailService.sendNotificationAlertEmail(
+                        user.email,
+                        user.first_name && user.last_name ? `${user.first_name} ${user.last_name}` : user.email,
+                        'broadcast',
+                        title
+                    );
+                    console.log(`Broadcast alert email sent to: ${user.email}`);
+                } catch (emailError) {
+                    console.error(`Failed to send broadcast alert email to ${user.email}:`, emailError);
+                    // Continue with other users even if one email fails
+                }
+            }
+        } catch (emailError) {
+            console.error('Failed to send broadcast alert emails:', emailError);
+            // Don't fail the broadcast creation if emails fail
+        }
 
         res.status(201).json({
             success: true,

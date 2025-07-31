@@ -13,7 +13,10 @@ const {
     getClassParticipants
 } = require('../models/classModel');
 
+const { getUserById } = require('../models/userModel');
 const { validateDate, validateTime, validatePrice, validateCapacity } = require('../utils/validators');
+const emailService = require('../utils/emailService');
+const pool = require('../config/db');
 
 // @desc    Get all classes with optional filtering
 // @route   GET /api/classes
@@ -211,6 +214,30 @@ const addUserToWaitlist = async (req, res) => {
 
     try {
         const waitlistEntry = await addToWaitlist(classId, userId);
+        
+        // Send waitlist confirmation email
+        try {
+            // Get user and class details for the email
+            const user = await getUserById(userId);
+            const classDetails = await getClassById(classId);
+            
+            await emailService.sendWaitlistConfirmationEmail(
+                user.email,
+                user.name || `${user.first_name} ${user.last_name}`,
+                classDetails.title,
+                {
+                    start_date: waitlistEntry.start_date,
+                    end_date: waitlistEntry.end_date,
+                    location_details: classDetails.location_details
+                },
+                waitlistEntry.position
+            );
+            console.log(`Waitlist confirmation email sent to: ${user.email}`);
+        } catch (emailError) {
+            console.error('Failed to send waitlist confirmation email:', emailError);
+            // Don't fail the waitlist addition if email fails
+        }
+        
         res.status(201).json(waitlistEntry);
     } catch (err) {
         console.error('Add to waitlist error:', err);
@@ -241,6 +268,40 @@ const updateWaitlistEntryStatus = async (req, res) => {
         if (!updatedEntry) {
             return res.status(404).json({ error: 'Waitlist entry not found' });
         }
+
+        // Send appropriate email based on status
+        try {
+            const user = await getUserById(updatedEntry.user_id);
+            const classDetails = await getClassById(updatedEntry.class_id);
+            
+            if (status === 'approved') {
+                // Send waitlist acceptance email
+                await emailService.sendWaitlistAcceptanceEmail(
+                    user.email,
+                    user.name || `${user.first_name} ${user.last_name}`,
+                    classDetails.title,
+                    {
+                        start_date: updatedEntry.start_date,
+                        end_date: updatedEntry.end_date,
+                        location_details: classDetails.location_details
+                    }
+                );
+                console.log(`Waitlist acceptance email sent to: ${user.email}`);
+            } else if (status === 'rejected') {
+                // Send waitlist rejection email
+                await emailService.sendWaitlistRejectionEmail(
+                    user.email,
+                    user.name || `${user.first_name} ${user.last_name}`,
+                    classDetails.title,
+                    req.body.reason || null
+                );
+                console.log(`Waitlist rejection email sent to: ${user.email}`);
+            }
+        } catch (emailError) {
+            console.error('Failed to send waitlist status email:', emailError);
+            // Don't fail the status update if email fails
+        }
+
         res.json(updatedEntry);
     } catch (err) {
         console.error('Update waitlist status error:', err);
@@ -322,6 +383,10 @@ const getClassParticipantsList = async (req, res) => {
         res.status(500).json({ error: 'Failed to load class participants' });
     }
 };
+
+
+
+
 
 module.exports = {
     getAllClasses,

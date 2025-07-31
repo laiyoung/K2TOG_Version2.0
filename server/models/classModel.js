@@ -222,20 +222,7 @@ const updateWaitlistStatus = async (waitlistId, status, adminId = null) => {
       [status, adminId, waitlistId]
     );
 
-    // If status is 'offered', update the position of other entries
-    if (status === 'offered') {
-      await client.query(
-        `UPDATE class_waitlist 
-         SET position = subquery.new_position
-         FROM (
-           SELECT id, ROW_NUMBER() OVER (ORDER BY created_at) as new_position
-           FROM class_waitlist
-           WHERE class_id = $1 AND status = 'waiting'
-         ) as subquery
-         WHERE class_waitlist.id = subquery.id`,
-        [waitlistEntry.class_id]
-      );
-    }
+
 
     await client.query('COMMIT');
     return { ...result.rows[0], class_title: waitlistEntry.class_title, user_email: waitlistEntry.user_email };

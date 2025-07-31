@@ -1,7 +1,15 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const { createUser, getUserByEmail } = require('../models/userModel');
+const { 
+  createUser, 
+  getUserByEmail, 
+  generatePasswordResetToken, 
+  verifyPasswordResetToken, 
+  resetPasswordWithToken,
+  clearPasswordResetToken 
+} = require('../models/userModel');
 const pool = require('../config/db');
+const emailService = require('../utils/emailService');
 
 // Input validation middleware
 const validateRegistration = (req, res, next) => {
@@ -58,6 +66,15 @@ const registerUser = async (req, res) => {
     const token = jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET, {
       expiresIn: '1d',
     });
+
+    // Send welcome email to new user
+    try {
+      await emailService.sendWelcomeEmail(user.email, user.name);
+      console.log(`Welcome email sent to: ${user.email}`);
+    } catch (emailError) {
+      console.error('Failed to send welcome email:', emailError);
+      // Don't fail the registration if email fails
+    }
 
     res.status(201).json({ 
       user: {
@@ -150,9 +167,120 @@ const logoutUser = async (req, res) => {
   }
 };
 
+// Request password reset
+const requestPasswordReset = async (req, res) => {
+  const { email } = req.body;
+
+  try {
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+
+    // Check if user exists
+    const user = await getUserByEmail(email);
+    if (!user) {
+      // Don't reveal if user exists or not for security
+      return res.status(200).json({ 
+        message: 'If an account with that email exists, a password reset link has been sent.' 
+      });
+    }
+
+    // Generate reset token and send email
+    const { resetToken } = await generatePasswordResetToken(email);
+    
+    // Send password reset email
+    try {
+      await emailService.sendPasswordResetEmail(email, resetToken);
+      console.log(`Password reset email sent to: ${email}`);
+    } catch (emailError) {
+      console.error('Failed to send password reset email:', emailError);
+      // Clear the token if email fails
+      await clearPasswordResetToken(email);
+      return res.status(500).json({ error: 'Failed to send password reset email' });
+    }
+
+    res.status(200).json({ 
+      message: 'If an account with that email exists, a password reset link has been sent.' 
+    });
+  } catch (err) {
+    console.error('Password reset request error:', err);
+    res.status(500).json({ 
+      error: 'Failed to process password reset request',
+      details: process.env.NODE_ENV === 'development' ? err.message : undefined
+    });
+  }
+};
+
+// Verify password reset token
+const verifyResetToken = async (req, res) => {
+  const { token } = req.params;
+
+  try {
+    if (!token) {
+      return res.status(400).json({ error: 'Reset token is required' });
+    }
+
+    const user = await verifyPasswordResetToken(token);
+    
+    res.status(200).json({ 
+      message: 'Reset token is valid',
+      user: {
+        id: user.id,
+        email: user.email,
+        name: `${user.first_name} ${user.last_name}`.trim() || user.email
+      }
+    });
+  } catch (err) {
+    console.error('Token verification error:', err);
+    res.status(400).json({ error: 'Invalid or expired reset token' });
+  }
+};
+
+// Reset password with token
+const resetPassword = async (req, res) => {
+  const { token, newPassword } = req.body;
+
+  try {
+    if (!token || !newPassword) {
+      return res.status(400).json({ error: 'Token and new password are required' });
+    }
+
+    if (newPassword.length < 8) {
+      return res.status(400).json({ error: 'Password must be at least 8 characters long' });
+    }
+
+    const user = await resetPasswordWithToken(token, newPassword);
+    
+    // Log the password reset activity
+    try {
+      await require('../models/userModel').logUserActivity(user.id, 'password_reset', {
+        reset_method: 'email_token',
+        timestamp: new Date().toISOString()
+      });
+    } catch (activityError) {
+      console.error('Failed to log password reset activity:', activityError);
+    }
+
+    res.status(200).json({ 
+      message: 'Password has been reset successfully',
+      user: {
+        id: user.id,
+        email: user.email,
+        name: `${user.first_name} ${user.last_name}`.trim() || user.email
+      }
+    });
+  } catch (err) {
+    console.error('Password reset error:', err);
+    res.status(400).json({ error: 'Invalid or expired reset token' });
+  }
+};
+
 module.exports = { 
   registerUser, 
   loginUser,
   logoutUser,
-  validateRegistration 
+  validateRegistration,
+  requestPasswordReset,
+  verifyResetToken,
+  resetPassword
 };

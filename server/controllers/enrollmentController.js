@@ -16,7 +16,7 @@ const {
   getClassWithDetails
 } = require("../models/classModel");
 
-const { sendEmail } = require("../utils/emailService");
+const emailService = require("../utils/emailService");
 const { validateEmail } = require("../utils/validators");
 const pool = require("../config/db");
 
@@ -73,21 +73,20 @@ const enrollInClass = async (req, res) => {
 
     // Send confirmation email
     try {
-      await sendEmail({
-        to: req.user.email,
-        subject: "Class Enrollment Confirmation",
-        html: `
-          <h2>Enrollment Confirmation</h2>
-          <p>You have successfully enrolled in "${classDetails.title}".</p>
-          <p>Class Details:</p>
-          <ul>
-            <li>Date: ${new Date(session.rows[0].session_date).toLocaleDateString()}</li>
-            <li>Time: ${session.rows[0].start_time} - ${session.rows[0].end_time}</li>
-            <li>Location: ${classDetails.location_details}</li>
-          </ul>
-          <p>We look forward to seeing you there!</p>
-        `
-      });
+      await emailService.sendEnrollmentConfirmationEmail(
+        req.user.email,
+        req.user.name || `${req.user.first_name} ${req.user.last_name}`,
+        classDetails.title,
+        {
+          location_details: classDetails.location_details
+        },
+        {
+          session_date: session.rows[0].session_date,
+          start_time: session.rows[0].start_time,
+          end_time: session.rows[0].end_time
+        }
+      );
+      console.log(`Enrollment confirmation email sent to: ${req.user.email}`);
     } catch (emailError) {
       console.error("Email sending failed:", emailError);
       // Continue with enrollment even if email fails
@@ -235,20 +234,21 @@ const approveEnrollmentRequest = async (req, res) => {
 
     // Send approval email
     try {
-      await sendEmail({
-        to: enrollment.user_email,
-        subject: "Enrollment Approved",
-        html: `
-          <h2>Enrollment Approved</h2>
-          <p>Your enrollment in "${enrollment.class_title}" has been approved.</p>
-          <p>Class Details:</p>
-          <ul>
-            <li>Date: ${new Date(enrollment.class_date).toLocaleDateString()}</li>
-            <li>Location: ${enrollment.location_details}</li>
-          </ul>
-          <p>We look forward to seeing you there!</p>
-        `
-      });
+      await emailService.sendEnrollmentApprovalEmail(
+        enrollment.user_email,
+        enrollment.user_name,
+        enrollment.class_title,
+        {
+          location_details: enrollment.location_details
+        },
+        {
+          session_date: enrollment.class_date,
+          start_time: enrollment.start_time,
+          end_time: enrollment.end_time
+        },
+        adminNotes
+      );
+      console.log(`Enrollment approval email sent to: ${enrollment.user_email}`);
     } catch (emailError) {
       console.error("Email sending failed:", emailError);
     }
@@ -282,16 +282,21 @@ const rejectEnrollmentRequest = async (req, res) => {
 
     // Send rejection email
     try {
-      await sendEmail({
-        to: enrollment.user_email,
-        subject: "Enrollment Status Update",
-        html: `
-          <h2>Enrollment Status Update</h2>
-          <p>Your enrollment in "${enrollment.class_title}" has been rejected.</p>
-          ${adminNotes ? `<p>Reason: ${adminNotes}</p>` : ''}
-          <p>If you have any questions, please contact us.</p>
-        `
-      });
+      await emailService.sendEnrollmentRejectionEmail(
+        enrollment.user_email,
+        enrollment.user_name,
+        enrollment.class_title,
+        {
+          location_details: enrollment.location_details
+        },
+        {
+          session_date: enrollment.class_date,
+          start_time: enrollment.start_time,
+          end_time: enrollment.end_time
+        },
+        adminNotes
+      );
+      console.log(`Enrollment rejection email sent to: ${enrollment.user_email}`);
     } catch (emailError) {
       console.error("Email sending failed:", emailError);
     }

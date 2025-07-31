@@ -1,7 +1,15 @@
 const express = require('express');
 const router = express.Router();
 
-const { registerUser, loginUser, logoutUser, validateRegistration } = require('../controllers/authController');
+const { 
+  registerUser, 
+  loginUser, 
+  logoutUser, 
+  validateRegistration,
+  requestPasswordReset,
+  verifyResetToken,
+  resetPassword
+} = require('../controllers/authController');
 const {
   getUserProfile,
   getAllUserAccounts,
@@ -14,6 +22,11 @@ const { requireAuth, requireAdmin } = require('../middleware/auth');
 router.post('/register', validateRegistration, registerUser);
 router.post('/login', loginUser);
 router.post('/logout', logoutUser);
+
+// Password reset routes
+router.post('/forgot-password', requestPasswordReset);
+router.get('/reset-password/:token', verifyResetToken);
+router.post('/reset-password', resetPassword);
 
 // User profile routes
 router.get('/profile', requireAuth, getUserProfile);
