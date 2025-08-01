@@ -163,7 +163,7 @@ const generateClassCertificates = async (classId) => {
 };
 
 // Upload certificate
-const uploadCertificate = async ({ user_id, class_id, certificate_name, file_path, file_type, file_size, uploaded_by, cloudinary_id }) => {
+const uploadCertificate = async ({ user_id, class_id, certificate_name, file_path, file_type, file_size, uploaded_by, cloudinary_id, supabase_path }) => {
     try {
         console.log('Starting certificate upload to database...', {
             user_id,
@@ -172,10 +172,11 @@ const uploadCertificate = async ({ user_id, class_id, certificate_name, file_pat
             file_path,
             file_type,
             file_size,
-            cloudinary_id
+            cloudinary_id,
+            supabase_path
         });
 
-        // Use the secure_url directly from Cloudinary
+        // Use the secure_url directly from Cloudinary or Supabase
         const certificateUrl = file_path;
 
         console.log('Using certificate URL:', certificateUrl);
@@ -183,8 +184,8 @@ const uploadCertificate = async ({ user_id, class_id, certificate_name, file_pat
         const result = await pool.query(
             `INSERT INTO certificates (
                 user_id, class_id, certificate_name, certificate_url, 
-                cloudinary_id, file_type, file_size, uploaded_by, status
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'approved') 
+                cloudinary_id, supabase_path, file_type, file_size, uploaded_by, status
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'approved') 
             RETURNING *`,
             [
                 user_id, 
@@ -192,6 +193,7 @@ const uploadCertificate = async ({ user_id, class_id, certificate_name, file_pat
                 certificate_name, 
                 certificateUrl,
                 cloudinary_id,
+                supabase_path,
                 file_type, 
                 file_size, 
                 uploaded_by

@@ -394,6 +394,24 @@ async function getProfileWithDetails(userId) {
       console.log('Waitlist table not available:', err.message);
     }
 
+    // Try to get user's certificates if the table exists
+    try {
+      const certificatesResult = await pool.query(`
+        SELECT c.*, 
+               cls.title as class_name,
+               up.first_name as uploaded_by_first_name,
+               up.last_name as uploaded_by_last_name
+        FROM certificates c
+        LEFT JOIN classes cls ON c.class_id = cls.id
+        LEFT JOIN users up ON c.uploaded_by = up.id
+        WHERE c.user_id = $1 
+        ORDER BY c.created_at DESC
+      `, [userId]);
+      profile.certificates = certificatesResult.rows;
+    } catch (err) {
+      console.log('Certificates table not available:', err.message);
+    }
+
     return profile;
   } catch (error) {
     console.error('Error in getProfileWithDetails:', error);

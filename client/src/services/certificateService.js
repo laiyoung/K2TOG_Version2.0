@@ -1,3 +1,5 @@
+import supabaseStorageService from './supabaseStorageService'
+
 // Helper function to handle fetch requests
 const fetchWithAuth = async (url, options = {}) => {
     const token = localStorage.getItem('token');
@@ -45,32 +47,6 @@ const fetchWithAuth = async (url, options = {}) => {
     }
 };
 
-// Helper function for FormData requests
-const fetchWithFormData = async (url, formData) => {
-    const token = localStorage.getItem('token');
-    const response = await fetch(`/api${url}`, {
-        method: 'POST',
-        headers: {
-            'Authorization': `Bearer ${token}`
-            // Do NOT set Content-Type for FormData!
-        },
-        body: formData
-    });
-
-    if (response.status === 401) {
-        window.location.href = '/login';
-        throw new Error('Unauthorized');
-    }
-
-    if (!response.ok) {
-        const errorData = await response.text();
-        console.error('Request failed:', errorData);
-        throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    return response.json();
-};
-
 // Get all certificates
 export const getAllCertificates = async () => {
     return fetchWithAuth('/certificates');
@@ -81,13 +57,42 @@ export const getCertificatesByUserId = async (userId) => {
     return fetchWithAuth(`/certificates/user/${userId}`);
 };
 
-// Upload certificate
+// Upload certificate using Supabase storage
 export const uploadCertificate = async (studentId, file, classId) => {
-    const formData = new FormData();
-    formData.append('certificate', file);
-    formData.append('class_id', classId);
-    
-    return fetchWithFormData(`/certificates/upload/${studentId}`, formData);
+    try {
+        // First upload file to Supabase storage
+        const uploadResult = await supabaseStorageService.uploadCertificate(file, studentId, classId);
+        
+        // Then save certificate metadata to backend
+        const certificateData = {
+            user_id: studentId,
+            class_id: classId,
+            certificate_name: file.name,
+            certificate_url: uploadResult.publicUrl,
+            file_path: uploadResult.filePath,
+            file_type: file.type,
+            file_size: file.size,
+            supabase_path: uploadResult.filePath
+        };
+
+        return fetchWithAuth('/certificates/upload-metadata', {
+            method: 'POST',
+            body: JSON.stringify(certificateData)
+        });
+    } catch (error) {
+        console.error('Certificate upload error:', error);
+        throw error;
+    }
+};
+
+// Upload user file (for user profile uploads)
+export const uploadUserFile = async (file, userId, folder = 'general') => {
+    try {
+        return await supabaseStorageService.uploadUserFile(file, userId, folder);
+    } catch (error) {
+        console.error('User file upload error:', error);
+        throw error;
+    }
 };
 
 // Download certificate

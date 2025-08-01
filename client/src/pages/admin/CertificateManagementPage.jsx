@@ -32,6 +32,7 @@ import CertificateUpload from '../../components/CertificateUpload';
 import { getAllCertificates, uploadCertificate, downloadCertificate, deleteCertificate } from '../../services/certificateService';
 import { getUsersByRole } from '../../services/userService';
 import classService from '../../services/classService';
+import adminService from '../../services/adminService';
 
 const CertificateManagementPage = () => {
     const [searchQuery, setSearchQuery] = useState('');
@@ -73,8 +74,13 @@ const CertificateManagementPage = () => {
 
     const fetchStudents = async () => {
         try {
-            const data = await getUsersByRole('user');
-            setStudents(Array.isArray(data) ? data : []);
+            console.log('Fetching students...');
+            // Get all users and filter for students (users with role 'user' or 'student')
+            const allUsers = await adminService.getAllUsers({ role: 'all' });
+            const students = allUsers.filter(user => user.role === 'user' || user.role === 'student');
+            console.log('Students data received:', students);
+            setStudents(students);
+            console.log('Students state set to:', students);
         } catch (error) {
             console.error('Error fetching students:', error);
             if (error.message !== 'Unauthorized') {
@@ -118,6 +124,14 @@ const CertificateManagementPage = () => {
 
     const handleUpload = async (file) => {
         try {
+            if (!selectedStudent) {
+                setAlert({
+                    type: 'error',
+                    message: 'Please select a student first'
+                });
+                return;
+            }
+
             setLoading(true);
             await uploadCertificate(selectedStudent, file, selectedClass);
 
@@ -133,7 +147,7 @@ const CertificateManagementPage = () => {
             if (error.message !== 'Unauthorized') {
                 setAlert({
                     type: 'error',
-                    message: 'Failed to upload certificate'
+                    message: error.message || 'Failed to upload certificate'
                 });
             }
         } finally {

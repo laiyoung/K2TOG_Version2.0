@@ -1,0 +1,38 @@
+SAMPLE CERTIFICATE FOR TESTING
+
+This is a sample certificate file that you can use to test the certificate upload and download functionality.
+
+To create a proper PDF for testing:
+
+1. Copy this text content
+2. Open a word processor (Microsoft Word, Google Docs, etc.)
+3. Paste the content and format it as a certificate
+4. Save as PDF
+5. Use this PDF file to test certificate uploads
+
+Certificate Details:
+- Student: [Student Name]
+- Class: [Class Name]
+- Date: [Current Date]
+- Instructor: [Instructor Name]
+
+Certificate Content:
+This is to certify that [Student Name] has successfully completed the [Class Name] course offered by YJ Child Care Plus. This certificate acknowledges the student's dedication, hard work, and achievement in mastering the course material.
+
+Course Information:
+- Course Title: [Class Name]
+- Duration: [Course Duration]
+- Completion Date: [Date]
+- Grade: Pass
+
+This certificate is valid and can be verified through our certificate verification system.
+
+Authorized by:
+[Instructor Name]
+YJ Child Care Plus
+
+Certificate ID: [Unique ID]
+Verification Code: [Verification Code]
+
+---
+Note: This is a sample certificate for testing purposes only. 

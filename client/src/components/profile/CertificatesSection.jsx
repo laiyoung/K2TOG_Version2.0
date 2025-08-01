@@ -19,7 +19,7 @@ const CertificatesSection = ({ certificates }) => {
                                 <h3>{certificate.certificate_name}</h3>
                                 <p className="class-name">{certificate.class_name}</p>
                                 <p className="issue-date">
-                                    Issued: {new Date(certificate.issue_date).toLocaleDateString()}
+                                    Issued: {new Date(certificate.created_at).toLocaleDateString()}
                                 </p>
                             </div>
                             <div className="certificate-actions">

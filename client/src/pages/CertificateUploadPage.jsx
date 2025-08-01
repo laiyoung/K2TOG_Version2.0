@@ -1,27 +1,34 @@
 import React, { useState } from 'react';
 import { Container, Typography, Alert, Box } from '@mui/material';
 import CertificateUpload from '../components/CertificateUpload';
+import { uploadCertificate } from '../services/certificateService';
 
 const CertificateUploadPage = () => {
     const [uploadStatus, setUploadStatus] = useState(null);
 
-    const handleUpload = (file) => {
-        // This is where you'll implement the actual upload logic later
-        console.log('File to upload:', file);
+    const handleUpload = async (file) => {
+        try {
+            // For demo purposes, using a hardcoded student ID and class ID
+            // In a real implementation, these would come from props or form data
+            const studentId = "123"; // This should be dynamic
+            const classId = "1"; // This should be dynamic
 
-        // Example of how the upload status might be handled
-        setUploadStatus({
-            type: 'info',
-            message: 'Upload functionality will be implemented here'
-        });
+            const result = await uploadCertificate(studentId, file, classId);
 
-        // Simulate a delay
-        setTimeout(() => {
             setUploadStatus({
                 type: 'success',
-                message: 'This is a demo. The actual upload will be implemented later.'
+                message: 'Certificate uploaded successfully!'
             });
-        }, 1500);
+
+            console.log('Upload result:', result);
+        } catch (error) {
+            console.error('Upload error:', error);
+            setUploadStatus({
+                type: 'error',
+                message: error.message || 'Failed to upload certificate'
+            });
+            throw error; // Re-throw so the component can handle it
+        }
     };
 
     return (

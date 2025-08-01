@@ -108,6 +108,7 @@ const userService = {
 
 // Helper function to handle fetch requests
 const fetchWithAuth = async (url, options = {}) => {
+    console.log('fetchWithAuth called with url:', url);
     const token = localStorage.getItem('token');
     const headers = {
         'Content-Type': 'application/json',
@@ -115,10 +116,15 @@ const fetchWithAuth = async (url, options = {}) => {
         ...options.headers
     };
 
+    console.log('Request headers:', headers);
+
     const response = await fetch(`/api${url}`, {
         ...options,
         headers
     });
+
+    console.log('Response status:', response.status);
+    console.log('Response headers:', Object.fromEntries(response.headers.entries()));
 
     const contentType = response.headers.get('content-type');
 
@@ -135,11 +141,14 @@ const fetchWithAuth = async (url, options = {}) => {
             const text = await response.text();
             errorData = { error: `Non-JSON error response: ${text}` };
         }
+        console.error('API Error:', errorData);
         throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
     }
 
     if (contentType && contentType.includes('application/json')) {
-        return response.json();
+        const data = await response.json();
+        console.log('API response data:', data);
+        return data;
     } else {
         const text = await response.text();
         throw new Error(`Expected JSON but got: ${text}`);
@@ -148,7 +157,15 @@ const fetchWithAuth = async (url, options = {}) => {
 
 // Get all users with a specific role
 export const getUsersByRole = async (role) => {
-    return fetchWithAuth(`/admin/users?role=${role}`);
+    console.log('getUsersByRole called with role:', role);
+    try {
+        const result = await fetchWithAuth(`/admin/users/role/${role}`);
+        console.log('getUsersByRole result:', result);
+        return result;
+    } catch (error) {
+        console.error('getUsersByRole error:', error);
+        throw error;
+    }
 };
 
 // Get user by ID

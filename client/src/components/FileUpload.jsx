@@ -14,49 +14,40 @@ import {
     PictureAsPdf as PdfIcon,
     Image as ImageIcon
 } from '@mui/icons-material';
+import { uploadUserFile } from '../services/certificateService';
 
-const CertificateUpload = ({ onUpload, studentId, disabled = false }) => {
+const FileUpload = ({
+    onUpload,
+    userId,
+    folder = 'general',
+    title = 'Upload File',
+    description = 'Drag and drop a file here, or click to select',
+    disabled = false,
+    maxSize = 5 * 1024 * 1024, // 5MB
+    allowedTypes = ['application/pdf', 'image/jpeg', 'image/png']
+}) => {
     const [file, setFile] = useState(null);
     const [preview, setPreview] = useState(null);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const fileInputRef = useRef(null);
 
-    // Handle upload with loading state
-    const handleUpload = async () => {
-        if (!file) return;
-
-        setLoading(true);
-        setError('');
-
-        try {
-            await onUpload(file);
-            // Clear the form after successful upload
-            setFile(null);
-            setPreview(null);
-            if (fileInputRef.current) {
-                fileInputRef.current.value = '';
-            }
-        } catch (error) {
-            setError(error.message || 'Upload failed');
-        } finally {
-            setLoading(false);
-        }
-    };
-
     // File validation
     const validateFile = (selectedFile) => {
         // Check file type
-        const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png'];
         if (!allowedTypes.includes(selectedFile.type)) {
-            setError('Invalid file type. Please upload a PDF or image (JPEG, PNG) file.');
+            setError(`Invalid file type. Please upload a ${allowedTypes.map(type => {
+                if (type === 'application/pdf') return 'PDF';
+                if (type === 'image/jpeg') return 'JPEG';
+                if (type === 'image/png') return 'PNG';
+                return type;
+            }).join(', ')} file.`);
             return false;
         }
 
-        // Check file size (5MB)
-        const maxSize = 5 * 1024 * 1024; // 5MB in bytes
+        // Check file size
         if (selectedFile.size > maxSize) {
-            setError('File size too large. Maximum size is 5MB.');
+            setError(`File size too large. Maximum size is ${maxSize / (1024 * 1024)}MB.`);
             return false;
         }
 
@@ -123,6 +114,29 @@ const CertificateUpload = ({ onUpload, studentId, disabled = false }) => {
         handleFileSelect({ target: { files: dataTransfer.files } });
     };
 
+    // Handle upload
+    const handleUpload = async () => {
+        if (!file || !userId) return;
+
+        setLoading(true);
+        setError('');
+
+        try {
+            const result = await uploadUserFile(file, userId, folder);
+
+            if (onUpload) {
+                onUpload(result);
+            }
+
+            // Clear the form after successful upload
+            handleRemoveFile();
+        } catch (error) {
+            setError(error.message || 'Upload failed');
+        } finally {
+            setLoading(false);
+        }
+    };
+
     return (
         <Paper
             elevation={2}
@@ -134,7 +148,7 @@ const CertificateUpload = ({ onUpload, studentId, disabled = false }) => {
             }}
         >
             <Typography variant="h6" gutterBottom>
-                Upload Certificate
+                {title}
             </Typography>
 
             {/* Error Alert */}
@@ -167,7 +181,12 @@ const CertificateUpload = ({ onUpload, studentId, disabled = false }) => {
                     type="file"
                     ref={fileInputRef}
                     onChange={handleFileSelect}
-                    accept=".pdf,.jpg,.jpeg,.png"
+                    accept={allowedTypes.map(type => {
+                        if (type === 'application/pdf') return '.pdf';
+                        if (type === 'image/jpeg') return '.jpg,.jpeg';
+                        if (type === 'image/png') return '.png';
+                        return '';
+                    }).join(',')}
                     style={{ display: 'none' }}
                     disabled={disabled}
                 />
@@ -176,10 +195,15 @@ const CertificateUpload = ({ onUpload, studentId, disabled = false }) => {
                     <>
                         <UploadIcon sx={{ fontSize: 48, color: 'primary.main', mb: 1 }} />
                         <Typography variant="body1" gutterBottom>
-                            Drag and drop a certificate file here, or click to select
+                            {description}
                         </Typography>
                         <Typography variant="body2" color="text.secondary">
-                            Supported formats: PDF, JPEG, PNG (max 5MB)
+                            Supported formats: {allowedTypes.map(type => {
+                                if (type === 'application/pdf') return 'PDF';
+                                if (type === 'image/jpeg') return 'JPEG';
+                                if (type === 'image/png') return 'PNG';
+                                return type;
+                            }).join(', ')} (max {maxSize / (1024 * 1024)}MB)
                         </Typography>
                     </>
                 ) : (
@@ -195,7 +219,7 @@ const CertificateUpload = ({ onUpload, studentId, disabled = false }) => {
                             <Box sx={{ position: 'relative', display: 'inline-block' }}>
                                 <img
                                     src={preview}
-                                    alt="Certificate preview"
+                                    alt="File preview"
                                     style={{
                                         maxWidth: '100%',
                                         maxHeight: 200,
@@ -235,7 +259,7 @@ const CertificateUpload = ({ onUpload, studentId, disabled = false }) => {
                         disabled={loading || disabled}
                         startIcon={loading ? <CircularProgress size={20} /> : <UploadIcon />}
                     >
-                        {loading ? 'Uploading...' : 'Upload Certificate'}
+                        {loading ? 'Uploading...' : 'Upload File'}
                     </Button>
                 </Box>
             )}
@@ -243,4 +267,4 @@ const CertificateUpload = ({ onUpload, studentId, disabled = false }) => {
     );
 };
 
-export default CertificateUpload; 
+export default FileUpload; 

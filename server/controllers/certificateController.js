@@ -233,6 +233,49 @@ const uploadStudentCertificate = async (req, res) => {
 };
 
 /**
+ * Upload certificate metadata (after file uploaded to Supabase)
+ * @route POST /api/certificates/upload-metadata
+ * @access Private
+ */
+const uploadCertificateMetadata = async (req, res) => {
+    try {
+        const {
+            user_id,
+            class_id,
+            certificate_name,
+            certificate_url,
+            file_path,
+            file_type,
+            file_size,
+            supabase_path
+        } = req.body;
+
+        if (!user_id || !certificate_name || !certificate_url || !file_path) {
+            return res.status(400).json({ error: 'Missing required fields' });
+        }
+
+        const certificate = await Certificate.uploadCertificate({
+            user_id,
+            class_id,
+            certificate_name,
+            file_path: certificate_url, // Use the public URL as file_path
+            file_type,
+            file_size,
+            uploaded_by: req.user.id,
+            cloudinary_id: supabase_path // Store Supabase path in cloudinary_id field for now
+        });
+
+        res.json({
+            message: 'Certificate uploaded successfully',
+            certificate
+        });
+    } catch (error) {
+        console.error('Upload certificate metadata error:', error);
+        res.status(500).json({ error: 'Failed to upload certificate metadata' });
+    }
+};
+
+/**
  * View a student's certificate
  * @route GET /api/certificates/view/:studentId
  * @access Private
@@ -346,6 +389,7 @@ module.exports = {
     getUserCertificates,
     deleteCertificate,
     uploadStudentCertificate,
+    uploadCertificateMetadata,
     viewStudentCertificate,
     getAllCertificates,
     getCertificateById,

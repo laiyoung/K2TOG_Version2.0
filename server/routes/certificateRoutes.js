@@ -10,6 +10,7 @@ const {
     getUserCertificates,
     deleteCertificate,
     uploadStudentCertificate,
+    uploadCertificateMetadata,
     viewStudentCertificate,
     getAllCertificates
 } = require('../controllers/certificateController');
@@ -29,6 +30,10 @@ router.post('/upload/:studentId',
     upload.single('certificate'), // 'certificate' is the field name in the form
     uploadStudentCertificate
 );
+
+// New route for Supabase uploads
+router.post('/upload-metadata', requireAuth, uploadCertificateMetadata);
+
 router.get('/view/:studentId', requireAuth, viewStudentCertificate);
 
 // Public route for certificate verification
