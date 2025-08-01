@@ -334,6 +334,7 @@ async function getProfileWithDetails(userId) {
       profile.payment_methods = paymentMethodsResult.rows;
     } catch (err) {
       console.log('Payment methods table not available:', err.message);
+      profile.payment_methods = []; // Set empty array instead of undefined
     }
 
     // Try to get user's recent activity if the table exists

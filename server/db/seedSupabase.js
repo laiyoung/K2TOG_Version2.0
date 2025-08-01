@@ -96,17 +96,6 @@ const seedSupabase = async () => {
         last_name: 'Two',
         phone_number: '555-0127',
         email_notifications: true
-      },
-      {
-        name: 'Admin YJ',
-        email: 'admin@yjchildcare.com',
-        password: adminPassword,
-        role: 'admin',
-        status: 'active',
-        first_name: 'Admin',
-        last_name: 'YJ',
-        phone_number: '555-0128',
-        email_notifications: true
       }
     ];
 
@@ -133,7 +122,6 @@ const seedSupabase = async () => {
     const adminId = userMap.get('admin@example.com');
     const instructorOneId = userMap.get('instructor1@example.com');
     const instructorTwoId = userMap.get('instructor2@example.com');
-    const adminYjId = userMap.get('admin@yjchildcare.com');
 
     // Seed classes
     const classes = [

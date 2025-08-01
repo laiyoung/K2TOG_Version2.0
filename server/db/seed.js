@@ -2,6 +2,7 @@
 
 const pool = require('../config/db');
 const bcrypt = require('bcrypt');
+const { v4: uuidv4 } = require('uuid');
 
 const seed = async () => {
   try {
@@ -19,41 +20,25 @@ const seed = async () => {
     const userPassword = await bcrypt.hash('user123', 10);
     const adminPassword = await bcrypt.hash('admin123', 10);
     
-    await pool.query(`
-      INSERT INTO users (name, email, password, role, status, first_name, last_name, phone_number, email_notifications)
-      SELECT * FROM (
-        VALUES
-          ('Jane Doe', 'jane@example.com', $1, 'user', 'active', 'Jane', 'Doe', '555-0123', true),
-          ('John Smith', 'john@example.com', $1, 'user', 'active', 'John', 'Smith', '555-0124', true),
-          ('Admin User', 'admin@example.com', $2, 'admin', 'active', 'Admin', 'User', '555-0125', true),
-          ('Instructor One', 'instructor1@example.com', $1, 'instructor', 'active', 'Instructor', 'One', '555-0126', true),
-          ('Instructor Two', 'instructor2@example.com', $1, 'instructor', 'active', 'Instructor', 'Two', '555-0127', true)
-      ) AS new_users(name, email, password, role, status, first_name, last_name, phone_number, email_notifications)
-      WHERE NOT EXISTS (
-        SELECT 1 FROM users WHERE email = new_users.email
-      )
-    `, [userPassword, adminPassword]);
-
-    // Get instructor IDs
-    const { rows: instructorRows } = await pool.query(`
-      SELECT id, email FROM users WHERE role = 'instructor'
+    // Get existing user IDs from database
+    const { rows: existingUsers } = await pool.query(`
+      SELECT id, email, role FROM users 
+      WHERE email IN ('jane@example.com', 'john@example.com', 'admin@example.com', 'instructor1@example.com', 'instructor2@example.com')
     `);
-    const instructorOneId = instructorRows.find(u => u.email === 'instructor1@example.com')?.id;
-    const instructorTwoId = instructorRows.find(u => u.email === 'instructor2@example.com')?.id;
-
-    if (!instructorOneId || !instructorTwoId) {
-      console.error('Failed to find instructor IDs');
-      return;
+    
+    const janeId = existingUsers.find(u => u.email === 'jane@example.com')?.id;
+    const johnId = existingUsers.find(u => u.email === 'john@example.com')?.id;
+    const adminId = existingUsers.find(u => u.email === 'admin@example.com')?.id;
+    const instructorOneId = existingUsers.find(u => u.email === 'instructor1@example.com')?.id;
+    const instructorTwoId = existingUsers.find(u => u.email === 'instructor2@example.com')?.id;
+    
+    if (!janeId || !johnId || !adminId || !instructorOneId || !instructorTwoId) {
+      throw new Error('Some required users not found in database');
     }
+    
+    console.log('Using existing users from database');
 
-    // Get student user IDs
-    const { rows: studentRows } = await pool.query(`
-      SELECT id, email FROM users WHERE email IN ('jane@example.com', 'john@example.com')
-    `);
-    const janeId = studentRows.find(u => u.email === 'jane@example.com')?.id;
-    const johnId = studentRows.find(u => u.email === 'john@example.com')?.id;
-
-    // Seed classes (general info only)
+    // Seed classes
     const classes = [
       {
         title: 'Child Development Associate (CDA)',
@@ -65,7 +50,7 @@ const seed = async () => {
           frequency: 'weekly', 
           interval: 1, 
           days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
-          endDate: '2025-07-31' // 2 months from start date
+          endDate: '2025-10-31'
         },
         prerequisites: 'None required',
         materials_needed: 'Computer with internet access, webcam, and microphone',
@@ -81,7 +66,7 @@ const seed = async () => {
           frequency: 'weekly', 
           interval: 1, 
           days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
-          endDate: '2025-06-14' // 2 weeks from start date
+          endDate: '2025-09-14'
         },
         prerequisites: 'Basic childcare experience recommended',
         materials_needed: 'Notebook, laptop (optional)',
@@ -97,8 +82,7 @@ const seed = async () => {
         prerequisites: 'None required',
         materials_needed: 'Comfortable clothing for practical exercises',
         image_url: 'https://res.cloudinary.com/dufbdy0z0/image/upload/v1747786180/class-3_fealxp.jpg'
-      },
-
+      }
     ];
 
     // Insert classes
@@ -121,17 +105,18 @@ const seed = async () => {
       ]);
     }
 
+    console.log('Classes created successfully');
+
     // Get class IDs for seeding related data
     const { rows: classRows } = await pool.query('SELECT id, title FROM classes');
     const classMap = new Map(classRows.map(c => [c.title, c.id]));
 
-    // Use a Date object for reviewedAt (timestamptz) and a string for enrolledAt (timestamp)
-    const reviewedAtTz = new Date('2025-06-18T00:38:08.603Z').toISOString(); // for timestamptz
-    const enrolledAtTs = '2025-06-18 00:38:08'; // for timestamp
-    const recentEnrolledAtTs = '2025-07-05 12:00:00'; // for recent pending enrollments (timestamp)
-    const dueDateTz = new Date('2025-06-20T00:00:00.000Z').toISOString(); // for payments due_date (timestamptz)
-    const refundedAtTz = new Date('2025-06-25T00:00:00.000Z').toISOString(); // for payments refunded_at (timestamptz)
-    const paymentCreatedAtTs = '2025-06-18 00:38:08'; // for payments created_at (timestamp)
+    // Use realistic dates for current timeline (August 2025)
+    const reviewedAtTz = new Date('2025-07-15T00:38:08.603Z').toISOString(); // for timestamptz
+    const enrolledAtTs = '2025-07-15 00:38:08'; // for timestamp
+    const dueDateTz = new Date('2025-07-20T00:00:00.000Z').toISOString(); // for payments due_date (timestamptz)
+    const refundedAtTz = new Date('2025-07-25T00:00:00.000Z').toISOString(); // for payments refunded_at (timestamptz)
+    const paymentCreatedAtTs = '2025-07-15 00:38:08'; // for payments created_at (timestamp)
 
     // Seed class sessions with instructors
     await pool.query(`
@@ -156,12 +141,12 @@ const seed = async () => {
         ($1, '2025-06-09', '2025-06-13', '19:00', '22:00', 20, 15, 5, true, 10, $2, 'completed'),
         
         -- Current sessions (this week and next week)
-        ($1, '2025-07-07', '2025-07-11', '19:00', '22:00', 20, 12, 5, true, 10, $2, 'scheduled'),
-        ($1, '2025-07-14', '2025-07-18', '19:00', '22:00', 20, 8, 5, true, 10, $2, 'scheduled'),
+        ($1, '2025-08-05', '2025-08-09', '19:00', '22:00', 20, 12, 5, true, 10, $2, 'scheduled'),
+        ($1, '2025-08-12', '2025-08-16', '19:00', '22:00', 20, 8, 5, true, 10, $2, 'scheduled'),
         
         -- Future sessions (next month)
-        ($1, '2025-08-04', '2025-08-08', '19:00', '22:00', 20, 5, 5, true, 10, $2, 'scheduled'),
-        ($1, '2025-08-11', '2025-08-15', '19:00', '22:00', 20, 3, 5, true, 10, $2, 'scheduled'),
+        ($1, '2025-09-02', '2025-09-06', '19:00', '22:00', 20, 5, 5, true, 10, $2, 'scheduled'),
+        ($1, '2025-09-09', '2025-09-13', '19:00', '22:00', 20, 3, 5, true, 10, $2, 'scheduled'),
         
         -- Development and Operations sessions with Instructor Two (multi-day sessions)
         -- Past sessions (completed)
@@ -169,12 +154,12 @@ const seed = async () => {
         ($3, '2025-06-10', '2025-06-14', '19:00', '22:00', 15, 10, 5, true, 5, $4, 'completed'),
         
         -- Current sessions
-        ($3, '2025-07-08', '2025-07-12', '19:00', '22:00', 15, 8, 5, true, 5, $4, 'scheduled'),
-        ($3, '2025-07-15', '2025-07-19', '19:00', '22:00', 15, 6, 5, true, 5, $4, 'scheduled'),
+        ($3, '2025-08-06', '2025-08-10', '19:00', '22:00', 15, 8, 5, true, 5, $4, 'scheduled'),
+        ($3, '2025-08-13', '2025-08-17', '19:00', '22:00', 15, 6, 5, true, 5, $4, 'scheduled'),
         
         -- Future sessions
-        ($3, '2025-08-05', '2025-08-09', '19:00', '22:00', 15, 4, 5, true, 5, $4, 'scheduled'),
-        ($3, '2025-08-12', '2025-08-16', '19:00', '22:00', 15, 2, 5, true, 5, $4, 'scheduled'),
+        ($3, '2025-09-03', '2025-09-07', '19:00', '22:00', 15, 4, 5, true, 5, $4, 'scheduled'),
+        ($3, '2025-09-10', '2025-09-14', '19:00', '22:00', 15, 2, 5, true, 5, $4, 'scheduled'),
         
         -- CPR and First Aid Certification sessions with Instructor One (single-day sessions)
         -- Past sessions (completed)
@@ -182,12 +167,12 @@ const seed = async () => {
         ($5, '2025-06-14', NULL, '09:00', '14:00', 12, 8, 4, true, 8, $2, 'completed'),
         
         -- Current sessions
-        ($5, '2025-07-12', NULL, '09:00', '14:00', 12, 6, 4, true, 8, $2, 'scheduled'),
-        ($5, '2025-07-19', NULL, '09:00', '14:00', 12, 4, 4, true, 8, $2, 'scheduled'),
+        ($5, '2025-08-07', NULL, '09:00', '14:00', 12, 6, 4, true, 8, $2, 'scheduled'),
+        ($5, '2025-08-14', NULL, '09:00', '14:00', 12, 4, 4, true, 8, $2, 'scheduled'),
         
         -- Future sessions
-        ($5, '2025-08-09', NULL, '09:00', '14:00', 12, 3, 4, true, 8, $2, 'scheduled'),
-        ($5, '2025-08-16', NULL, '09:00', '14:00', 12, 1, 4, true, 8, $2, 'scheduled')
+        ($5, '2025-09-04', NULL, '09:00', '14:00', 12, 3, 4, true, 8, $2, 'scheduled'),
+        ($5, '2025-09-11', NULL, '09:00', '14:00', 12, 1, 4, true, 8, $2, 'scheduled')
       ON CONFLICT DO NOTHING;
     `, [
       classMap.get('Child Development Associate (CDA)'),
@@ -197,31 +182,7 @@ const seed = async () => {
       classMap.get('CPR and First Aid Certification')
     ]);
 
-    // Seed waitlist entries
-    await pool.query(`
-      INSERT INTO class_waitlist (class_id, user_id, position, status, created_at)
-      VALUES
-        -- Past session waitlist entries (completed)
-        ($1, 2, 1, 'approved', $4),
-        ($2, 1, 1, 'approved', $4),
-        ($3, 2, 1, 'approved', $4),
-        
-        -- Current session waitlist entries
-        ($1, 1, 1, 'pending', $4),
-        ($2, 2, 1, 'pending', $4),
-        ($3, 1, 1, 'rejected', $4),
-        
-        -- Future session waitlist entries
-        ($1, 2, 1, 'pending', $4),
-        ($3, 1, 1, 'pending', $4),
-        ($3, 2, 2, 'approved', $4)
-      ON CONFLICT (class_id, user_id) DO NOTHING;
-    `, [
-      classMap.get('Child Development Associate (CDA)'),
-      classMap.get('Development and Operations'),
-      classMap.get('CPR and First Aid Certification'),
-      reviewedAtTz
-    ]);
+    console.log('Sessions created successfully');
 
     // Get session IDs for enrollment seeding
     const { rows: enrollmentSessionRows } = await pool.query(`
@@ -252,44 +213,48 @@ const seed = async () => {
     const cdaFutureSession = sessionMap.get(`${classMap.get('Child Development Associate (CDA)')}-5`);
     const devOpsFutureSession = sessionMap.get(`${classMap.get('Development and Operations')}-5`);
     const cprFutureSession = sessionMap.get(`${classMap.get('CPR and First Aid Certification')}-5`);
-    
 
-
+    // Seed enrollments with UUID user IDs
     await pool.query(`
       INSERT INTO enrollments (user_id, class_id, session_id, payment_status, enrollment_status, admin_notes, reviewed_at, reviewed_by, enrolled_at)
       VALUES
         -- Past session enrollments (completed)
-        (${janeId}, $1, $4, 'paid', 'approved', 'Past session completed', $7, 3, $8),
-        (${janeId}, $2, $5, 'paid', 'approved', 'Past session completed', $7, 3, $8),
-        (${johnId}, $3, $6, 'paid', 'approved', 'Past session completed', $7, 3, $8),
+        ($1, $4, $7, 'paid', 'approved', 'Past session completed', $10, $3, $11),
+        ($1, $5, $8, 'paid', 'approved', 'Past session completed', $10, $3, $11),
+        ($2, $6, $9, 'paid', 'approved', 'Past session completed', $10, $3, $11),
         
         -- Current session enrollments
-        (${janeId}, $1, $9, 'paid', 'approved', 'Current session enrollment', $7, 3, $8),
-        (${johnId}, $2, $10, 'paid', 'approved', 'Current session enrollment', $7, 3, $8),
-        (${johnId}, $3, $11, 'paid', 'pending', NULL, NULL::timestamptz, NULL, $8),
-        (${janeId}, $3, $11, 'paid', 'rejected', 'Class capacity reached', $7, 3, $8),
+        ($1, $4, $12, 'paid', 'approved', 'Current session enrollment', $10, $3, $11),
+        ($2, $5, $13, 'paid', 'approved', 'Current session enrollment', $10, $3, $11),
+        ($2, $6, $14, 'paid', 'pending', NULL, NULL::timestamptz, NULL, $11),
+        ($1, $6, $14, 'paid', 'rejected', 'Class capacity reached', $10, $3, $11),
         
         -- Future session enrollments
-        (${janeId}, $1, $12, 'paid', 'approved', 'Future session enrollment', $7, 3, $8),
-        (${johnId}, $2, $13, 'paid', 'approved', 'Future session enrollment', $7, 3, $8),
-        (${johnId}, $3, $14, 'paid', 'pending', NULL, NULL::timestamptz, NULL, $8)
+        ($1, $4, $15, 'paid', 'approved', 'Future session enrollment', $10, $3, $11),
+        ($2, $5, $16, 'paid', 'approved', 'Future session enrollment', $10, $3, $11),
+        ($2, $6, $17, 'paid', 'pending', NULL, NULL::timestamptz, NULL, $11)
       ON CONFLICT DO NOTHING
     `, [
-      classMap.get('Child Development Associate (CDA)'),
-      classMap.get('Development and Operations'),
-      classMap.get('CPR and First Aid Certification'),
-      cdaPastSession,
-      devOpsPastSession,
-      cprPastSession,
-      reviewedAtTz,
-      enrolledAtTs,
-      cdaCurrentSession,
-      devOpsCurrentSession,
-      cprCurrentSession,
-      cdaFutureSession,
-      devOpsFutureSession,
-      cprFutureSession
+      janeId, // $1
+      johnId, // $2
+      adminId, // $3
+      classMap.get('Child Development Associate (CDA)'), // $4
+      classMap.get('Development and Operations'), // $5
+      classMap.get('CPR and First Aid Certification'), // $6
+      cdaPastSession, // $7
+      devOpsPastSession, // $8
+      cprPastSession, // $9
+      reviewedAtTz, // $10
+      enrolledAtTs, // $11
+      cdaCurrentSession, // $12
+      devOpsCurrentSession, // $13
+      cprCurrentSession, // $14
+      cdaFutureSession, // $15
+      devOpsFutureSession, // $16
+      cprFutureSession // $17
     ]);
+
+    console.log('Enrollments created successfully');
 
     // Then, update user roles for users with approved enrollments
     await pool.query(`
@@ -327,14 +292,17 @@ const seed = async () => {
         uploaded_by
       )
       VALUES
-        (1, $1, 'CDA Certificate', 'https://example.com/certs/cda.pdf', 'CDA-2025-001', 'approved', 3),
-        (1, $2, 'Development and Operations Certificate', 'https://example.com/certs/devops.pdf', 'DO-2025-001', 'approved', 3),
-        (2, $3, 'CPR and First Aid Certificate', 'https://example.com/certs/cpr.pdf', 'CPR-2025-001', 'pending', 3)
+        ($1, $4, 'CDA Certificate', 'https://example.com/certs/cda.pdf', 'CDA-2025-001', 'approved', $3),
+        ($1, $5, 'Development and Operations Certificate', 'https://example.com/certs/devops.pdf', 'DO-2025-001', 'approved', $3),
+        ($2, $6, 'CPR and First Aid Certificate', 'https://example.com/certs/cpr.pdf', 'CPR-2025-001', 'pending', $3)
       ON CONFLICT (verification_code) DO NOTHING;
     `, [
-      classMap.get('Child Development Associate (CDA)'),
-      classMap.get('Development and Operations'),
-      classMap.get('CPR and First Aid Certification')
+      janeId, // $1
+      johnId, // $2
+      adminId, // $3
+      classMap.get('Child Development Associate (CDA)'), // $4
+      classMap.get('Development and Operations'), // $5
+      classMap.get('CPR and First Aid Certification') // $6
     ]);
 
     // Seed payments
@@ -357,23 +325,54 @@ const seed = async () => {
         created_at
       )
       VALUES
-        (1, $1, 'stripe_payment_1', 299.99, 'USD', 'completed', $4, 'credit_card', '4242', NULL, NULL, NULL, NULL, NULL, $7),
-        (1, $2, 'stripe_payment_2', 349.99, 'USD', 'completed', $5, 'credit_card', '4242', 'processed', 349.99, 'Student requested refund', $6, 3, $7),
-        (2, $3, 'stripe_payment_3', 149.99, 'USD', 'completed', $8, 'credit_card', '5555', NULL, NULL, NULL, NULL, NULL, $7),
-        (2, $1, 'stripe_payment_4', 299.99, 'USD', 'pending', $9, 'credit_card', '5555', NULL, NULL, NULL, NULL, NULL, $7),
-        (1, $3, 'stripe_payment_5', 149.99, 'USD', 'completed', $10, 'credit_card', '4242', 'processed', 74.99, 'Partial refund due to cancellation', $6, 3, $7)
+        ($1, $4, 'stripe_payment_1', 299.99, 'USD', 'completed', $7, 'credit_card', '4242', NULL, NULL, NULL, NULL, NULL, $10),
+        ($1, $5, 'stripe_payment_2', 349.99, 'USD', 'completed', $8, 'credit_card', '4242', 'processed', 349.99, 'Student requested refund', $9, $3, $10),
+        ($2, $6, 'stripe_payment_3', 149.99, 'USD', 'completed', $11, 'credit_card', '5555', NULL, NULL, NULL, NULL, NULL, $10),
+        ($2, $4, 'stripe_payment_4', 299.99, 'USD', 'pending', $12, 'credit_card', '5555', NULL, NULL, NULL, NULL, NULL, $10),
+        ($1, $6, 'stripe_payment_5', 149.99, 'USD', 'completed', $13, 'credit_card', '4242', 'processed', 74.99, 'Partial refund due to cancellation', $9, $3, $10)
       ON CONFLICT (stripe_payment_id) DO NOTHING;
     `, [
+      janeId, // $1
+      johnId, // $2
+      adminId, // $3
+      classMap.get('Child Development Associate (CDA)'), // $4
+      classMap.get('Development and Operations'), // $5
+      classMap.get('CPR and First Aid Certification'), // $6
+      dueDateTz, // $7
+      dueDateTz, // $8
+      refundedAtTz, // $9
+      paymentCreatedAtTs, // $10
+      dueDateTz, // $11
+      dueDateTz, // $12
+      dueDateTz // $13
+    ]);
+
+    // Seed waitlist entries
+    await pool.query(`
+      INSERT INTO class_waitlist (class_id, user_id, position, status, created_at)
+      VALUES
+        -- Past session waitlist entries (completed)
+        ($1, $2::uuid, 1, 'approved', $5),
+        ($3, $6::uuid, 1, 'approved', $5),
+        ($4, $2::uuid, 1, 'approved', $5),
+        
+        -- Current session waitlist entries
+        ($1, $6::uuid, 1, 'pending', $5),
+        ($3, $2::uuid, 1, 'pending', $5),
+        ($4, $6::uuid, 1, 'rejected', $5),
+        
+        -- Future session waitlist entries
+        ($1, $2::uuid, 1, 'pending', $5),
+        ($4, $6::uuid, 1, 'pending', $5),
+        ($4, $2::uuid, 2, 'approved', $5)
+      ON CONFLICT (class_id, user_id) DO NOTHING;
+    `, [
       classMap.get('Child Development Associate (CDA)'), // $1
-      classMap.get('Development and Operations'),        // $2
-      classMap.get('CPR and First Aid Certification'),   // $3
-      dueDateTz,                                         // $4 - for row 1
-      dueDateTz,                                         // $5 - for row 2
-      refundedAtTz,                                      // $6
-      paymentCreatedAtTs,                                // $7
-      dueDateTz,                                         // $8 - for row 3
-      dueDateTz,                                         // $9 - for row 4
-      dueDateTz                                          // $10 - for row 5
+      johnId, // $2
+      classMap.get('Development and Operations'), // $3
+      classMap.get('CPR and First Aid Certification'), // $4
+      reviewedAtTz, // $5
+      janeId // $6
     ]);
 
     // Seed notification templates
@@ -411,35 +410,35 @@ const seed = async () => {
       ON CONFLICT (name) DO NOTHING;
     `);
 
-    // Seed notifications
+    // Seed notifications (without sender_id to avoid type conflicts)
     await pool.query(`
-      INSERT INTO user_notifications (user_id, type, title, message, is_read, action_url, sender_id, metadata)
+      INSERT INTO user_notifications (user_id, type, title, message, is_read, action_url, metadata)
       VALUES
         -- Past session notifications
-        (1, 'certificate_ready', 'Certificate Available: CDA', 'Your CDA certificate from June session is ready to download', false, '/certificates/1', NULL, '{"category": "certificate", "priority": "medium"}'::jsonb),
-        (1, 'certificate_ready', 'Certificate Available: DevOps', 'Your Development and Operations certificate is ready to download', false, '/certificates/2', NULL, '{"category": "certificate", "priority": "medium"}'::jsonb),
-        (2, 'certificate_ready', 'Certificate Available: CPR', 'Your CPR and First Aid certificate is ready to download', false, '/certificates/3', NULL, '{"category": "certificate", "priority": "medium"}'::jsonb),
+        ($1::uuid, 'certificate_ready', 'Certificate Available: CDA', 'Your CDA certificate from June session is ready to download', false, '/certificates/1', '{"category": "certificate", "priority": "medium"}'::jsonb),
+        ($1::uuid, 'certificate_ready', 'Certificate Available: DevOps', 'Your Development and Operations certificate is ready to download', false, '/certificates/2', '{"category": "certificate", "priority": "medium"}'::jsonb),
+        ($2::uuid, 'certificate_ready', 'Certificate Available: CPR', 'Your CPR and First Aid certificate is ready to download', false, '/certificates/3', '{"category": "certificate", "priority": "medium"}'::jsonb),
         
         -- Current session notifications
-        (1, 'class_reminder', 'Upcoming Class: CDA', 'Your CDA class starts in 1 hour', false, '/classes/1', NULL, '{"category": "class", "priority": "high"}'::jsonb),
-        (2, 'payment_due', 'Payment Due', 'Payment for CPR class is due tomorrow', false, '/payments/3', 3, '{"category": "payment", "priority": "high"}'::jsonb),
+        ($1::uuid, 'class_reminder', 'Upcoming Class: CDA', 'Your CDA class starts in 1 hour', false, '/classes/1', '{"category": "class", "priority": "high"}'::jsonb),
+        ($2::uuid, 'payment_due', 'Payment Due', 'Payment for CPR class is due tomorrow', false, '/payments/3', '{"category": "payment", "priority": "high"}'::jsonb),
         
         -- Future session notifications
-        (1, 'class_reminder', 'Upcoming Class: CDA (Aug)', 'Your CDA class starts in 3 weeks', false, '/classes/1', NULL, '{"category": "class", "priority": "medium"}'::jsonb),
-        (2, 'enrollment_approved', 'Enrollment Approved: DevOps', 'Your enrollment in Development and Operations has been approved', false, '/classes/2', 3, '{"category": "enrollment", "priority": "medium"}'::jsonb),
-        (2, 'class_reminder', 'Upcoming Class: CPR (Aug)', 'Your CPR class starts in 4 weeks', false, '/classes/3', NULL, '{"category": "class", "priority": "medium"}'::jsonb)
+        ($1::uuid, 'class_reminder', 'Upcoming Class: CDA (Aug)', 'Your CDA class starts in 3 weeks', false, '/classes/1', '{"category": "class", "priority": "medium"}'::jsonb),
+        ($2::uuid, 'enrollment_approved', 'Enrollment Approved: DevOps', 'Your enrollment in Development and Operations has been approved', false, '/classes/2', '{"category": "enrollment", "priority": "medium"}'::jsonb),
+        ($2::uuid, 'class_reminder', 'Upcoming Class: CPR (Aug)', 'Your CPR class starts in 4 weeks', false, '/classes/3', '{"category": "class", "priority": "medium"}'::jsonb)
       ON CONFLICT DO NOTHING;
-    `);
+    `, [janeId, johnId]);
 
     // Seed activity logs
     await pool.query(`
       INSERT INTO user_activity_log (user_id, action, details, created_at)
       VALUES
-        (1, 'profile_update', '{"updated_fields": ["first_name", "last_name"]}'::jsonb, $1),
-        (1, 'enrollment', '{"class_id": 1, "class_name": "CDA"}'::jsonb, $1),
-        (2, 'payment', '{"amount": 149.99, "class_name": "CPR"}'::jsonb, $1)
+        ($1::uuid, 'profile_update', '{"updated_fields": ["first_name", "last_name"]}'::jsonb, $3),
+        ($1::uuid, 'enrollment', '{"class_id": 1, "class_name": "CDA"}'::jsonb, $3),
+        ($2::uuid, 'payment', '{"amount": 149.99, "class_name": "CPR"}'::jsonb, $3)
       ON CONFLICT DO NOTHING;
-    `, [reviewedAtTz]);
+    `, [janeId, johnId, reviewedAtTz]);
 
     // --- Seed historical sessions ---
     const { rows: sessionRows } = await pool.query('SELECT id, class_id, session_date, end_date, start_time, end_time, capacity, enrolled_count, instructor_id, status FROM class_sessions ORDER BY session_date ASC');
@@ -492,7 +491,7 @@ const seed = async () => {
         janeEnrollments[i].status,
         janeEnrollments[i].reason,
         reviewedAtTz,
-        3, // reviewed_by (admin)
+        adminId, // reviewed_by (admin)
         enrolledAtTs,
         '2025-07-01T12:00:00.000Z', // archived_at
         janeEnrollments[i].reason
@@ -530,7 +529,7 @@ const seed = async () => {
         johnEnrollments[i].status,
         johnEnrollments[i].reason,
         reviewedAtTz,
-        3, // reviewed_by (admin)
+        adminId, // reviewed_by (admin)
         enrolledAtTs,
         '2025-07-01T12:00:00.000Z', // archived_at
         johnEnrollments[i].reason
@@ -538,6 +537,16 @@ const seed = async () => {
     }
 
     console.log('Database seeded successfully!');
+    console.log('\nTest Accounts:');
+    console.log('Regular Users:');
+    console.log('  jane@example.com / user123');
+    console.log('  john@example.com / user123');
+    console.log('Admins:');
+    console.log('  admin@example.com / admin123');
+    console.log('Instructors:');
+    console.log('  instructor1@example.com / user123');
+    console.log('  instructor2@example.com / user123');
+
   } catch (err) {
     console.error('Error seeding database:', err);
     throw err;

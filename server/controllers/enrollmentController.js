@@ -175,7 +175,12 @@ const getAllEnrollmentsAdmin = async (req, res) => {
       limit: req.query.limit ? parseInt(req.query.limit, 10) : 20
     };
 
+    console.log('Admin enrollment request received with filters:', filters);
+    console.log('User making request:', req.user);
+
     const { enrollments, total } = await getAllEnrollments(filters);
+    console.log('Enrollments found:', enrollments.length, 'Total:', total);
+    
     res.json({ enrollments, total });
   } catch (err) {
     console.error("Admin fetch error:", err);

@@ -343,7 +343,7 @@ const getUserEnrollments = async (userId) => {
 // Check if a user is already enrolled in a specific class
 const isUserAlreadyEnrolled = async (userId, classId) => {
   const result = await pool.query(
-    `SELECT * FROM enrollments WHERE user_id = $1 AND class_id = $2`,
+    `SELECT * FROM enrollments WHERE user_id = $1 AND class_id = $2 AND enrollment_status IN ('approved', 'pending')`,
     [userId, classId]
   );
   return result.rows.length > 0;
@@ -352,6 +352,8 @@ const isUserAlreadyEnrolled = async (userId, classId) => {
 // Get all enrollments (admin view)
 const getAllEnrollments = async (filters = {}) => {
   const { status, class_id, user_id, start_date, end_date, page = 1, limit = 20 } = filters;
+  
+  console.log('getAllEnrollments called with filters:', filters);
   
   let query = `
     SELECT 
