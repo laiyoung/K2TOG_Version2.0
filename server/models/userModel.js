@@ -292,36 +292,11 @@ async function getProfileWithDetails(userId) {
 
     // Try to get user's enrollments if the table exists
     try {
-      const enrollmentsResult = await pool.query(`
-        SELECT e.id as enrollment_id,
-               e.enrollment_status,
-               e.payment_status,
-               e.enrolled_at,
-               c.title as class_name,
-               c.description as class_description,
-               c.location_details as location,
-               cs.capacity,
-               cs.session_date as start_date,
-               cs.end_date as end_date,
-               cs.start_time,
-               cs.end_time,
-               CASE 
-                 WHEN cs.end_date IS NULL OR cs.session_date = cs.end_date THEN
-                   TO_CHAR(cs.session_date, 'MM/DD/YY')
-                 ELSE
-                   TO_CHAR(cs.session_date, 'MM/DD/YY') || ' - ' || TO_CHAR(cs.end_date, 'MM/DD/YY')
-               END AS display_date,
-               u.name as instructor_name
-        FROM enrollments e
-        JOIN classes c ON c.id = e.class_id
-        LEFT JOIN class_sessions cs ON cs.id = e.session_id
-        LEFT JOIN users u ON u.id = cs.instructor_id
-        WHERE e.user_id = $1
-        ORDER BY e.enrolled_at DESC
-      `, [userId]);
-      profile.enrollments = enrollmentsResult.rows;
+      const { getUserEnrollments } = require('./enrollmentModel');
+      profile.enrollments = await getUserEnrollments(userId);
     } catch (err) {
       console.log('Enrollments table not available:', err.message);
+      profile.enrollments = [];
     }
 
     // Try to get user's payment methods if the table exists

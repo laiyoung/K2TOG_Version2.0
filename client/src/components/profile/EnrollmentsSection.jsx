@@ -41,6 +41,8 @@ const EnrollmentsSection = ({ enrollments, historicalEnrollments }) => {
                 return 'success';
             case 'pending':
                 return 'warning';
+            case 'rejected':
+                return 'error';
             case 'declined':
                 return 'error';
             default:
@@ -54,6 +56,8 @@ const EnrollmentsSection = ({ enrollments, historicalEnrollments }) => {
                 return <AcceptedIcon />;
             case 'pending':
                 return <PendingIcon />;
+            case 'rejected':
+                return <DeclinedIcon />;
             case 'declined':
                 return <DeclinedIcon />;
             default:

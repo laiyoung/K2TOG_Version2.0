@@ -459,30 +459,76 @@ const deleteClass = async (id) => {
 
 // Get class participants with enrollment details
 const getClassParticipants = async (classId) => {
-  const result = await pool.query(
-    `SELECT 
-      e.id as enrollment_id,
-      e.enrollment_status,
-      e.payment_status,
-      e.enrolled_at,
-      e.admin_notes,
-      e.reviewed_at,
-      u.id as user_id,
-      u.name,
-      u.email,
-      u.phone_number,
-      cs.session_date,
-      cs.start_time,
-      cs.end_time,
-      cs.status as session_status
-    FROM enrollments e
-    JOIN users u ON u.id = e.user_id
-    LEFT JOIN class_sessions cs ON cs.id = e.session_id
-    WHERE e.class_id = $1
-    ORDER BY e.enrolled_at DESC`,
-    [classId]
-  );
-  return result.rows;
+  const client = await pool.connect();
+  try {
+    // Get active enrollments
+    const activeResult = await client.query(
+      `SELECT 
+        e.id as enrollment_id,
+        e.enrollment_status,
+        e.payment_status,
+        e.enrolled_at,
+        e.admin_notes,
+        e.reviewed_at,
+        u.id as user_id,
+        u.name,
+        u.email,
+        u.phone_number,
+        cs.session_date,
+        cs.start_time,
+        cs.end_time,
+        cs.status as session_status,
+        'active' as enrollment_type,
+        NULL as archived_at,
+        NULL as archived_reason
+      FROM enrollments e
+      JOIN users u ON u.id = e.user_id
+      LEFT JOIN class_sessions cs ON cs.id = e.session_id AND cs.deleted_at IS NULL
+      WHERE e.class_id = $1
+      ORDER BY e.enrolled_at DESC`,
+      [classId]
+    );
+
+    // Get historical enrollments
+    const historicalResult = await client.query(
+      `SELECT 
+        he.id as enrollment_id,
+        he.enrollment_status,
+        he.payment_status,
+        he.enrolled_at,
+        he.admin_notes,
+        he.reviewed_at,
+        u.id as user_id,
+        u.name,
+        u.email,
+        u.phone_number,
+        hs.session_date,
+        hs.start_time,
+        hs.end_time,
+        hs.status as session_status,
+        'historical' as enrollment_type,
+        he.archived_at,
+        he.archived_reason
+      FROM historical_enrollments he
+      JOIN users u ON u.id = he.user_id
+      JOIN historical_sessions hs ON hs.id = he.historical_session_id
+      WHERE he.class_id = $1
+      ORDER BY he.archived_at DESC`,
+      [classId]
+    );
+
+    // Combine and sort all enrollments
+    const allEnrollments = [...activeResult.rows, ...historicalResult.rows];
+    allEnrollments.sort((a, b) => {
+      const dateA = a.enrolled_at ? new Date(a.enrolled_at) : new Date(0);
+      const dateB = b.enrolled_at ? new Date(b.enrolled_at) : new Date(0);
+      return dateB - dateA; // Sort by most recent first
+    });
+
+    return allEnrollments;
+  } finally {
+    client.release();
+  }
 };
 
 // Create a new class with sessions
@@ -762,7 +808,7 @@ const getAllEnrollmentsForClass = async (classId) => {
       [classId]
     );
 
-    // Get historical enrollments
+    // Get historical enrollments - deduplicated by original session
     const historicalResult = await client.query(
       `SELECT 
         he.id as enrollment_id,
@@ -782,10 +828,25 @@ const getAllEnrollmentsForClass = async (classId) => {
         'historical' as data_type,
         he.archived_at,
         he.archived_reason
-      FROM historical_enrollments he
+      FROM (
+        SELECT DISTINCT ON (he.user_id, hs.original_session_id) 
+          he.id,
+          he.user_id,
+          he.enrollment_status,
+          he.payment_status,
+          he.enrolled_at,
+          he.admin_notes,
+          he.reviewed_at,
+          he.historical_session_id,
+          he.archived_at,
+          he.archived_reason
+        FROM historical_enrollments he
+        JOIN historical_sessions hs ON hs.id = he.historical_session_id
+        WHERE he.class_id = $1
+                 ORDER BY he.user_id, hs.original_session_id, COALESCE(he.archived_at, '1900-01-01'::timestamp) DESC
+      ) he
       JOIN users u ON u.id = he.user_id
       JOIN historical_sessions hs ON hs.id = he.historical_session_id
-      WHERE he.class_id = $1
       ORDER BY he.archived_at DESC`,
       [classId]
     );

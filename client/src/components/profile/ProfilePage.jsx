@@ -134,26 +134,18 @@ const ProfilePage = () => {
         );
     }
 
-    // Only filter enrollments after profile is loaded and valid
+    // Filter enrollments after profile is loaded and valid
     let currentEnrollments = [];
     let pastEnrollments = [];
     if (profile && Array.isArray(profile.enrollments)) {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        currentEnrollments = profile.enrollments.filter((enrollment) => {
-            if (enrollment.enrollment_type) {
-                return enrollment.enrollment_type === 'active';
-            }
-            const end = enrollment.end_date ? new Date(enrollment.end_date) : (enrollment.session_date ? new Date(enrollment.session_date) : null);
-            return !end || end >= today;
-        });
-        pastEnrollments = profile.enrollments.filter((enrollment) => {
-            if (enrollment.enrollment_type) {
-                return enrollment.enrollment_type === 'historical';
-            }
-            const end = enrollment.end_date ? new Date(enrollment.end_date) : (enrollment.session_date ? new Date(enrollment.session_date) : null);
-            return end && end < today;
-        });
+        // The updated getUserEnrollments function now returns both active and historical enrollments
+        // with an enrollment_type field to distinguish them
+        currentEnrollments = profile.enrollments.filter((enrollment) =>
+            enrollment.enrollment_type === 'active'
+        );
+        pastEnrollments = profile.enrollments.filter((enrollment) =>
+            enrollment.enrollment_type === 'historical'
+        );
     }
 
     console.log('Rendering profile page with data:', profile); // Debug log

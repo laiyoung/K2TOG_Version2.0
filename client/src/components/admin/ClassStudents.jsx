@@ -120,11 +120,30 @@ const ClassStudents = ({ classId, className }) => {
                                     weekday: 'short', year: 'numeric', month: 'short', day: 'numeric'
                                 })}
                                 {` - ${formatTime(session.start_time)} to ${formatTime(session.end_time)}`}
+                                {session.session_type === 'historical' && (
+                                    <Chip
+                                        label="Removed"
+                                        color="error"
+                                        size="small"
+                                        sx={{ ml: 1 }}
+                                    />
+                                )}
                             </Typography>
-                            <Chip label={session.status || 'Scheduled'} color={session.status === 'completed' ? 'success' : session.status === 'cancelled' ? 'error' : 'primary'} size="small" />
+                            <Chip
+                                label={session.status || 'Scheduled'}
+                                color={session.status === 'completed' ? 'success' : session.status === 'cancelled' ? 'error' : 'primary'}
+                                size="small"
+                            />
                         </Box>
                     </AccordionSummary>
                     <AccordionDetails>
+                        {session.session_type === 'historical' && (
+                            <Box sx={{ mb: 2, p: 2, bgcolor: 'grey.100', borderRadius: 1 }}>
+                                <Typography variant="body2" color="text.secondary">
+                                    This session was removed. Students shown below were enrolled when the session was active.
+                                </Typography>
+                            </Box>
+                        )}
                         <Box sx={{ mb: 2 }}>
                             <FormControl size="small" sx={{ minWidth: 200 }}>
                                 <InputLabel>Session Status</InputLabel>
@@ -132,6 +151,7 @@ const ClassStudents = ({ classId, className }) => {
                                     value={session.status}
                                     onChange={(e) => handleSessionStatusChange(session.session_id, e.target.value)}
                                     label="Session Status"
+                                    disabled={session.session_type === 'historical'}
                                 >
                                     <MenuItem value="scheduled">Scheduled</MenuItem>
                                     <MenuItem value="cancelled">Cancelled</MenuItem>
@@ -148,6 +168,9 @@ const ClassStudents = ({ classId, className }) => {
                                         <TableCell>Email</TableCell>
                                         <TableCell>Enrollment Status</TableCell>
                                         <TableCell>Payment Status</TableCell>
+                                        {session.session_type === 'historical' && (
+                                            <TableCell>Archived Info</TableCell>
+                                        )}
                                     </TableRow>
                                 </TableHead>
                                 <TableBody>
@@ -185,11 +208,23 @@ const ClassStudents = ({ classId, className }) => {
                                                             size="small"
                                                         />
                                                     </TableCell>
+                                                    {session.session_type === 'historical' && (
+                                                        <TableCell>
+                                                            <Typography variant="caption" color="text.secondary">
+                                                                {student.archived_at ? new Date(student.archived_at).toLocaleDateString() : 'N/A'}
+                                                            </Typography>
+                                                            {student.archived_reason && (
+                                                                <Typography variant="caption" display="block" color="text.secondary">
+                                                                    {student.archived_reason}
+                                                                </Typography>
+                                                            )}
+                                                        </TableCell>
+                                                    )}
                                                 </TableRow>
                                             ))
                                         ) : (
                                             <TableRow key="no-students">
-                                                <TableCell colSpan={4} align="center">
+                                                <TableCell colSpan={session.session_type === 'historical' ? 5 : 4} align="center">
                                                     No students enrolled in this session
                                                 </TableCell>
                                             </TableRow>

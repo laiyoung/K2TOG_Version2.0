@@ -1,8 +1,6 @@
 // server/db/seed.js
 
 const pool = require('../config/db');
-const bcrypt = require('bcrypt');
-const { v4: uuidv4 } = require('uuid');
 
 const seed = async () => {
   try {
@@ -16,9 +14,7 @@ const seed = async () => {
     await pool.query('DELETE FROM payments');
     await pool.query('DELETE FROM classes');
 
-    // Create test users only if they don't exist
-    const userPassword = await bcrypt.hash('user123', 10);
-    const adminPassword = await bcrypt.hash('admin123', 10);
+    // Get existing user IDs from database
     
     // Get existing user IDs from database
     const { rows: existingUsers } = await pool.query(`

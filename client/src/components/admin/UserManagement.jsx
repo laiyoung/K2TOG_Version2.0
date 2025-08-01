@@ -1127,7 +1127,7 @@ const UserManagement = () => {
                                                                         />
                                                                     </TableCell>
                                                                     <TableCell>
-                                                                        {new Date(enrollment.archived_at).toLocaleDateString()}
+                                                                        {enrollment.archived_at ? new Date(enrollment.archived_at).toLocaleDateString() : 'N/A'}
                                                                     </TableCell>
                                                                     <TableCell>
                                                                         <Tooltip title={enrollment.archived_reason}>
@@ -1328,7 +1328,7 @@ const UserManagement = () => {
                                                 />
                                             </TableCell>
                                             <TableCell>
-                                                {new Date(enrollment.archived_at).toLocaleDateString()}
+                                                {enrollment.archived_at ? new Date(enrollment.archived_at).toLocaleDateString() : 'N/A'}
                                             </TableCell>
                                             <TableCell>
                                                 <Tooltip title={enrollment.archived_reason}>

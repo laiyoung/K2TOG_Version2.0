@@ -290,51 +290,149 @@ const cancelEnrollment = async (userId, classId) => {
   }
 };
 
-// Get all enrollments for a specific user
+// Get all enrollments for a specific user (active and historical)
 const getUserEnrollments = async (userId) => {
+  const client = await pool.connect();
+  try {
+    // Get active enrollments
+    const activeResult = await client.query(
+      `SELECT 
+        classes.id as class_id,
+        classes.title as class_title,
+        class_sessions.id as session_id,
+        TO_CHAR(class_sessions.session_date, 'MM/DD/YY') as formatted_date,
+        class_sessions.session_date,
+        class_sessions.start_time,
+        class_sessions.end_time,
+        class_sessions.end_date,
+        CASE 
+          WHEN (class_sessions.end_date IS NOT NULL AND class_sessions.end_date < NOW())
+            OR (class_sessions.end_date IS NULL AND class_sessions.session_date < NOW())
+          THEN 'historical'
+          ELSE 'active'
+        END AS enrollment_type,
+        enrollments.payment_status, 
+        enrollments.enrollment_status,
+        enrollments.enrolled_at,
+        enrollments.admin_notes,
+        enrollments.reviewed_at,
+        users.name as reviewer_name,
+        CASE 
+          WHEN class_sessions.end_date IS NULL OR class_sessions.session_date = class_sessions.end_date THEN
+            TO_CHAR(class_sessions.session_date, 'MM/DD/YY')
+          ELSE
+            TO_CHAR(class_sessions.session_date, 'MM/DD/YY') || ' - ' || TO_CHAR(class_sessions.end_date, 'MM/DD/YY')
+        END AS display_date,
+        NULL as archived_at,
+        NULL as archived_reason
+       FROM enrollments
+       JOIN classes ON classes.id = enrollments.class_id
+       LEFT JOIN class_sessions ON class_sessions.id = enrollments.session_id AND class_sessions.deleted_at IS NULL
+       LEFT JOIN users ON users.id = enrollments.reviewed_by
+       WHERE enrollments.user_id = $1
+       ORDER BY class_sessions.session_date ASC, class_sessions.start_time ASC`,
+      [userId]
+    );
+
+    // Get historical enrollments (from deleted sessions) - deduplicated by original session
+    const historicalResult = await client.query(
+      `SELECT 
+        he.class_id,
+        c.title as class_title,
+        he.session_id,
+        TO_CHAR(hs.session_date, 'MM/DD/YY') as formatted_date,
+        hs.session_date,
+        hs.start_time,
+        hs.end_time,
+        hs.end_date,
+        'historical' as enrollment_type,
+        he.payment_status, 
+        he.enrollment_status,
+        he.enrolled_at,
+        he.admin_notes,
+        he.reviewed_at,
+        u.name as reviewer_name,
+        CASE 
+          WHEN hs.end_date IS NULL OR hs.session_date = hs.end_date THEN
+            TO_CHAR(hs.session_date, 'MM/DD/YY')
+          ELSE
+            TO_CHAR(hs.session_date, 'MM/DD/YY') || ' - ' || TO_CHAR(hs.end_date, 'MM/DD/YY')
+        END AS display_date,
+        he.archived_at,
+        he.archived_reason
+       FROM (
+         SELECT DISTINCT ON (he.user_id, hs.original_session_id) 
+           he.id,
+           he.class_id,
+           he.session_id,
+           he.historical_session_id,
+           he.payment_status, 
+           he.enrollment_status,
+           he.enrolled_at,
+           he.admin_notes,
+           he.reviewed_at,
+           he.reviewed_by,
+           he.archived_at,
+           he.archived_reason
+         FROM historical_enrollments he
+         JOIN historical_sessions hs ON hs.id = he.historical_session_id
+         WHERE he.user_id = $1
+         ORDER BY he.user_id, hs.original_session_id, COALESCE(he.archived_at, '1900-01-01'::timestamp) DESC
+       ) he
+       JOIN classes c ON c.id = he.class_id
+       JOIN historical_sessions hs ON hs.id = he.historical_session_id
+       LEFT JOIN users u ON u.id = he.reviewed_by
+       ORDER BY hs.session_date ASC, hs.start_time ASC`,
+      [userId]
+    );
+
+    // Combine and sort all enrollments
+    const allEnrollments = [...activeResult.rows, ...historicalResult.rows];
+    allEnrollments.sort((a, b) => {
+      const dateA = a.session_date ? new Date(a.session_date) : new Date(0);
+      const dateB = b.session_date ? new Date(b.session_date) : new Date(0);
+      return dateA - dateB;
+    });
+
+    return allEnrollments;
+  } finally {
+    client.release();
+  }
+};
+
+// Get historical enrollments for a specific user
+const getHistoricalEnrollmentsByUserId = async (userId) => {
   const result = await pool.query(
     `SELECT 
-      classes.id as class_id,
-      classes.title as class_title,
-      class_sessions.id as session_id,
-      TO_CHAR(class_sessions.session_date, 'MM/DD/YY') as formatted_date,
-      class_sessions.session_date,
-      class_sessions.start_time,
-      class_sessions.end_time,
-      class_sessions.end_date,
+      he.class_id,
+      c.title as class_title,
+      he.session_id,
+      TO_CHAR(hs.session_date, 'MM/DD/YY') as formatted_date,
+      hs.session_date,
+      hs.start_time,
+      hs.end_time,
+      hs.end_date,
+      'historical' as enrollment_type,
+      he.payment_status, 
+      he.enrollment_status,
+      he.enrolled_at,
+      he.admin_notes,
+      he.reviewed_at,
+      u.name as reviewer_name,
       CASE 
-        WHEN (class_sessions.end_date IS NOT NULL AND class_sessions.end_date < NOW())
-          OR (class_sessions.end_date IS NULL AND class_sessions.session_date < NOW())
-        THEN 'historical'
-        ELSE 'active'
-      END AS enrollment_type,
-      enrollments.payment_status, 
-      enrollments.enrollment_status,
-      enrollments.enrolled_at,
-      enrollments.admin_notes,
-      enrollments.reviewed_at,
-      users.name as reviewer_name,
-      CASE 
-        WHEN class_sessions.end_date IS NULL OR class_sessions.session_date = class_sessions.end_date THEN
-          TO_CHAR(class_sessions.session_date, 'MM/DD/YY')
+        WHEN hs.end_date IS NULL OR hs.session_date = hs.end_date THEN
+          TO_CHAR(hs.session_date, 'MM/DD/YY')
         ELSE
-          TO_CHAR(class_sessions.session_date, 'MM/DD/YY') || ' - ' || TO_CHAR(class_sessions.end_date, 'MM/DD/YY')
+          TO_CHAR(hs.session_date, 'MM/DD/YY') || ' - ' || TO_CHAR(hs.end_date, 'MM/DD/YY')
       END AS display_date,
       he.archived_at,
       he.archived_reason
-     FROM enrollments
-     JOIN classes ON classes.id = enrollments.class_id
-     LEFT JOIN class_sessions ON class_sessions.id = enrollments.session_id
-     LEFT JOIN users ON users.id = enrollments.reviewed_by
-     LEFT JOIN historical_enrollments he ON (
-       he.user_id = enrollments.user_id
-       AND he.class_id = enrollments.class_id
-       AND he.session_id = enrollments.session_id
-       AND ((class_sessions.end_date IS NOT NULL AND class_sessions.end_date < NOW())
-            OR (class_sessions.end_date IS NULL AND class_sessions.session_date < NOW()))
-     )
-     WHERE enrollments.user_id = $1
-     ORDER BY class_sessions.session_date ASC, class_sessions.start_time ASC`,
+     FROM historical_enrollments he
+     JOIN classes c ON c.id = he.class_id
+     JOIN historical_sessions hs ON hs.id = he.historical_session_id
+     LEFT JOIN users u ON u.id = he.reviewed_by
+     WHERE he.user_id = $1
+     ORDER BY hs.session_date ASC, hs.start_time ASC`,
     [userId]
   );
   return result.rows;
@@ -446,6 +544,7 @@ module.exports = {
   getEnrollmentById,
   cancelEnrollment,
   getUserEnrollments,
+  getHistoricalEnrollmentsByUserId,
   getAllEnrollments,
   isUserAlreadyEnrolled
 };
