@@ -924,6 +924,28 @@ const archiveEndedSessionsAndEnrollments = async () => {
   }
 };
 
+// Get students enrolled in a class
+const getClassStudents = async (classId) => {
+  const result = await pool.query(
+    `SELECT DISTINCT
+      u.id as user_id,
+      u.first_name,
+      u.last_name,
+      u.email,
+      u.role,
+      u.status
+    FROM users u
+    JOIN enrollments e ON u.id = e.user_id
+    JOIN class_sessions cs ON e.session_id = cs.id
+    WHERE cs.class_id = $1 
+      AND e.enrollment_status = 'approved'
+      AND cs.deleted_at IS NULL
+    ORDER BY u.first_name, u.last_name`,
+    [classId]
+  );
+  return result.rows;
+};
+
 // Archive a specific session and its enrollments
 const archiveSessionAndEnrollments = async (sessionId) => {
   const client = await pool.connect();
@@ -1008,5 +1030,6 @@ module.exports = {
   getHistoricalEnrollments,
   getAllEnrollmentsForClass,
   archiveEndedSessionsAndEnrollments,
-  archiveSessionAndEnrollments
+  archiveSessionAndEnrollments,
+  getClassStudents
 };

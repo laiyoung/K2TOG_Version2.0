@@ -12,7 +12,8 @@ const {
     sendBulkNotification,
     broadcastNotification,
     getSentNotifications,
-    deleteTemplate
+    deleteTemplate,
+    sendNotification
 } = require('../controllers/notificationController');
 
 // User routes
@@ -28,6 +29,7 @@ router.use('/admin', [requireAuth, requireAdmin]);
 
 // Admin notification routes
 router.get('/admin/sent', getSentNotifications);
+router.post('/admin/send', sendNotification);
 router.post('/admin/templates', createTemplate);
 router.get('/admin/templates', getTemplates);
 router.delete('/admin/templates/:id', deleteTemplate);

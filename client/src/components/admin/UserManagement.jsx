@@ -104,7 +104,6 @@ const UserManagement = () => {
     const [updatingRole, setUpdatingRole] = useState(false);
     const [enrollmentsLoading, setEnrollmentsLoading] = useState(false);
     const [updatingStatus, setUpdatingStatus] = useState(false);
-    const [tabValue, setTabValue] = useState(0);
 
     useEffect(() => {
         fetchUsers();
@@ -176,10 +175,12 @@ const UserManagement = () => {
         try {
             setActivityLoading(true);
             const data = await adminService.getUserActivity(userId, page);
-            setUserActivity(data.activities);
-            setActivityTotal(data.total);
+            setUserActivity(data.activities || []);
+            setActivityTotal(data.total || 0);
         } catch (error) {
             handleError(error, "Failed to fetch user activity");
+            setUserActivity([]);
+            setActivityTotal(0);
         } finally {
             setActivityLoading(false);
         }
@@ -192,6 +193,7 @@ const UserManagement = () => {
             setUserProfile(profile);
         } catch (error) {
             handleError(error, "Failed to fetch user profile");
+            setUserProfile(null);
         } finally {
             setActivityLoading(false);
         }
@@ -208,6 +210,7 @@ const UserManagement = () => {
             setEnrollmentDialogOpen(true);
         } catch (error) {
             handleError(error, "Failed to fetch user enrollments");
+            setUserEnrollments({ active: [], historical: [] });
         } finally {
             setLoading(false);
         }
@@ -299,12 +302,24 @@ const UserManagement = () => {
                 return;
             }
 
-            await adminService.sendNotification({
+            // Create notification data
+            const notificationData = {
                 title: "Admin Notification",
                 message: selectedUser.notificationMessage,
                 recipient: selectedUser.id,
                 recipientType: "user"
+            };
+
+            // Send notification using the notification service
+            await fetch('/api/notifications/admin/send', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                },
+                body: JSON.stringify(notificationData)
             });
+
             showSuccess('Notification sent successfully');
             setNotificationDialogOpen(false);
             setSelectedUser(prev => ({ ...prev, notificationMessage: '' }));
@@ -372,7 +387,7 @@ const UserManagement = () => {
     };
 
     const handleTabChange = (event, newValue) => {
-        setTabValue(newValue);
+        setActiveTab(newValue);
     };
 
     const fetchUserEnrollments = async (userId) => {
@@ -1252,7 +1267,7 @@ const UserManagement = () => {
                 </DialogTitle>
                 <DialogContent>
                     <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
-                        <Tabs value={tabValue} onChange={handleTabChange}>
+                        <Tabs value={activeTab} onChange={handleTabChange}>
                             <Tab
                                 label={`Active (${userEnrollments.active?.length || 0})`}
                                 icon={<InstructorIcon />}
@@ -1266,7 +1281,7 @@ const UserManagement = () => {
                         </Tabs>
                     </Box>
 
-                    {tabValue === 0 && (
+                    {activeTab === 0 && (
                         <TableContainer component={Paper}>
                             <Table size="small">
                                 <TableHead>
@@ -1301,7 +1316,7 @@ const UserManagement = () => {
                         </TableContainer>
                     )}
 
-                    {tabValue === 1 && (
+                    {activeTab === 1 && (
                         <TableContainer component={Paper}>
                             <Table size="small">
                                 <TableHead>

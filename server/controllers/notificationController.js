@@ -257,6 +257,77 @@ const broadcastNotification = async (req, res) => {
     }
 };
 
+// @desc    Send notification to individual user (admin)
+// @route   POST /api/notifications/admin/send
+// @access  Private/Admin
+const sendNotification = async (req, res) => {
+    try {
+        const { recipient, title, message, recipientType = 'user' } = req.body;
+        
+        if (!recipient || !title || !message) {
+            return res.status(400).json({ error: 'Missing required fields: recipient, title, message' });
+        }
+
+        let userIds = [];
+        
+        if (recipientType === 'user') {
+            // Single user notification
+            userIds = [recipient];
+        } else if (recipientType === 'class') {
+            // Get all students in the class
+            const { getClassStudents } = require('../models/classModel');
+            const students = await getClassStudents(recipient);
+            userIds = students.map(student => student.user_id);
+        }
+
+        if (userIds.length === 0) {
+            return res.status(400).json({ error: 'No recipients found' });
+        }
+
+        // Create notifications for all recipients
+        const notifications = [];
+        for (const userId of userIds) {
+            const notification = await Notification.createNotification({
+                user_id: userId,
+                sender_id: req.user.id,
+                type: 'admin_notification',
+                title,
+                message,
+                metadata: {
+                    sent_by: req.user.id,
+                    sent_at: new Date().toISOString()
+                }
+            });
+            notifications.push(notification);
+
+            // Send email notification if user has email notifications enabled
+            try {
+                const { getUserById } = require('../models/userModel');
+                const user = await getUserById(userId);
+                if (user && user.email_notifications) {
+                    await emailService.sendNotificationAlertEmail(
+                        user.email,
+                        `${user.first_name} ${user.last_name}`,
+                        'admin_notification',
+                        title
+                    );
+                }
+            } catch (emailError) {
+                console.error('Failed to send email notification:', emailError);
+                // Don't fail the entire request if email fails
+            }
+        }
+
+        res.status(201).json({
+            message: `Notification sent to ${notifications.length} recipient(s)`,
+            notifications
+        });
+    } catch (error) {
+        console.error('Send notification error:', error);
+        res.status(500).json({ error: 'Failed to send notification' });
+    }
+};
+
 // @desc    Get notifications sent by admin
 // @route   GET /api/admin/notifications/sent
 // @access  Private/Admin
@@ -282,5 +353,6 @@ module.exports = {
     deleteTemplate,
     sendBulkNotification,
     broadcastNotification,
-    getSentNotifications
+    getSentNotifications,
+    sendNotification
 }; 

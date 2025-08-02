@@ -16,11 +16,13 @@ const getCertificateById = async (id) => {
         SELECT c.*, 
                u.first_name, u.last_name,
                cls.title as class_title,
+               cs.session_date, cs.start_time, cs.end_time,
                up.first_name as uploaded_by_first_name,
                up.last_name as uploaded_by_last_name
         FROM certificates c
         LEFT JOIN users u ON c.user_id = u.id
         LEFT JOIN classes cls ON c.class_id = cls.id
+        LEFT JOIN class_sessions cs ON c.session_id = cs.id
         LEFT JOIN users up ON c.uploaded_by = up.id
         WHERE c.id = $1
     `, [id]);
@@ -32,10 +34,12 @@ const getCertificatesByUserId = async (userId) => {
     const result = await pool.query(`
         SELECT c.*, 
                cls.title as class_title,
+               cs.session_date, cs.start_time, cs.end_time,
                up.first_name as uploaded_by_first_name,
                up.last_name as uploaded_by_last_name
         FROM certificates c
         LEFT JOIN classes cls ON c.class_id = cls.id
+        LEFT JOIN class_sessions cs ON c.session_id = cs.id
         LEFT JOIN users up ON c.uploaded_by = up.id
         WHERE c.user_id = $1 
         ORDER BY c.created_at DESC
@@ -44,15 +48,15 @@ const getCertificatesByUserId = async (userId) => {
 };
 
 // Create new certificate
-const createCertificate = async ({ user_id, class_id, certificate_name, certificate_url, metadata = {} }) => {
+const createCertificate = async ({ user_id, class_id, session_id, certificate_name, certificate_url, expiration_date, metadata = {} }) => {
     const verificationCode = generateVerificationCode();
     const result = await pool.query(
         `INSERT INTO certificates (
-            user_id, class_id, certificate_name, certificate_url, 
-            metadata, verification_code, status
-        ) VALUES ($1, $2, $3, $4, $5, $6, 'active') 
+            user_id, class_id, session_id, certificate_name, certificate_url, 
+            expiration_date, metadata, verification_code, status
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'active') 
         RETURNING *`,
-        [user_id, class_id, certificate_name, certificate_url, metadata, verificationCode]
+        [user_id, class_id, session_id, certificate_name, certificate_url, expiration_date, metadata, verificationCode]
     );
     return result.rows[0];
 };
@@ -163,15 +167,17 @@ const generateClassCertificates = async (classId) => {
 };
 
 // Upload certificate
-const uploadCertificate = async ({ user_id, class_id, certificate_name, file_path, file_type, file_size, uploaded_by, cloudinary_id, supabase_path }) => {
+const uploadCertificate = async ({ user_id, class_id, session_id, certificate_name, file_path, file_type, file_size, expiration_date, uploaded_by, cloudinary_id, supabase_path }) => {
     try {
         console.log('Starting certificate upload to database...', {
             user_id,
             class_id,
+            session_id,
             certificate_name,
             file_path,
             file_type,
             file_size,
+            expiration_date,
             cloudinary_id,
             supabase_path
         });
@@ -183,15 +189,17 @@ const uploadCertificate = async ({ user_id, class_id, certificate_name, file_pat
 
         const result = await pool.query(
             `INSERT INTO certificates (
-                user_id, class_id, certificate_name, certificate_url, 
-                cloudinary_id, supabase_path, file_type, file_size, uploaded_by, status
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'approved') 
+                user_id, class_id, session_id, certificate_name, certificate_url, 
+                expiration_date, cloudinary_id, supabase_path, file_type, file_size, uploaded_by, status
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'approved') 
             RETURNING *`,
             [
                 user_id, 
                 class_id, 
+                session_id,
                 certificate_name, 
                 certificateUrl,
+                expiration_date,
                 cloudinary_id,
                 supabase_path,
                 file_type, 
@@ -201,6 +209,8 @@ const uploadCertificate = async ({ user_id, class_id, certificate_name, file_pat
         );
 
         console.log('Certificate record created successfully:', result.rows[0]);
+        console.log('Session ID saved:', result.rows[0].session_id);
+        console.log('Expiration date saved:', result.rows[0].expiration_date);
         return result.rows[0];
     } catch (error) {
         console.error('Error creating certificate record:', error);
@@ -217,6 +227,7 @@ const getAllCertificates = async () => {
                 c.*,
                 CONCAT(u.first_name, ' ', u.last_name) as student_name,
                 cls.title as class_name,
+                cs.session_date, cs.start_time, cs.end_time,
                 c.created_at as upload_date,
                 c.file_size,
                 c.file_type,
@@ -226,6 +237,7 @@ const getAllCertificates = async () => {
             FROM certificates c
             LEFT JOIN users u ON c.user_id = u.id
             LEFT JOIN classes cls ON c.class_id = cls.id
+            LEFT JOIN class_sessions cs ON c.session_id = cs.id
             LEFT JOIN users up ON c.uploaded_by = up.id
             ORDER BY c.created_at DESC
         `);
@@ -246,6 +258,7 @@ const getAllCertificates = async () => {
         });
 
         console.log('Query executed successfully, found', transformedRows.length, 'certificates');
+        console.log('Sample certificate with session data:', transformedRows[0]);
         return transformedRows;
     } catch (error) {
         console.error('Database error in getAllCertificates:', error);
@@ -265,6 +278,26 @@ const getDownloadUrl = async (certificateId) => {
     return certificate.certificate_url;
 };
 
+// Get completed sessions for a class
+const getCompletedSessions = async (classId) => {
+    const result = await pool.query(`
+        SELECT 
+            cs.id,
+            cs.session_date,
+            cs.start_time,
+            cs.end_time,
+            cs.capacity,
+            cs.enrolled_count,
+            cs.status
+        FROM class_sessions cs
+        WHERE cs.class_id = $1 
+        AND cs.status = 'completed'
+        AND cs.session_date <= CURRENT_DATE
+        ORDER BY cs.session_date DESC, cs.start_time DESC
+    `, [classId]);
+    return result.rows;
+};
+
 module.exports = {
     getCertificateById,
     getCertificatesByUserId,
@@ -277,5 +310,6 @@ module.exports = {
     uploadCertificate,
     getAllCertificates,
     getDownloadUrl,
+    getCompletedSessions,
     generateVerificationCode
 }; 

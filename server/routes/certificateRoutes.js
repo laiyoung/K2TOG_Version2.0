@@ -12,7 +12,8 @@ const {
     uploadStudentCertificate,
     uploadCertificateMetadata,
     viewStudentCertificate,
-    getAllCertificates
+    getAllCertificates,
+    getCompletedSessions
 } = require('../controllers/certificateController');
 
 // Admin routes
@@ -22,6 +23,7 @@ router.post('/generate-class/:classId', requireAuth, requireAdmin, generateClass
 router.get('/:id/download', requireAuth, requireAdmin, downloadCertificate);
 router.get('/user/:userId', requireAuth, requireAdmin, getUserCertificates);
 router.delete('/:id', requireAuth, requireAdmin, deleteCertificate);
+router.get('/completed-sessions/:classId', requireAuth, requireAdmin, getCompletedSessions);
 
 // Student certificate routes
 router.post('/upload/:studentId', 

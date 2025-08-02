@@ -294,9 +294,9 @@ const adminService = {
         }
 
         if (template) {
-            // Replace variables in title and message
-            processedTitle = template.title_template.replace(/\{\{(\w+)\}\}/g, (match, key) => variables[key] || match);
-            processedMessage = template.message_template.replace(/\{\{(\w+)\}\}/g, (match, key) => variables[key] || match);
+            // Replace variables in title and message using {variable} syntax
+            processedTitle = template.title_template.replace(/\{(\w+)\}/g, (match, key) => variables[key] || match);
+            processedMessage = template.message_template.replace(/\{(\w+)\}/g, (match, key) => variables[key] || match);
         }
 
         // Prepare the payload according to server requirements
@@ -318,9 +318,25 @@ const adminService = {
 
         console.log('Sending notification payload:', payload);
 
-        // Send the notification
-        const response = await api.post('/notifications/admin/bulk', payload);
-        return response;
+        // Use different endpoints based on recipient type
+        if (recipientType === 'class') {
+            // Use bulk endpoint for class notifications (multiple recipients)
+            const response = await api.post('/notifications/admin/bulk', payload);
+            return response;
+        } else {
+            // Use individual endpoint for single user notifications
+            const individualPayload = {
+                recipient: recipient,
+                title: processedTitle,
+                message: processedMessage,
+                recipientType: 'user',
+                templateId: templateId,
+                template: template,
+                user: user
+            };
+            const response = await api.post('/notifications/admin/send', individualPayload);
+            return response;
+        }
     },
 
     sendBroadcast: async (broadcastData) => {

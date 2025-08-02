@@ -283,11 +283,12 @@ const deleteUserAccount = async (req, res) => {
         `;
         const { rows: enrollmentRows } = await client.query(enrollmentQuery, [id]);
         if (parseInt(enrollmentRows[0].count) > 0) {
-            await client.query('ROLLBACK');
-            console.log('User has active enrollments:', id);
-            return res.status(400).json({ 
-                error: 'Cannot delete user with active enrollments. Please handle enrollments first.' 
-            });
+            console.log('User has active enrollments, but proceeding with deletion:', id);
+            // Uncomment the lines below if you want to prevent deletion with active enrollments
+            // await client.query('ROLLBACK');
+            // return res.status(400).json({ 
+            //     error: 'Cannot delete user with active enrollments. Please handle enrollments first.' 
+            // });
         }
 
         // Check if user has any pending payments
@@ -299,11 +300,12 @@ const deleteUserAccount = async (req, res) => {
         `;
         const { rows: paymentRows } = await client.query(paymentQuery, [id]);
         if (parseInt(paymentRows[0].count) > 0) {
-            await client.query('ROLLBACK');
-            console.log('User has pending payments:', id);
-            return res.status(400).json({ 
-                error: 'Cannot delete user with pending payments. Please handle payments first.' 
-            });
+            console.log('User has pending payments, but proceeding with deletion:', id);
+            // Uncomment the lines below if you want to prevent deletion with pending payments
+            // await client.query('ROLLBACK');
+            // return res.status(400).json({ 
+            //     error: 'Cannot delete user with pending payments. Please handle payments first.' 
+            // });
         }
 
         // Log the activity before deletion
@@ -327,10 +329,10 @@ const deleteUserAccount = async (req, res) => {
         console.log('Deleting related data for user:', id);
         await client.query('DELETE FROM user_notifications WHERE user_id = $1', [id]);
         await client.query('DELETE FROM user_activity_log WHERE user_id = $1', [id]);
-        await client.query('DELETE FROM user_payment_methods WHERE user_id = $1', [id]);
-        await client.query('DELETE FROM user_certificates WHERE user_id = $1', [id]);
         await client.query('DELETE FROM class_waitlist WHERE user_id = $1', [id]);
         await client.query('DELETE FROM enrollments WHERE user_id = $1', [id]);
+        await client.query('DELETE FROM payments WHERE user_id = $1', [id]);
+        await client.query('DELETE FROM certificates WHERE user_id = $1', [id]);
         
         // Finally, delete the user
         console.log('Deleting user row:', id);

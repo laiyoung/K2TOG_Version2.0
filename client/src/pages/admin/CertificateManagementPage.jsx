@@ -122,7 +122,7 @@ const CertificateManagementPage = () => {
         setSelectedClass('');
     };
 
-    const handleUpload = async (file) => {
+    const handleUpload = async (file, sessionId, expirationDate) => {
         try {
             if (!selectedStudent) {
                 setAlert({
@@ -133,7 +133,7 @@ const CertificateManagementPage = () => {
             }
 
             setLoading(true);
-            await uploadCertificate(selectedStudent, file, selectedClass);
+            await uploadCertificate(selectedStudent, file, selectedClass, sessionId, expirationDate);
 
             setAlert({
                 type: 'success',
@@ -389,6 +389,7 @@ const CertificateManagementPage = () => {
                         <CertificateUpload
                             onUpload={handleUpload}
                             studentId={selectedStudent}
+                            classId={selectedClass}
                             disabled={!selectedStudent || !selectedClass}
                         />
                     </DialogContent>

@@ -242,11 +242,13 @@ const uploadCertificateMetadata = async (req, res) => {
         const {
             user_id,
             class_id,
+            session_id,
             certificate_name,
             certificate_url,
             file_path,
             file_type,
             file_size,
+            expiration_date,
             supabase_path
         } = req.body;
 
@@ -257,10 +259,12 @@ const uploadCertificateMetadata = async (req, res) => {
         const certificate = await Certificate.uploadCertificate({
             user_id,
             class_id,
+            session_id,
             certificate_name,
             file_path: certificate_url, // Use the public URL as file_path
             file_type,
             file_size,
+            expiration_date,
             uploaded_by: req.user.id,
             cloudinary_id: supabase_path // Store Supabase path in cloudinary_id field for now
         });
@@ -381,6 +385,18 @@ const getCertificatesByUserId = async (req, res) => {
     }
 };
 
+// Get completed sessions for a class
+const getCompletedSessions = async (req, res) => {
+    try {
+        const { classId } = req.params;
+        const sessions = await Certificate.getCompletedSessions(classId);
+        res.json(sessions);
+    } catch (error) {
+        console.error('Get completed sessions error:', error);
+        res.status(500).json({ error: 'Failed to fetch completed sessions', details: error.message });
+    }
+};
+
 module.exports = {
     generateCertificate,
     generateClassCertificates,
@@ -393,5 +409,6 @@ module.exports = {
     viewStudentCertificate,
     getAllCertificates,
     getCertificateById,
-    getCertificatesByUserId
+    getCertificatesByUserId,
+    getCompletedSessions
 }; 

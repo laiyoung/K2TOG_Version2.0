@@ -6,7 +6,12 @@ import {
     Paper,
     Alert,
     CircularProgress,
-    IconButton
+    IconButton,
+    FormControl,
+    InputLabel,
+    Select,
+    MenuItem,
+    TextField
 } from '@mui/material';
 import {
     CloudUpload as UploadIcon,
@@ -14,13 +19,38 @@ import {
     PictureAsPdf as PdfIcon,
     Image as ImageIcon
 } from '@mui/icons-material';
+import { getCompletedSessions } from '../services/certificateService';
 
-const CertificateUpload = ({ onUpload, studentId, disabled = false }) => {
+const CertificateUpload = ({ onUpload, studentId, classId, disabled = false }) => {
     const [file, setFile] = useState(null);
     const [preview, setPreview] = useState(null);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
+    const [selectedSession, setSelectedSession] = useState('');
+    const [expirationDate, setExpirationDate] = useState('');
+    const [sessions, setSessions] = useState([]);
+    const [loadingSessions, setLoadingSessions] = useState(false);
     const fileInputRef = useRef(null);
+
+    // Fetch completed sessions when classId changes
+    React.useEffect(() => {
+        if (classId) {
+            fetchCompletedSessions();
+        }
+    }, [classId]);
+
+    const fetchCompletedSessions = async () => {
+        try {
+            setLoadingSessions(true);
+            const sessionsData = await getCompletedSessions(classId);
+            setSessions(sessionsData);
+        } catch (error) {
+            console.error('Error fetching completed sessions:', error);
+            setError('Failed to fetch completed sessions');
+        } finally {
+            setLoadingSessions(false);
+        }
+    };
 
     // Handle upload with loading state
     const handleUpload = async () => {
@@ -30,10 +60,12 @@ const CertificateUpload = ({ onUpload, studentId, disabled = false }) => {
         setError('');
 
         try {
-            await onUpload(file);
+            await onUpload(file, selectedSession, expirationDate);
             // Clear the form after successful upload
             setFile(null);
             setPreview(null);
+            setSelectedSession('');
+            setExpirationDate('');
             if (fileInputRef.current) {
                 fileInputRef.current.value = '';
             }
@@ -143,6 +175,45 @@ const CertificateUpload = ({ onUpload, studentId, disabled = false }) => {
                     {error}
                 </Alert>
             )}
+
+            {/* Session Selection */}
+            {classId && (
+                <Box sx={{ mb: 3 }}>
+                    <FormControl fullWidth sx={{ mb: 2 }}>
+                        <InputLabel>Select Completed Session (Optional)</InputLabel>
+                        <Select
+                            value={selectedSession}
+                            label="Select Completed Session (Optional)"
+                            onChange={(e) => setSelectedSession(e.target.value)}
+                            disabled={loadingSessions || disabled}
+                        >
+                            <MenuItem value="">
+                                <em>No specific session</em>
+                            </MenuItem>
+                            {sessions.map((session) => (
+                                <MenuItem key={session.id} value={session.id}>
+                                    {new Date(session.session_date).toLocaleDateString()} - {session.start_time} to {session.end_time}
+                                </MenuItem>
+                            ))}
+                        </Select>
+                    </FormControl>
+                </Box>
+            )}
+
+            {/* Expiration Date */}
+            <Box sx={{ mb: 3 }}>
+                <TextField
+                    fullWidth
+                    type="date"
+                    label="Certificate Expiration Date (Optional)"
+                    value={expirationDate}
+                    onChange={(e) => setExpirationDate(e.target.value)}
+                    disabled={disabled}
+                    InputLabelProps={{
+                        shrink: true,
+                    }}
+                />
+            </Box>
 
             {/* Upload Area */}
             <Box

@@ -209,34 +209,64 @@ const NotificationCenter = () => {
         return;
       }
 
-      // Process notifications to handle broadcasts
-      const processedNotifications = response.reduce((acc, notification) => {
-        // If it's a broadcast notification
-        if (notification.is_broadcast) {
-          // Check if we already have a broadcast with the same title and message
-          const existingBroadcast = acc.find(n =>
-            n.is_broadcast &&
-            n.title === notification.title &&
-            n.message === notification.message
-          );
-
-          if (existingBroadcast) {
-            // Update the sent count if this is a duplicate broadcast
-            existingBroadcast.sent_count = (existingBroadcast.sent_count || 0) + 1;
-          } else {
-            // Add as new broadcast notification
-            acc.push({
-              ...notification,
-              sent_count: 1,
-              recipient_name: 'All Users'
-            });
-          }
-        } else {
-          // Add non-broadcast notifications as is
-          acc.push(notification);
+      // Group notifications by title and message to identify broadcasts
+      const groupedNotifications = response.reduce((groups, notification) => {
+        const key = `${notification.title}|${notification.message}`;
+        if (!groups[key]) {
+          groups[key] = [];
         }
-        return acc;
-      }, []);
+        groups[key].push(notification);
+        return groups;
+      }, {});
+
+      console.log('Grouped notifications:', groupedNotifications);
+
+      // Process notifications to handle broadcasts
+      const processedNotifications = [];
+
+      Object.entries(groupedNotifications).forEach(([key, notifications]) => {
+        const [title, message] = key.split('|');
+        const firstNotification = notifications[0];
+
+        // Check if this is a broadcast by looking for broadcast indicators
+        const isBroadcast = firstNotification.type === 'broadcast' ||
+          firstNotification.metadata?.isBroadcast === true ||
+          firstNotification.metadata?.type === 'broadcast' ||
+          (notifications.length > 3 &&
+            notifications.every(n => n.title === title && n.message === message)); // If sent to more than 3 people with same content, likely a broadcast
+
+        console.log(`Processing group "${title}":`, {
+          isBroadcast,
+          type: firstNotification.type,
+          metadata: firstNotification.metadata,
+          count: notifications.length
+        });
+
+        if (isBroadcast) {
+          // Create a single consolidated broadcast entry
+          const broadcastEntry = {
+            ...firstNotification,
+            is_broadcast: true,
+            sent_count: notifications.length,
+            recipient_name: 'Everyone',
+            // Use the earliest created_at time
+            created_at: new Date(Math.min(...notifications.map(n => new Date(n.created_at).getTime()))).toISOString(),
+            // Combine all recipient names for display (optional)
+            all_recipients: notifications.map(n => n.recipient_name).filter(Boolean),
+            // Store all the original notification IDs for deletion
+            original_notification_ids: notifications.map(n => n.id)
+          };
+
+          console.log('Created broadcast entry:', broadcastEntry);
+          processedNotifications.push(broadcastEntry);
+        } else {
+          // Add individual notifications as is
+          processedNotifications.push(...notifications);
+        }
+      });
+
+      // Sort by created_at descending
+      processedNotifications.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
       setSentNotifications(processedNotifications);
     } catch (error) {
@@ -326,11 +356,40 @@ const NotificationCenter = () => {
   const handleDeleteSentNotification = async (notificationId) => {
     try {
       setLoading(true);
-      await adminService.deleteNotification(notificationId);
+
+      // Find the notification to determine if it's a broadcast
+      const notification = sentNotifications.find(n => n.id === notificationId);
+
+      if (notification && notification.is_broadcast) {
+        // For broadcast notifications, delete all the original individual notifications
+        if (notification.original_notification_ids && notification.original_notification_ids.length > 0) {
+          console.log('Deleting broadcast notification with IDs:', notification.original_notification_ids);
+
+          const deletePromises = notification.original_notification_ids.map(id =>
+            adminService.deleteNotification(id)
+          );
+
+          await Promise.all(deletePromises);
+          enqueueSnackbar("Broadcast notification deleted successfully", {
+            variant: "success",
+          });
+        } else {
+          // Fallback: delete the current notification
+          console.log('No original notification IDs found, deleting current notification:', notificationId);
+          await adminService.deleteNotification(notificationId);
+          enqueueSnackbar("Notification deleted successfully", {
+            variant: "success",
+          });
+        }
+      } else {
+        // For regular notifications, delete just the one
+        await adminService.deleteNotification(notificationId);
+        enqueueSnackbar("Notification deleted successfully", {
+          variant: "success",
+        });
+      }
+
       await fetchSentNotifications();
-      enqueueSnackbar("Notification deleted successfully", {
-        variant: "success",
-      });
     } catch (error) {
       handleError(error, "Failed to delete notification");
     } finally {
@@ -454,7 +513,22 @@ const NotificationCenter = () => {
       setSelectedTemplateId("");
     } catch (error) {
       console.error('Error sending notification:', error);
-      handleError(error, "Failed to send notification");
+
+      // Provide more specific error messages
+      let errorMessage = "Failed to send notification";
+      if (error.message) {
+        if (error.message.includes('No students found')) {
+          errorMessage = "No students are enrolled in this class";
+        } else if (error.message.includes('No recipient specified')) {
+          errorMessage = "Please select a recipient";
+        } else if (error.message.includes('bulk')) {
+          errorMessage = "Failed to send notification to multiple recipients";
+        } else {
+          errorMessage = error.message;
+        }
+      }
+
+      handleError(error, errorMessage);
     } finally {
       setLoading(false);
     }
@@ -524,19 +598,9 @@ const NotificationCenter = () => {
         is_broadcast: true
       });
 
-      // Add the broadcast to sent notifications immediately
-      const broadcastNotification = {
-        id: `broadcast_${Date.now()}`, // Generate a unique ID for the broadcast
-        title: broadcastTitle,
-        message: broadcastMessage,
-        created_at: new Date().toISOString(),
-        is_broadcast: true,
-        recipient_name: `All Users (${response.sent_count || 0} recipients)`,
-        is_read: false,
-        sent_count: response.sent_count || 0
-      };
+      // Refresh sent notifications to get the updated list from server
+      await fetchSentNotifications();
 
-      setSentNotifications(prev => [broadcastNotification, ...prev]);
       enqueueSnackbar(`Broadcast sent successfully to ${response.sent_count || 0} recipients`, { variant: "success" });
       setShowBroadcastDialog(false);
       setBroadcastMessage("");
@@ -889,7 +953,7 @@ const NotificationCenter = () => {
                         {notification.message}
                       </Typography>
                       <Typography variant="caption" color="text.secondary" component="span">
-                        Sent to: {notification.is_broadcast ? "All Users" : (notification.recipient_name || 'Multiple recipients')}
+                        Sent to: {notification.is_broadcast ? "Everyone" : (notification.recipient_name || 'Multiple recipients')}
                       </Typography>
                     </Box>
                   }

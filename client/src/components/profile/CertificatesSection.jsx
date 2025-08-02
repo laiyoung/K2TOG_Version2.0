@@ -2,6 +2,10 @@ import React from 'react';
 import './CertificatesSection.css';
 
 const CertificatesSection = ({ certificates }) => {
+    // Debug: Log certificates data to see what's being received
+    console.log('CertificatesSection received certificates:', certificates);
+    console.log('Sample certificate data:', certificates[0]);
+
     return (
         <div className="certificates-section">
             <div className="section-header">
@@ -18,7 +22,28 @@ const CertificatesSection = ({ certificates }) => {
                             <div className="certificate-info">
                                 <h3>{certificate.certificate_name}</h3>
                                 <p className="class-name">{certificate.class_name}</p>
+                                {certificate.session_date && (
+                                    <p className="session-info">
+                                        <i className="fas fa-calendar-alt"></i>
+                                        Session: {new Date(certificate.session_date).toLocaleDateString()}
+                                        {certificate.start_time && certificate.end_time && (
+                                            <span className="session-time">
+                                                {' '}({certificate.start_time} - {certificate.end_time})
+                                            </span>
+                                        )}
+                                    </p>
+                                )}
+                                {certificate.expiration_date && (
+                                    <p className="expiration-info">
+                                        <i className="fas fa-clock"></i>
+                                        Expires: {new Date(certificate.expiration_date).toLocaleDateString()}
+                                        {new Date(certificate.expiration_date) < new Date() && (
+                                            <span className="expired-badge">Expired</span>
+                                        )}
+                                    </p>
+                                )}
                                 <p className="issue-date">
+                                    <i className="fas fa-calendar-check"></i>
                                     Issued: {new Date(certificate.created_at).toLocaleDateString()}
                                 </p>
                             </div>

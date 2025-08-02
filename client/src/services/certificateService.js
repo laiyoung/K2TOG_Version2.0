@@ -58,7 +58,7 @@ export const getCertificatesByUserId = async (userId) => {
 };
 
 // Upload certificate using Supabase storage
-export const uploadCertificate = async (studentId, file, classId) => {
+export const uploadCertificate = async (studentId, file, classId, sessionId, expirationDate) => {
     try {
         // First upload file to Supabase storage
         const uploadResult = await supabaseStorageService.uploadCertificate(file, studentId, classId);
@@ -67,11 +67,13 @@ export const uploadCertificate = async (studentId, file, classId) => {
         const certificateData = {
             user_id: studentId,
             class_id: classId,
+            session_id: sessionId,
             certificate_name: file.name,
             certificate_url: uploadResult.publicUrl,
             file_path: uploadResult.filePath,
             file_type: file.type,
             file_size: file.size,
+            expiration_date: expirationDate,
             supabase_path: uploadResult.filePath
         };
 
@@ -127,4 +129,9 @@ export const generateClassCertificates = async (classId) => {
     return fetchWithAuth(`/certificates/generate-class/${classId}`, {
         method: 'POST'
     });
+};
+
+// Get completed sessions for a class
+export const getCompletedSessions = async (classId) => {
+    return fetchWithAuth(`/certificates/completed-sessions/${classId}`);
 }; 

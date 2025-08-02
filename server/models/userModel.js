@@ -375,10 +375,12 @@ async function getProfileWithDetails(userId) {
       const certificatesResult = await pool.query(`
         SELECT c.*, 
                cls.title as class_name,
+               cs.session_date, cs.start_time, cs.end_time,
                up.first_name as uploaded_by_first_name,
                up.last_name as uploaded_by_last_name
         FROM certificates c
         LEFT JOIN classes cls ON c.class_id = cls.id
+        LEFT JOIN class_sessions cs ON c.session_id = cs.id
         LEFT JOIN users up ON c.uploaded_by = up.id
         WHERE c.user_id = $1 
         ORDER BY c.created_at DESC

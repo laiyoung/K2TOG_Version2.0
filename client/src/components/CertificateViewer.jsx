@@ -35,6 +35,10 @@ const CertificateViewer = ({ certificates = [], onDownload, onDelete }) => {
     const [selectedCertificates, setSelectedCertificates] = useState(new Set());
     const [selectAll, setSelectAll] = useState(false);
 
+    // Debug: Log certificates data to see what's being received
+    console.log('CertificateViewer received certificates:', certificates);
+    console.log('Sample certificate data:', certificates[0]);
+
     // Update selectAll when all certificates are selected/deselected
     useEffect(() => {
         if (certificates.length > 0) {
@@ -262,6 +266,16 @@ const CertificateViewer = ({ certificates = [], onDownload, onDelete }) => {
                                     <Typography variant="body2" color="text.secondary" gutterBottom>
                                         Class: {certificate.class_name || 'N/A'}
                                     </Typography>
+                                    {certificate.session_date && (
+                                        <Typography variant="body2" color="text.secondary" gutterBottom>
+                                            Session: {formatDate(certificate.session_date)} {certificate.start_time && certificate.end_time && `(${certificate.start_time} - ${certificate.end_time})`}
+                                        </Typography>
+                                    )}
+                                    {certificate.expiration_date && (
+                                        <Typography variant="body2" color="text.secondary" gutterBottom>
+                                            Expires: {formatDate(certificate.expiration_date)}
+                                        </Typography>
+                                    )}
                                     <Typography variant="body2" color="text.secondary" gutterBottom>
                                         Uploaded: {certificate.upload_date ? formatDate(certificate.upload_date) : 'N/A'}
                                     </Typography>
