@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     Box,
     Typography,
@@ -11,7 +11,9 @@ import {
     LinearProgress,
     Tabs,
     Tab,
-    Button
+    Button,
+    CircularProgress,
+    Alert
 } from '@mui/material';
 import {
     CheckCircle as AcceptedIcon,
@@ -24,11 +26,12 @@ import {
     LocationOn as LocationIcon,
     Group as GroupIcon,
     History as HistoryIcon,
-    School as SchoolIcon
+    School as SchoolIcon,
+    Refresh as RefreshIcon
 } from '@mui/icons-material';
 import './EnrollmentsSection.css';
 
-const EnrollmentsSection = ({ enrollments, historicalEnrollments }) => {
+const EnrollmentsSection = ({ enrollments, historicalEnrollments, loading = false, error = null, onRefresh }) => {
     const [tabValue, setTabValue] = useState(0);
 
     const handleTabChange = (event, newValue) => {
@@ -67,24 +70,34 @@ const EnrollmentsSection = ({ enrollments, historicalEnrollments }) => {
 
     const formatDate = (dateString) => {
         if (!dateString) return 'N/A';
-        return new Date(dateString).toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-        });
+        try {
+            return new Date(dateString).toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+        } catch (error) {
+            console.error('Error formatting date:', dateString, error);
+            return 'N/A';
+        }
     };
 
     const formatTime = (timeString) => {
         if (!timeString) return '';
-        const [hour, minute] = timeString.split(':');
-        const date = new Date();
-        date.setHours(Number(hour), Number(minute));
-        return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+        try {
+            const [hour, minute] = timeString.split(':');
+            const date = new Date();
+            date.setHours(Number(hour), Number(minute));
+            return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+        } catch (error) {
+            console.error('Error formatting time:', timeString, error);
+            return timeString || 'N/A';
+        }
     };
 
     const calculateCapacityPercentage = (current, total) => {
-        if (!current || !total) return 0;
-        return (current / total) * 100;
+        if (!current || !total || total === 0) return 0;
+        return Math.min((current / total) * 100, 100);
     };
 
     const renderEnrollmentCard = (enrollment, isHistorical = false) => (
@@ -174,7 +187,7 @@ const EnrollmentsSection = ({ enrollments, historicalEnrollments }) => {
                                         </Typography>
                                         <LinearProgress
                                             variant="determinate"
-                                            value={(enrollment.current_students && enrollment.capacity) ? calculateCapacityPercentage(enrollment.current_students, enrollment.capacity) : 0}
+                                            value={calculateCapacityPercentage(enrollment.current_students, enrollment.capacity)}
                                             sx={{ height: 6, borderRadius: 3 }}
                                         />
                                     </Box>
@@ -238,11 +251,55 @@ const EnrollmentsSection = ({ enrollments, historicalEnrollments }) => {
     const hasActiveEnrollments = enrollments && enrollments.length > 0;
     const hasHistoricalEnrollments = historicalEnrollments && historicalEnrollments.length > 0;
 
+    // Show loading state
+    if (loading) {
+        return (
+            <Box className="enrollments-section">
+                <Typography variant="h6" component="h2" gutterBottom>
+                    Class Enrollments
+                </Typography>
+                <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
+                    <CircularProgress />
+                </Box>
+            </Box>
+        );
+    }
+
+    // Show error state
+    if (error) {
+        return (
+            <Box className="enrollments-section">
+                <Typography variant="h6" component="h2" gutterBottom>
+                    Class Enrollments
+                </Typography>
+                <Alert
+                    severity="error"
+                    action={
+                        onRefresh && (
+                            <Button color="inherit" size="small" onClick={onRefresh} startIcon={<RefreshIcon />}>
+                                Retry
+                            </Button>
+                        )
+                    }
+                >
+                    {error}
+                </Alert>
+            </Box>
+        );
+    }
+
     return (
         <Box className="enrollments-section">
-            <Typography variant="h6" component="h2" gutterBottom>
-                Class Enrollments
-            </Typography>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                <Typography variant="h6" component="h2">
+                    Class Enrollments
+                </Typography>
+                {onRefresh && (
+                    <IconButton onClick={onRefresh} size="small">
+                        <RefreshIcon />
+                    </IconButton>
+                )}
+            </Box>
 
             {/* Tabs for Active vs Historical Enrollments */}
             <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>

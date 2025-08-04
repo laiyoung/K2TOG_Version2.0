@@ -100,11 +100,21 @@ const addToWaitlist = async (classId, userId) => {
   try {
     await client.query('BEGIN');
 
+    // Check if user is already on waitlist for this class
+    const existingEntry = await client.query(
+      'SELECT id FROM class_waitlist WHERE class_id = $1 AND user_id = $2',
+      [classId, userId]
+    );
+
+    if (existingEntry.rows.length > 0) {
+      throw new Error('User is already on the waitlist for this class');
+    }
+
     // Get class session details including waitlist settings
     const sessionResult = await client.query(
       `SELECT cs.*, 
               COUNT(DISTINCT e.id) as current_enrollments,
-              COUNT(DISTINCT w.id) as waitlist_count,
+              (SELECT COUNT(*) FROM class_waitlist WHERE class_id = $1 AND status = 'waiting') as waitlist_count,
               AVG(DATE_PART('day', e.enrolled_at - w.created_at)) as avg_wait_time
        FROM class_sessions cs
        LEFT JOIN enrollments e ON e.session_id = cs.id AND e.enrollment_status = 'approved'
@@ -167,22 +177,31 @@ const addToWaitlist = async (classId, userId) => {
 // Get user's waitlist entries
 const getUserWaitlistEntries = async (userId) => {
   const result = await pool.query(
-    `SELECT w.*, 
-            c.title as class_title, 
-            c.location_details, 
-            cs.capacity, 
-            cs.session_date as start_date, 
-            COALESCE(cs.end_date, cs.session_date) as end_date, 
-            cs.instructor_id, 
-            u.name as instructor_name, 
-            COUNT(DISTINCT w2.id) FILTER (WHERE w2.created_at < w.created_at AND w2.status = 'waiting') as position
+    `SELECT 
+       w.*,
+       c.title as class_title,
+       c.location_details,
+       cs.capacity,
+       cs.session_date as start_date,
+       COALESCE(cs.end_date, cs.session_date) as end_date,
+       cs.instructor_id,
+       u.name as instructor_name,
+       w.position
      FROM class_waitlist w
      JOIN classes c ON c.id = w.class_id
-     LEFT JOIN class_sessions cs ON cs.class_id = c.id
+     LEFT JOIN (
+       SELECT DISTINCT ON (class_id) 
+         class_id, 
+         capacity, 
+         session_date, 
+         end_date, 
+         instructor_id
+       FROM class_sessions 
+       WHERE deleted_at IS NULL 
+       ORDER BY class_id, session_date ASC
+     ) cs ON cs.class_id = c.id
      LEFT JOIN users u ON u.id = cs.instructor_id
-     LEFT JOIN class_waitlist w2 ON w2.class_id = w.class_id
      WHERE w.user_id = $1
-     GROUP BY w.id, c.id, cs.instructor_id, u.name, cs.capacity, cs.session_date, cs.end_date
      ORDER BY w.created_at DESC`,
     [userId]
   );

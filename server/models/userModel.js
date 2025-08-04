@@ -294,6 +294,10 @@ async function getProfileWithDetails(userId) {
     try {
       const { getUserEnrollments } = require('./enrollmentModel');
       profile.enrollments = await getUserEnrollments(userId);
+      console.log('Profile enrollments fetched for user', userId, ':', {
+        count: profile.enrollments.length,
+        enrollments: profile.enrollments
+      });
     } catch (err) {
       console.log('Enrollments table not available:', err.message);
       profile.enrollments = [];
@@ -360,7 +364,19 @@ async function getProfileWithDetails(userId) {
           u.name as instructor_name
         FROM class_waitlist cw
         JOIN classes c ON c.id = cw.class_id
-        LEFT JOIN class_sessions cs ON cs.class_id = c.id
+        LEFT JOIN (
+          SELECT DISTINCT ON (class_id) 
+            class_id, 
+            session_date, 
+            end_date, 
+            start_time, 
+            end_time, 
+            capacity, 
+            instructor_id
+          FROM class_sessions 
+          WHERE deleted_at IS NULL 
+          ORDER BY class_id, session_date ASC
+        ) cs ON cs.class_id = c.id
         LEFT JOIN users u ON u.id = cs.instructor_id
         WHERE cw.user_id = $1
         ORDER BY cw.created_at DESC

@@ -305,6 +305,9 @@ const getUserEnrollments = async (userId) => {
         class_sessions.start_time,
         class_sessions.end_time,
         class_sessions.end_date,
+        class_sessions.capacity,
+        class_sessions.enrolled_count as current_students,
+        classes.location_details,
         CASE 
           WHEN (class_sessions.end_date IS NOT NULL AND class_sessions.end_date < NOW())
             OR (class_sessions.end_date IS NULL AND class_sessions.session_date < NOW())
@@ -317,6 +320,7 @@ const getUserEnrollments = async (userId) => {
         enrollments.admin_notes,
         enrollments.reviewed_at,
         users.name as reviewer_name,
+        instructor.name as instructor_name,
         CASE 
           WHEN class_sessions.end_date IS NULL OR class_sessions.session_date = class_sessions.end_date THEN
             TO_CHAR(class_sessions.session_date, 'MM/DD/YY')
@@ -329,6 +333,7 @@ const getUserEnrollments = async (userId) => {
        JOIN classes ON classes.id = enrollments.class_id
        LEFT JOIN class_sessions ON class_sessions.id = enrollments.session_id AND class_sessions.deleted_at IS NULL
        LEFT JOIN users ON users.id = enrollments.reviewed_by
+       LEFT JOIN users instructor ON instructor.id = class_sessions.instructor_id
        WHERE enrollments.user_id = $1
        ORDER BY class_sessions.session_date ASC, class_sessions.start_time ASC`,
       [userId]
@@ -345,6 +350,9 @@ const getUserEnrollments = async (userId) => {
         hs.start_time,
         hs.end_time,
         hs.end_date,
+        hs.capacity,
+        hs.enrolled_count as current_students,
+        c.location_details,
         'historical' as enrollment_type,
         he.payment_status, 
         he.enrollment_status,
@@ -352,6 +360,7 @@ const getUserEnrollments = async (userId) => {
         he.admin_notes,
         he.reviewed_at,
         u.name as reviewer_name,
+        instructor.name as instructor_name,
         CASE 
           WHEN hs.end_date IS NULL OR hs.session_date = hs.end_date THEN
             TO_CHAR(hs.session_date, 'MM/DD/YY')
@@ -382,6 +391,7 @@ const getUserEnrollments = async (userId) => {
        JOIN classes c ON c.id = he.class_id
        JOIN historical_sessions hs ON hs.id = he.historical_session_id
        LEFT JOIN users u ON u.id = he.reviewed_by
+       LEFT JOIN users instructor ON instructor.id = hs.instructor_id
        ORDER BY hs.session_date ASC, hs.start_time ASC`,
       [userId]
     );
@@ -392,6 +402,14 @@ const getUserEnrollments = async (userId) => {
       const dateA = a.session_date ? new Date(a.session_date) : new Date(0);
       const dateB = b.session_date ? new Date(b.session_date) : new Date(0);
       return dateA - dateB;
+    });
+
+    console.log('getUserEnrollments result for user', userId, ':', {
+      activeCount: activeResult.rows.length,
+      historicalCount: historicalResult.rows.length,
+      totalCount: allEnrollments.length,
+      activeEnrollments: activeResult.rows,
+      historicalEnrollments: historicalResult.rows
     });
 
     return allEnrollments;

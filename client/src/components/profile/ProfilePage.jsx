@@ -146,6 +146,20 @@ const ProfilePage = () => {
         pastEnrollments = profile.enrollments.filter((enrollment) =>
             enrollment.enrollment_type === 'historical'
         );
+
+        console.log('Filtered enrollments:', {
+            total: profile.enrollments.length,
+            current: currentEnrollments.length,
+            past: pastEnrollments.length,
+            currentEnrollments,
+            pastEnrollments
+        });
+    } else {
+        console.log('No enrollments found in profile:', {
+            profile: profile,
+            enrollments: profile?.enrollments,
+            isArray: Array.isArray(profile?.enrollments)
+        });
     }
 
     console.log('Rendering profile page with data:', profile); // Debug log
@@ -182,7 +196,13 @@ const ProfilePage = () => {
                         />
                     )}
                     {activeSection === 'enrollments' && (
-                        <EnrollmentsSection enrollments={currentEnrollments} historicalEnrollments={pastEnrollments} />
+                        <EnrollmentsSection
+                            enrollments={currentEnrollments}
+                            historicalEnrollments={pastEnrollments}
+                            loading={loading}
+                            error={error}
+                            onRefresh={fetchProfile}
+                        />
                     )}
                     {activeSection === 'password' && (
                         <PasswordSection onUpdate={handleProfileUpdate} />
