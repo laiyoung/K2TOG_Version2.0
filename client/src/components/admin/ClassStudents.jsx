@@ -57,10 +57,13 @@ const ClassStudents = ({ classId, className }) => {
 
     const fetchSessionsWithStudents = async () => {
         try {
+            console.log(`=== ClassStudents: Fetching sessions for class ${classId} ===`);
             setLoading(true);
             const data = await adminService.getClassSessionsWithStudents(classId);
+            console.log(`=== ClassStudents: Received data:`, data);
             setSessions(data);
         } catch (err) {
+            console.error(`=== ClassStudents: Error fetching sessions:`, err);
             setError(err.message || 'Failed to fetch sessions and students');
         } finally {
             setLoading(false);
@@ -110,8 +113,8 @@ const ClassStudents = ({ classId, className }) => {
                 Students for {className}
             </Typography>
 
-            {sessions.map((session) => (
-                <Accordion key={session.session_id || session.session_date + session.start_time}>
+            {sessions.map((session, sessionIndex) => (
+                <Accordion key={`session-${session.session_id}-${session.session_type}-${sessionIndex}`}>
                     <AccordionSummary expandIcon={<ExpandMoreIcon />}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, width: '100%' }}>
                             <ScheduleIcon color="action" />
@@ -177,8 +180,8 @@ const ClassStudents = ({ classId, className }) => {
                                     {(() => {
                                         const filteredStudents = (session.students || []).filter(Boolean);
                                         return filteredStudents.length > 0 ? (
-                                            filteredStudents.map((student) => (
-                                                <TableRow key={student.id || student.email}>
+                                            filteredStudents.map((student, index) => (
+                                                <TableRow key={`${student.id}-${student.email}-${index}`}>
                                                     <TableCell>
                                                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                                             <PersonIcon color="action" fontSize="small" />

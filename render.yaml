@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: yj-child-care-plus-backend
+    env: node
+    plan: starter
+    buildCommand: npm install
+    startCommand: npm start
+    rootDir: server
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+    healthCheckPath: /api/health
+    autoDeploy: true 

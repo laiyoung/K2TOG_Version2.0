@@ -517,15 +517,15 @@ const {
   // @route   PUT /api/admin/classes/:classId/waitlist/:waitlistId
   // @access  Admin
   const adminUpdateWaitlistStatus = async (req, res) => {
-    const { status } = req.body;
-    const validStatuses = ['waiting', 'offered', 'accepted', 'declined'];
-  
-    if (!validStatuses.includes(status)) {
-      return res.status(400).json({ 
-        error: 'Invalid status',
-        validStatuses 
-      });
-    }
+      const { status } = req.body;
+  const validStatuses = ['waiting', 'pending', 'approved', 'rejected', 'cancelled'];
+
+  if (!validStatuses.includes(status)) {
+    return res.status(400).json({ 
+      error: 'Invalid status',
+      validStatuses 
+    });
+  }
   
     try {
       const updatedWaitlist = await updateWaitlistStatus(req.params.waitlistId, status);

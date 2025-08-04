@@ -403,6 +403,11 @@ const adminService = {
         return api.get(`/admin/classes/${classId}/waitlist`);
     },
 
+    // Update waitlist entry status (admin only)
+    async updateWaitlistStatus(classId, waitlistId, status) {
+        return api.put(`/admin/classes/${classId}/waitlist/${waitlistId}`, { status });
+    },
+
     // Get all enrollments (active and historical) for a class
     async getAllEnrollments(classId) {
         return api.get(`/admin/classes/${classId}/enrollments`);
@@ -527,11 +532,15 @@ const adminService = {
 
     // Get all sessions with students for a class
     async getClassSessionsWithStudents(classId) {
+        console.log(`=== adminService: Calling getClassSessionsWithStudents for class ${classId} ===`);
         const response = await fetchWithAuth(`/sessions/class/${classId}/sessions`);
+        console.log(`=== adminService: Response status: ${response.status} ===`);
         if (!response.ok) {
             throw new Error('Failed to fetch sessions and students');
         }
-        return response.json();
+        const data = await response.json();
+        console.log(`=== adminService: Response data:`, data);
+        return data;
     },
 
     // Update session status

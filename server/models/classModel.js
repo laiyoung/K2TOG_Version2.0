@@ -190,7 +190,7 @@ const getUserWaitlistEntries = async (userId) => {
 };
 
 // Update waitlist status
-const updateWaitlistStatus = async (waitlistId, status, adminId = null) => {
+const updateWaitlistStatus = async (waitlistId, status) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -215,14 +215,90 @@ const updateWaitlistStatus = async (waitlistId, status, adminId = null) => {
     const result = await client.query(
       `UPDATE class_waitlist 
        SET status = $1,
-           updated_at = CURRENT_TIMESTAMP,
-           updated_by = $2
-       WHERE id = $3
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = $2
        RETURNING *`,
-      [status, adminId, waitlistId]
+      [status, waitlistId]
     );
 
+    // If status is 'approved', automatically enroll the student in the class
+    if (status === 'approved') {
+      console.log(`Approving waitlist entry ${waitlistId} for user ${waitlistEntry.user_id} in class ${waitlistEntry.class_id}`);
+      
+      // Get all available sessions for this class, ordered by date
+      const sessionResult = await client.query(
+        `SELECT id, session_date, start_time, end_time FROM class_sessions 
+         WHERE class_id = $1 AND deleted_at IS NULL 
+         ORDER BY session_date, start_time`,
+        [waitlistEntry.class_id]
+      );
 
+      if (sessionResult.rows.length > 0) {
+        // Try to find the best session to enroll in
+        let targetSessionId = null;
+        
+        // First, check if there's a session with available capacity
+        for (const session of sessionResult.rows) {
+          const capacityCheck = await client.query(
+            `SELECT 
+               cs.capacity,
+               COUNT(e.id) as enrolled_count
+             FROM class_sessions cs
+             LEFT JOIN enrollments e ON e.session_id = cs.id AND e.enrollment_status = 'approved'
+             WHERE cs.id = $1
+             GROUP BY cs.capacity`,
+            [session.id]
+          );
+          
+          if (capacityCheck.rows[0]) {
+            const { capacity, enrolled_count } = capacityCheck.rows[0];
+            const availableSpots = capacity - enrolled_count;
+            
+            if (availableSpots > 0) {
+              targetSessionId = session.id;
+              console.log(`Found session ${session.id} with ${availableSpots} available spots`);
+              break;
+            }
+          }
+        }
+        
+        // If no session with capacity found, use the first session
+        if (!targetSessionId) {
+          targetSessionId = sessionResult.rows[0].id;
+          console.log(`No sessions with capacity found, using first session ${targetSessionId}`);
+        }
+        
+        // Check if student is already enrolled in any session for this class
+        const existingEnrollment = await client.query(
+          `SELECT id, session_id FROM enrollments 
+           WHERE user_id = $1 AND class_id = $2 AND enrollment_status = 'approved'`,
+          [waitlistEntry.user_id, waitlistEntry.class_id]
+        );
+
+        console.log(`Existing enrollments for user ${waitlistEntry.user_id}:`, existingEnrollment.rows);
+
+        if (existingEnrollment.rows.length === 0) {
+          // Student not enrolled in any session, create enrollment
+          console.log(`Creating enrollment for user ${waitlistEntry.user_id} in session ${targetSessionId}`);
+          try {
+            const enrollmentResult = await client.query(
+              `INSERT INTO enrollments (user_id, class_id, session_id, enrollment_status, payment_status, enrolled_at)
+               VALUES ($1, $2, $3, 'approved', 'pending', CURRENT_TIMESTAMP)
+               RETURNING id`,
+              [waitlistEntry.user_id, waitlistEntry.class_id, targetSessionId]
+            );
+            console.log(`Created enrollment with ID: ${enrollmentResult.rows[0].id}`);
+          } catch (enrollmentError) {
+            console.error(`Error creating enrollment:`, enrollmentError);
+            throw enrollmentError;
+          }
+        } else {
+          console.log(`User ${waitlistEntry.user_id} already enrolled in session ${existingEnrollment.rows[0].session_id}`);
+        }
+      } else {
+        console.log(`No sessions found for class ${waitlistEntry.class_id}`);
+      }
+    }
 
     await client.query('COMMIT');
     return { ...result.rows[0], class_title: waitlistEntry.class_title, user_email: waitlistEntry.user_email };
@@ -236,33 +312,26 @@ const updateWaitlistStatus = async (waitlistId, status, adminId = null) => {
 
 // Get class waitlist with enhanced details
 const getClassWaitlist = async (classId) => {
+  console.log(`=== getClassWaitlist called for class ${classId} ===`);
   const result = await pool.query(
     `SELECT w.*,
             u.name as user_name,
             u.email as user_email,
             u.phone_number as user_phone,
-            cs.capacity as session_capacity,
             DATE_PART('day', CURRENT_TIMESTAMP - w.created_at) as days_on_waitlist,
-            CASE 
-              WHEN w.status = 'waiting' THEN
-                ROUND(AVG(DATE_PART('day', e.enrolled_at - w2.created_at)) * 
-                      (COUNT(DISTINCT w2.id) FILTER (WHERE w2.created_at < w.created_at AND w2.status = 'waiting')::float / 
-                       NULLIF(cs.capacity, 0)))
-              ELSE NULL
-            END as estimated_wait_time
+            (SELECT MIN(session_date) FROM class_sessions WHERE class_id = w.class_id AND deleted_at IS NULL) as next_session_date,
+            (SELECT MIN(start_time) FROM class_sessions WHERE class_id = w.class_id AND deleted_at IS NULL) as next_session_start_time,
+            (SELECT MIN(end_time) FROM class_sessions WHERE class_id = w.class_id AND deleted_at IS NULL) as next_session_end_time
      FROM class_waitlist w
      JOIN users u ON u.id = w.user_id
      JOIN classes c ON c.id = w.class_id
-     LEFT JOIN class_sessions cs ON cs.class_id = w.class_id
-     LEFT JOIN enrollments e ON e.class_id = w.class_id AND e.enrollment_status = 'approved'
-     LEFT JOIN class_waitlist w2 ON w2.class_id = w.class_id
      WHERE w.class_id = $1
-     GROUP BY w.id, u.name, u.email, u.phone_number, cs.capacity
      ORDER BY 
        CASE WHEN w.status = 'waiting' THEN 0 ELSE 1 END,
        w.position`,
     [classId]
   );
+  console.log(`Waitlist data for class ${classId}:`, result.rows);
   return result.rows;
 };
 

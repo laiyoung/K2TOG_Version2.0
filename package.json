@@ -10,14 +10,7 @@
     "test": "jest",
     "client": "vite",
     "client:dev": "vite",
-    "dev": "concurrently \"npm run start:dev\" \"npm run client:dev\"",
-    "supabase:start": "npx supabase start",
-    "supabase:stop": "npx supabase stop",
-    "supabase:status": "npx supabase status",
-    "supabase:migration:new": "npx supabase migration new",
-    "supabase:migration:up": "npx supabase db push",
-    "supabase:migration:reset": "npx supabase db reset",
-    "supabase:setup": "node apply-supabase-migration.js"
+    "dev": "concurrently \"npm run start:dev\" \"npm run client:dev\""
   },
   "keywords": [],
   "author": "",

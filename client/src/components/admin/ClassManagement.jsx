@@ -2,6 +2,7 @@ import React, { useState, useCallback, useEffect } from "react";
 import ClassStudents from "./ClassStudents";
 import classService from "../../services/classService";
 import adminService from "../../services/adminService";
+import enrollmentService from "../../services/enrollmentService"; // Added import for enrollmentService
 import { useNotifications } from '../../utils/notificationUtils';
 import {
   Box,
@@ -356,6 +357,38 @@ function ClassManagement() {
       setWaitlistClass({ ...cls, waitlist });
     } catch (error) {
       handleError(error, "Failed to fetch class waitlist");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleWaitlistAction = async (waitlistEntryId, action) => {
+    try {
+      setLoading(true);
+      let status;
+      let successMessage;
+
+      if (action === 'approved') {
+        // Use 'approved' status (which is allowed by the database constraint)
+        status = 'approved';
+        successMessage = 'Waitlist entry approved successfully';
+      } else if (action === 'rejected') {
+        // Use 'rejected' status (which is allowed by the database constraint)
+        status = 'rejected';
+        successMessage = 'Waitlist entry rejected successfully';
+      } else {
+        status = action;
+        successMessage = `Waitlist entry ${action} successfully`;
+      }
+
+      // Use the generic update function with correct status values
+      await adminService.updateWaitlistStatus(waitlistClass.id, waitlistEntryId, status);
+      showSuccess(successMessage);
+
+      // Refresh the waitlist
+      await handleViewWaitlist(waitlistClass);
+    } catch (error) {
+      handleError(error, `Failed to ${action} waitlist entry`);
     } finally {
       setLoading(false);
     }
@@ -827,25 +860,137 @@ function ClassManagement() {
 
       {waitlistClass && (
         <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h3 className="text-lg font-medium mb-4">
-              Waitlist for {waitlistClass.title}
-            </h3>
-            <ul className="mb-4">
-              {waitlistClass.waitlist?.map((w, idx) => (
-                <li key={idx} className="mb-1 text-sm">
-                  {w.user} <span className="text-gray-400">({w.status})</span>
-                </li>
-              ))}
-            </ul>
-            <div className="flex justify-end">
+          <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[80vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-medium">
+                Waitlist Management for {waitlistClass.title}
+              </h3>
               <button
-                className="px-4 py-2 border rounded"
+                className="px-4 py-2 border rounded hover:bg-gray-50"
                 onClick={() => setWaitlistClass(null)}
               >
                 Close
               </button>
             </div>
+
+            {loading ? (
+              <div className="flex justify-center items-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              </div>
+            ) : waitlistClass.waitlist && waitlistClass.waitlist.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="min-w-full bg-white border border-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">
+                        Student
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">
+                        Email
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">
+                        Position
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">
+                        Status
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">
+                        Next Session
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {waitlistClass.waitlist.map((entry, idx) => (
+                      <tr key={`${entry.id}-${entry.user_id}-${idx}`} className="hover:bg-gray-50">
+                        <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900 border-b">
+                          {entry.user_name || entry.student_name || entry.user || entry.name || 'N/A'}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 border-b">
+                          {entry.user_email || entry.student_email || entry.email || 'N/A'}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 border-b">
+                          {entry.position || idx + 1}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap border-b">
+                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${entry.status === 'waiting' ? 'bg-yellow-100 text-yellow-800' :
+                            entry.status === 'offered' ? 'bg-blue-100 text-blue-800' :
+                              entry.status === 'approved' ? 'bg-green-100 text-green-800' :
+                                entry.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                                  entry.status === 'pending' ? 'bg-orange-100 text-orange-800' :
+                                    entry.status === 'cancelled' ? 'bg-gray-100 text-gray-800' :
+                                      'bg-gray-100 text-gray-800'
+                            }`}>
+                            {entry.status || 'waiting'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 border-b">
+                          {entry.next_session_date ? (
+                            <div>
+                              <div>{new Date(entry.next_session_date).toLocaleDateString()}</div>
+                              {entry.next_session_start_time && entry.next_session_end_time && (
+                                <div className="text-xs text-gray-400">
+                                  {entry.next_session_start_time} - {entry.next_session_end_time}
+                                </div>
+                              )}
+                            </div>
+                          ) : 'N/A'}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm font-medium border-b">
+                          <div className="flex space-x-2">
+                            {(entry.status === 'waiting' || entry.status === 'pending') && (
+                              <>
+                                <button
+                                  onClick={() => handleWaitlistAction(entry.id, 'approved')}
+                                  className="text-green-600 hover:text-green-900 bg-green-50 hover:bg-green-100 px-2 py-1 rounded text-xs"
+                                  disabled={loading}
+                                >
+                                  Approve
+                                </button>
+                                <button
+                                  onClick={() => handleWaitlistAction(entry.id, 'rejected')}
+                                  className="text-red-600 hover:text-red-900 bg-red-50 hover:bg-red-100 px-2 py-1 rounded text-xs"
+                                  disabled={loading}
+                                >
+                                  Reject
+                                </button>
+                              </>
+                            )}
+                            {entry.status === 'offered' && (
+                              <span className="text-blue-600 text-xs">
+                                Offer sent - waiting for response
+                              </span>
+                            )}
+                            {entry.status === 'approved' && (
+                              <span className="text-green-600 text-xs">
+                                Approved
+                              </span>
+                            )}
+                            {entry.status === 'rejected' && (
+                              <span className="text-red-600 text-xs">
+                                Rejected
+                              </span>
+                            )}
+                            {/* Fallback for any unhandled status */}
+                            {!['waiting', 'pending', 'offered', 'accepted', 'approved', 'declined', 'rejected'].includes(entry.status) && (
+                              <span className="text-gray-600 text-xs">
+                                Status: {entry.status}
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <p className="text-gray-500">No students on waitlist for this class.</p>
+              </div>
+            )}
           </div>
         </div>
       )}

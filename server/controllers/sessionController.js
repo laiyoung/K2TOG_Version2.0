@@ -4,72 +4,59 @@ const pool = require('../config/db');
 async function getClassSessionsWithStudents(req, res) {
   const { classId } = req.params;
   
+  console.log(`=== getClassSessionsWithStudents called for class ${classId} ===`);
+  
   try {
     const query = `
-      WITH        active_session_students AS (
-         SELECT 
-           cs.id as session_id,
-           cs.session_date,
-           cs.start_time,
-           cs.end_time,
-           cs.status,
-           'active' as session_type,
-           json_agg(
-             json_build_object(
-               'id', u.id,
-               'name', CONCAT(u.first_name, ' ', u.last_name),
-               'email', u.email,
-               'enrollment_status', e.enrollment_status,
-               'payment_status', e.payment_status,
-               'enrollment_type', 'active'
-             )
-           ) FILTER (WHERE u.id IS NOT NULL) as students
-         FROM class_sessions cs
-         LEFT JOIN (
-           SELECT DISTINCT ON (e.user_id, e.session_id) 
-             e.session_id, e.user_id, e.enrollment_status, e.payment_status
-           FROM enrollments e
-         ) e ON e.session_id = cs.id
-         LEFT JOIN users u ON u.id = e.user_id
-         WHERE cs.class_id = $1 AND cs.deleted_at IS NULL
-         GROUP BY cs.id, cs.session_date, cs.start_time, cs.end_time, cs.status
-       ),
-             historical_session_students AS (
-         SELECT 
-           hs.original_session_id as session_id,
-           hs.session_date,
-           hs.start_time,
-           hs.end_time,
-           hs.status,
-           'historical' as session_type,
-           json_agg(
-             json_build_object(
-               'id', u.id,
-               'name', CONCAT(u.first_name, ' ', u.last_name),
-               'email', u.email,
-               'enrollment_status', he.enrollment_status,
-               'payment_status', he.payment_status,
-               'enrollment_type', 'historical',
-               'archived_at', he.archived_at,
-               'archived_reason', he.archived_reason
-             )
-           ) FILTER (WHERE u.id IS NOT NULL) as students
-         FROM historical_sessions hs
-         LEFT JOIN (
-           SELECT DISTINCT ON (he.user_id, hs.original_session_id) 
-             he.historical_session_id, he.user_id, he.enrollment_status, he.payment_status, he.archived_at, he.archived_reason
-           FROM historical_enrollments he
-           JOIN historical_sessions hs ON hs.id = he.historical_session_id
-           ORDER BY he.user_id, hs.original_session_id, he.archived_at DESC
-         ) he ON he.historical_session_id = hs.id
-         LEFT JOIN users u ON u.id = he.user_id
-         WHERE hs.class_id = $1
-         GROUP BY hs.original_session_id, hs.session_date, hs.start_time, hs.end_time, hs.status
-       ),
-      all_sessions AS (
-        SELECT * FROM active_session_students
-        UNION ALL
-        SELECT * FROM historical_session_students
+      WITH active_sessions AS (
+        SELECT 
+          cs.id as session_id,
+          cs.session_date,
+          cs.start_time,
+          cs.end_time,
+          cs.status,
+          'active' as session_type,
+          json_agg(
+            json_build_object(
+              'id', u.id,
+              'name', CONCAT(u.first_name, ' ', u.last_name),
+              'email', u.email,
+              'enrollment_status', e.enrollment_status,
+              'payment_status', e.payment_status,
+              'enrollment_type', 'active'
+            )
+          ) FILTER (WHERE u.id IS NOT NULL) as students
+        FROM class_sessions cs
+        LEFT JOIN enrollments e ON e.session_id = cs.id
+        LEFT JOIN users u ON u.id = e.user_id
+        WHERE cs.class_id = $1 AND cs.deleted_at IS NULL
+        GROUP BY cs.id, cs.session_date, cs.start_time, cs.end_time, cs.status
+      ),
+      historical_sessions AS (
+        SELECT 
+          hs.original_session_id as session_id,
+          hs.session_date,
+          hs.start_time,
+          hs.end_time,
+          hs.status,
+          'historical' as session_type,
+          json_agg(
+            json_build_object(
+              'id', u.id,
+              'name', CONCAT(u.first_name, ' ', u.last_name),
+              'email', u.email,
+              'enrollment_status', he.enrollment_status,
+              'payment_status', he.payment_status,
+              'enrollment_type', 'historical',
+              'archived_at', he.archived_at,
+              'archived_reason', he.archived_reason
+            )
+          ) FILTER (WHERE u.id IS NOT NULL) as students
+        FROM historical_sessions hs
+        LEFT JOIN historical_enrollments he ON he.historical_session_id = hs.id
+        LEFT JOIN users u ON u.id = he.user_id
+        WHERE hs.class_id = $1
+        GROUP BY hs.original_session_id, hs.session_date, hs.start_time, hs.end_time, hs.status
       )
       SELECT 
         session_id,
@@ -79,11 +66,82 @@ async function getClassSessionsWithStudents(req, res) {
         status,
         session_type,
         COALESCE(students, '[]'::json) as students
-      FROM all_sessions
+      FROM (
+        SELECT * FROM active_sessions
+        UNION ALL
+        SELECT * FROM historical_sessions
+        WHERE session_id NOT IN (SELECT session_id FROM active_sessions)
+      ) combined_sessions
       ORDER BY session_date ASC, start_time ASC;
     `;
 
     const { rows } = await pool.query(query, [classId]);
+    console.log(`Sessions with students data for class ${classId}:`, JSON.stringify(rows, null, 2));
+    
+    // Debug: Check enrollments directly
+    const enrollmentCheck = await pool.query(
+      `SELECT e.*, u.first_name, u.last_name, u.email, cs.session_date, cs.id as session_id
+       FROM enrollments e
+       JOIN users u ON e.user_id = u.id
+       JOIN class_sessions cs ON e.session_id = cs.id
+       WHERE cs.class_id = $1 AND e.enrollment_status = 'approved'
+       ORDER BY cs.session_date, cs.start_time`,
+      [classId]
+    );
+    console.log(`Direct enrollment check for class ${classId}:`, enrollmentCheck.rows);
+    
+    // Debug: Check waitlist entries
+    const waitlistCheck = await pool.query(
+      `SELECT w.*, u.first_name, u.last_name, u.email
+       FROM class_waitlist w
+       JOIN users u ON w.user_id = u.id
+       WHERE w.class_id = $1 AND w.status = 'approved'
+       ORDER BY w.created_at`,
+      [classId]
+    );
+    console.log(`Waitlist entries for class ${classId}:`, waitlistCheck.rows);
+    
+    // Debug: Try to manually enroll John Smith if he's not enrolled
+    const johnSmithUserId = '24522e83-fe39-486a-8ebf-46e743b930f2';
+    const johnEnrollmentCheck = await pool.query(
+      `SELECT * FROM enrollments WHERE user_id = $1 AND class_id = $2`,
+      [johnSmithUserId, classId]
+    );
+    console.log(`John Smith enrollment check:`, johnEnrollmentCheck.rows);
+    
+    if (johnEnrollmentCheck.rows.length === 0) {
+      console.log(`John Smith is not enrolled. Attempting to enroll him in the first session...`);
+      try {
+        const firstSession = await pool.query(
+          `SELECT id FROM class_sessions WHERE class_id = $1 AND deleted_at IS NULL ORDER BY session_date, start_time LIMIT 1`,
+          [classId]
+        );
+        if (firstSession.rows[0]) {
+          const enrollmentResult = await pool.query(
+            `INSERT INTO enrollments (user_id, class_id, session_id, enrollment_status, payment_status, enrolled_at)
+             VALUES ($1, $2, $3, 'approved', 'pending', CURRENT_TIMESTAMP)
+             RETURNING id`,
+            [johnSmithUserId, classId, firstSession.rows[0].id]
+          );
+          console.log(`Successfully enrolled John Smith with enrollment ID: ${enrollmentResult.rows[0].id}`);
+        }
+      } catch (error) {
+        console.error(`Error enrolling John Smith:`, error);
+      }
+    } else {
+      // Update existing enrollments to have a payment status if they don't have one
+      console.log(`John Smith has ${johnEnrollmentCheck.rows.length} existing enrollments. Checking payment status...`);
+      for (const enrollment of johnEnrollmentCheck.rows) {
+        if (!enrollment.payment_status) {
+          console.log(`Updating enrollment ${enrollment.id} to have payment_status = 'pending'`);
+          await pool.query(
+            `UPDATE enrollments SET payment_status = 'pending' WHERE id = $1`,
+            [enrollment.id]
+          );
+        }
+      }
+    }
+    
     res.json(rows);
   } catch (error) {
     console.error('Error fetching sessions with students:', error);

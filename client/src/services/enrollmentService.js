@@ -104,6 +104,16 @@ const enrollmentService = {
         } catch (error) {
             throw error;
         }
+    },
+
+    // Offer spot to waitlist student (admin only)
+    offerWaitlistSpot: async (waitlistEntryId) => {
+        try {
+            const response = await api.post(`/enrollments/waitlist/${waitlistEntryId}/offer`);
+            return response;
+        } catch (error) {
+            throw error;
+        }
     }
 };
 
