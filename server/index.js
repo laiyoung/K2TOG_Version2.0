@@ -95,6 +95,17 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// Keep-alive endpoint for Railway
+app.get('/keepalive', (req, res) => {
+  console.log('💓 Keep-alive request received:', new Date().toISOString());
+  res.status(200).json({
+    status: 'ALIVE',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    message: 'Service is alive and running'
+  });
+});
+
 // Only start the server if this file is run directly
 if (require.main === module) {
   const server = app.listen(PORT, () => {
@@ -117,6 +128,8 @@ if (require.main === module) {
   // Keep-alive mechanism for Railway
   let keepAliveInterval = setInterval(() => {
     console.log('💓 Keep-alive ping:', new Date().toISOString());
+    console.log('📊 Memory usage:', process.memoryUsage());
+    console.log('⏱️ Uptime:', process.uptime(), 'seconds');
   }, 30000); // Every 30 seconds
 
   // Clean up interval on shutdown
@@ -136,6 +149,19 @@ if (require.main === module) {
       process.exit(0);
     });
   });
+
+  // Additional process monitoring
+  process.on('exit', (code) => {
+    console.log('Process exiting with code:', code);
+  });
+
+  // Monitor for memory issues
+  setInterval(() => {
+    const memUsage = process.memoryUsage();
+    if (memUsage.heapUsed > 100 * 1024 * 1024) { // 100MB
+      console.warn('⚠️ High memory usage:', memUsage.heapUsed / 1024 / 1024, 'MB');
+    }
+  }, 60000); // Every minute
 }
 
 module.exports = app;

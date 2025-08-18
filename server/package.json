@@ -4,7 +4,8 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "start:railway": "node index.js",
+    "start:railway": "node start.js",
+    "start:robust": "node start.js",
     "dev": "nodemon index.js",
     "test": "jest"
   },
