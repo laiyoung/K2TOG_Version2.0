@@ -66,11 +66,32 @@ app.get('/', (req, res) => {
 
 // Health check endpoint for Railway
 app.get('/health', (req, res) => {
+  try {
+    res.status(200).json({
+      status: 'OK',
+      timestamp: new Date().toISOString(),
+      port: PORT,
+      environment: process.env.NODE_ENV || 'development',
+      uptime: process.uptime(),
+      memory: process.memoryUsage(),
+      pid: process.pid
+    });
+  } catch (error) {
+    console.error('Health check error:', error);
+    res.status(500).json({
+      status: 'ERROR',
+      timestamp: new Date().toISOString(),
+      error: error.message
+    });
+  }
+});
+
+// Additional health check for Railway
+app.get('/api/health', (req, res) => {
   res.status(200).json({
     status: 'OK',
-    timestamp: new Date().toISOString(),
-    port: PORT,
-    environment: process.env.NODE_ENV || 'development'
+    message: 'API is healthy',
+    timestamp: new Date().toISOString()
   });
 });
 
@@ -82,22 +103,6 @@ if (require.main === module) {
     console.log(`🌐 Health check: http://localhost:${PORT}/health`);
   });
 
-  // Graceful shutdown handling
-  process.on('SIGTERM', () => {
-    console.log('SIGTERM received, shutting down gracefully');
-    server.close(() => {
-      console.log('Process terminated');
-    });
-  });
-
-  process.on('SIGINT', () => {
-    console.log('SIGINT received, shutting down gracefully');
-    server.close(() => {
-      console.log('Process terminated');
-      process.exit(0);
-    });
-  });
-
   // Handle uncaught exceptions to prevent crashes
   process.on('uncaughtException', (err) => {
     console.error('Uncaught Exception:', err);
@@ -107,6 +112,29 @@ if (require.main === module) {
   process.on('unhandledRejection', (reason, promise) => {
     console.error('Unhandled Rejection at:', promise, 'reason:', reason);
     // Don't exit immediately, let Railway handle it
+  });
+
+  // Keep-alive mechanism for Railway
+  let keepAliveInterval = setInterval(() => {
+    console.log('💓 Keep-alive ping:', new Date().toISOString());
+  }, 30000); // Every 30 seconds
+
+  // Clean up interval on shutdown
+  process.on('SIGTERM', () => {
+    console.log('SIGTERM received, shutting down gracefully');
+    clearInterval(keepAliveInterval);
+    server.close(() => {
+      console.log('Process terminated');
+    });
+  });
+
+  process.on('SIGINT', () => {
+    console.log('SIGINT received, shutting down gracefully');
+    clearInterval(keepAliveInterval);
+    server.close(() => {
+      console.log('Process terminated');
+      process.exit(0);
+    });
   });
 }
 
