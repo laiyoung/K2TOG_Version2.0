@@ -1,39 +1,44 @@
 const nodemailer = require('nodemailer');
 require('dotenv').config();
 
-// Debug logging
+// Log email configuration status
 console.log('Email configuration check:');
 console.log('EMAIL_USER exists:', !!process.env.EMAIL_USER);
 console.log('EMAIL_APP_PASSWORD exists:', !!process.env.EMAIL_APP_PASSWORD);
 console.log('EMAIL_PASS exists:', !!process.env.EMAIL_PASS);
 
-// Create transporter with Google App Password
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_APP_PASSWORD || process.env.EMAIL_PASS
-  },
-  tls: {
-    rejectUnauthorized: false
-  }
-});
+// Create transporter only if credentials are available
+let transporter = null;
+let emailServiceEnabled = false;
 
-// Verify transporter connection on startup
-transporter.verify(function (error, success) {
-  if (error) {
-    console.log('Email service error:', error);
-    console.log('Email service is disabled - email notifications will not be sent');
-  } else {
-    console.log('Email server is ready to send messages');
+if (process.env.EMAIL_USER && (process.env.EMAIL_APP_PASSWORD || process.env.EMAIL_PASS)) {
+  try {
+    transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_APP_PASSWORD || process.env.EMAIL_PASS
+      },
+      tls: {
+        rejectUnauthorized: false
+      }
+    });
+    emailServiceEnabled = true;
+    console.log('✅ Email service configured successfully');
+  } catch (error) {
+    console.error('❌ Error creating email transporter:', error);
+    emailServiceEnabled = false;
   }
-});
+} else {
+  console.log('⚠️ Email service is disabled - missing configuration');
+  emailServiceEnabled = false;
+}
 
 // Base email sending function
 const sendEmail = async ({ to, subject, html }) => {
   // Check if email service is properly configured
-  if (!process.env.EMAIL_USER || !process.env.EMAIL_APP_PASSWORD) {
-    console.log('Email sending disabled - missing configuration:', { to, subject });
+  if (!emailServiceEnabled || !transporter) {
+    console.log('📧 Email sending disabled - missing configuration:', { to, subject });
     return true; // Return success to prevent app crashes
   }
 
@@ -44,11 +49,12 @@ const sendEmail = async ({ to, subject, html }) => {
       subject,
       html
     });
-    console.log('Email sent successfully to:', to);
-  return true;
+    console.log('✅ Email sent successfully to:', to);
+    return true;
   } catch (error) {
-    console.error('Error sending email:', error);
-    throw error;
+    console.error('❌ Error sending email:', error);
+    // Don't throw error, just log it to prevent crashes
+    return false;
   }
 };
 

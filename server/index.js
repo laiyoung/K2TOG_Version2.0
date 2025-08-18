@@ -59,22 +59,54 @@ app.use((req, res, next) => {
   next();
 });
 
-
 // Root endpoint
 app.get('/', (req, res) => {
   res.send('Education API is running...');
 });
 
-// // Start server
-// app.listen(PORT, () => {
-//   console.log(`Server running on http://localhost:${PORT}`);
-// });
-
+// Health check endpoint for Railway
+app.get('/health', (req, res) => {
+  res.status(200).json({
+    status: 'OK',
+    timestamp: new Date().toISOString(),
+    port: PORT,
+    environment: process.env.NODE_ENV || 'development'
+  });
+});
 
 // Only start the server if this file is run directly
 if (require.main === module) {
-  app.listen(PORT, () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+  const server = app.listen(PORT, () => {
+    console.log(`🚀 Server running on port ${PORT}`);
+    console.log(`📡 Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`🌐 Health check: http://localhost:${PORT}/health`);
+  });
+
+  // Graceful shutdown handling
+  process.on('SIGTERM', () => {
+    console.log('SIGTERM received, shutting down gracefully');
+    server.close(() => {
+      console.log('Process terminated');
+    });
+  });
+
+  process.on('SIGINT', () => {
+    console.log('SIGINT received, shutting down gracefully');
+    server.close(() => {
+      console.log('Process terminated');
+      process.exit(0);
+    });
+  });
+
+  // Handle uncaught exceptions to prevent crashes
+  process.on('uncaughtException', (err) => {
+    console.error('Uncaught Exception:', err);
+    // Don't exit immediately, let Railway handle it
+  });
+
+  process.on('unhandledRejection', (reason, promise) => {
+    console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+    // Don't exit immediately, let Railway handle it
   });
 }
 
