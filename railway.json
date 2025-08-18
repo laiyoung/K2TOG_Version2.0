@@ -5,12 +5,12 @@
   },
   "deploy": {
     "startCommand": "./server/railway-start.sh",
-    "healthcheckPath": "/health",
+    "healthcheckPath": "/railway-health",
     "healthcheckTimeout": 300,
-    "restartPolicyType": "ON_FAILURE",
-    "restartPolicyMaxRetries": 10,
+    "restartPolicyType": "ALWAYS",
+    "restartPolicyMaxRetries": 999,
     "numReplicas": 1,
-    "healthcheckInterval": 30,
-    "maxRestarts": 5
+    "healthcheckInterval": 15,
+    "maxRestarts": 999
   }
 } 

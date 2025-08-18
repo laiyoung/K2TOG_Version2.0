@@ -67,6 +67,21 @@ app.get('/', (req, res) => {
 // Health check endpoint for Railway
 app.get('/health', (req, res) => {
   try {
+    // Minimal response that Railway expects
+    res.status(200).json({
+      status: 'OK'
+    });
+  } catch (error) {
+    console.error('Health check error:', error);
+    res.status(500).json({
+      status: 'ERROR'
+    });
+  }
+});
+
+// Detailed health check for monitoring
+app.get('/health/detailed', (req, res) => {
+  try {
     res.status(200).json({
       status: 'OK',
       timestamp: new Date().toISOString(),
@@ -77,13 +92,18 @@ app.get('/health', (req, res) => {
       pid: process.pid
     });
   } catch (error) {
-    console.error('Health check error:', error);
+    console.error('Detailed health check error:', error);
     res.status(500).json({
       status: 'ERROR',
       timestamp: new Date().toISOString(),
       error: error.message
     });
   }
+});
+
+// Railway-specific health check (minimal response)
+app.get('/railway-health', (req, res) => {
+  res.status(200).send('OK');
 });
 
 // Additional health check for Railway
