@@ -2,5 +2,5 @@
   "framework": "vite",
   "buildCommand": "npm run build",
   "outputDirectory": "client/dist",
-  "installCommand": "npm install && cd client && npm install"
+  "installCommand": "npm install"
 }
