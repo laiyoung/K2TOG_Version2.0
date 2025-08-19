@@ -28,7 +28,11 @@ const PORT = process.env.PORT || 8080;
 
 // CORS configuration
 const corsOptions = {
-  origin: ["http://localhost:3000", "https://client-six-kappa-83.vercel.app"],
+  origin: [
+    "http://localhost:3000",
+    "https://client-six-kappa-83.vercel.app",
+    "https://client-nsoumyuuy-deniseosorias-projects.vercel.app"
+  ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
