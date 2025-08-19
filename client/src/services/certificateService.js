@@ -1,4 +1,5 @@
 import supabaseStorageService from './supabaseStorageService'
+import { API_BASE_URL } from '../config/apiConfig.js'
 
 // Helper function to handle fetch requests
 const fetchWithAuth = async (url, options = {}) => {
@@ -10,7 +11,7 @@ const fetchWithAuth = async (url, options = {}) => {
     };
 
     // Use the full URL with the proxy path
-    const response = await fetch(`/api${url}`, {
+    const response = await fetch(`${API_BASE_URL}${url}`, {
         ...options,
         headers
     });
@@ -62,7 +63,7 @@ export const uploadCertificate = async (studentId, file, classId, sessionId, exp
     try {
         // First upload file to Supabase storage
         const uploadResult = await supabaseStorageService.uploadCertificate(file, studentId, classId);
-        
+
         // Then save certificate metadata to backend
         const certificateData = {
             user_id: studentId,

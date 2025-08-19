@@ -1,4 +1,5 @@
 import api from './apiConfig';
+import { API_BASE_URL } from '../config/apiConfig.js';
 
 const classService = {
     // Helper function to handle fetch requests
@@ -10,7 +11,7 @@ const classService = {
             ...options.headers
         };
 
-        const response = await fetch(`/api${url}`, {
+        const response = await fetch(`${API_BASE_URL}${url}`, {
             ...options,
             headers
         });

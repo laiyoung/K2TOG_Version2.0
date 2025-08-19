@@ -1,4 +1,5 @@
 import api from './apiConfig';
+import { API_BASE_URL } from '../config/apiConfig.js';
 import { fetchWithAuth } from '../utils/fetchUtils';
 
 const adminService = {
@@ -71,14 +72,14 @@ const adminService = {
         const endDate = filters.endDate || defaultEnd.toISOString().slice(0, 10);
         const queryParams = new URLSearchParams({ ...filters, startDate, endDate }).toString();
         const endpoint = type === 'summary' ? 'summary' :
-                        type === 'revenue' ? 'revenue' :
-                        type === 'revenue-by-class' ? 'revenue/classes' :
-                        type === 'enrollments' ? 'enrollments/trends' :
+            type === 'revenue' ? 'revenue' :
+                type === 'revenue-by-class' ? 'revenue/classes' :
+                    type === 'enrollments' ? 'enrollments/trends' :
                         type === 'class-enrollments' ? 'enrollments/classes' :
-                        type === 'user-engagement' ? 'users/engagement' :
-                        type === 'user-activity' ? 'users/activity' : 'summary';
+                            type === 'user-engagement' ? 'users/engagement' :
+                                type === 'user-activity' ? 'users/activity' : 'summary';
 
-        const response = await fetch(`/api/admin/analytics/${endpoint}?${queryParams}`, {
+        const response = await fetch(`${API_BASE_URL}/admin/analytics/${endpoint}?${queryParams}`, {
             headers: {
                 'Authorization': `Bearer ${localStorage.getItem('token')}`,
                 'Content-Type': 'application/json'
@@ -133,7 +134,7 @@ const adminService = {
     // Export analytics report - updated to use fetch API
     exportAnalyticsReport: async (type, filters = {}) => {
         const params = new URLSearchParams(filters).toString();
-        const response = await fetch(`/api/admin/analytics/export/${type}?${params}`, {
+        const response = await fetch(`${API_BASE_URL}/admin/analytics/export/${type}`, {
             headers: {
                 'Authorization': `Bearer ${localStorage.getItem('token')}`,
                 'Content-Type': 'application/json'
@@ -242,7 +243,7 @@ const adminService = {
 
     sendNotification: async (notificationData) => {
         const { recipientType, recipient, title, message, templateId, template, user } = notificationData;
-        
+
         if (!recipient) {
             throw new Error('No recipient specified');
         }
@@ -258,7 +259,7 @@ const adminService = {
             try {
                 const students = await api.get(`/admin/classes/${recipient}/students`);
                 console.log('Students fetched in sendNotification:', students);
-                
+
                 // The response is already the array of students
                 if (!Array.isArray(students) || students.length === 0) {
                     throw new Error('No students found in this class');
@@ -271,7 +272,7 @@ const adminService = {
                 // Get class details for template variables
                 const classDetails = await api.get(`/admin/classes/${recipient}`);
                 console.log('Class details:', classDetails);
-                
+
                 variables = {
                     class_name: classDetails?.title || '',
                     start_date: classDetails?.start_date || '',
@@ -284,7 +285,7 @@ const adminService = {
         } else {
             // For individual user notifications
             userIds = [Number(recipient)];
-            
+
             if (template) {
                 variables = {
                     student_name: user ? `${user.first_name} ${user.last_name}` : '',
@@ -552,7 +553,7 @@ const adminService = {
             },
             body: JSON.stringify({ status }),
         });
-        
+
         if (!response.ok) {
             throw new Error('Failed to update session status');
         }

@@ -1,4 +1,5 @@
 import api from './apiConfig';
+import { API_BASE_URL } from '../config/apiConfig.js';
 
 const userService = {
     // Get user profile with all details
@@ -118,7 +119,7 @@ const fetchWithAuth = async (url, options = {}) => {
 
     console.log('Request headers:', headers);
 
-    const response = await fetch(`/api${url}`, {
+    const response = await fetch(`${API_BASE_URL}${url}`, {
         ...options,
         headers
     });

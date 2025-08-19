@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { API_BASE_URL } from '../config/apiConfig.js';
 
 const AuthContext = createContext(null);
 
@@ -11,7 +12,7 @@ const fetchWithAuth = async (url, options = {}) => {
         ...options.headers
     };
 
-    const response = await fetch(`/api${url}`, {
+    const response = await fetch(`${API_BASE_URL}${url}`, {
         ...options,
         headers
     });
@@ -82,7 +83,7 @@ export const AuthProvider = ({ children }) => {
 
         try {
             // Only verify the token if we have both token and user data
-            const response = await fetch('/api/users/profile', {
+            const response = await fetch(`${API_BASE_URL}/users/profile`, {
                 headers: {
                     'Authorization': `Bearer ${storedToken}`,
                     'Content-Type': 'application/json'
@@ -133,7 +134,7 @@ export const AuthProvider = ({ children }) => {
             setError(null);
             console.log('Starting login process...'); // Debug log
 
-            const response = await fetch('/api/users/login', {
+            const response = await fetch(`${API_BASE_URL}/users/login`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'

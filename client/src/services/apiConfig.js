@@ -1,6 +1,6 @@
 // Base API configuration and utility functions
 
-const API_BASE_URL = '/api'; // Remove the environment variable since we're using a proxy
+import { API_BASE_URL } from '../config/apiConfig.js';
 
 // Common headers for all requests
 const getHeaders = (includeAuth = true) => {
@@ -58,12 +58,12 @@ const fetchApi = async (endpoint, options = {}) => {
                 errorData = { error: `Non-JSON error response: ${text}` };
             }
             // Suppress logging for 404 'Not on waitlist' - check both error and message fields
-            const isWaitlistNotFound = response.status === 404 && 
-                (errorData.error === 'Not on waitlist' || 
-                 errorData.message === 'Not on waitlist' ||
-                 errorData.error?.includes('Not on waitlist') ||
-                 errorData.message?.includes('Not on waitlist'));
-            
+            const isWaitlistNotFound = response.status === 404 &&
+                (errorData.error === 'Not on waitlist' ||
+                    errorData.message === 'Not on waitlist' ||
+                    errorData.error?.includes('Not on waitlist') ||
+                    errorData.message?.includes('Not on waitlist'));
+
             if (!isWaitlistNotFound) {
                 console.error('API Error Response:', errorData); // Only log unexpected errors
             }
@@ -89,19 +89,19 @@ const fetchApi = async (endpoint, options = {}) => {
 
 // Utility methods for common HTTP methods
 export const api = {
-    get: (endpoint, options = {}) => 
+    get: (endpoint, options = {}) =>
         fetchApi(endpoint, { ...options, method: 'GET' }),
-    
-    post: (endpoint, body, options = {}) => 
+
+    post: (endpoint, body, options = {}) =>
         fetchApi(endpoint, { ...options, method: 'POST', body }),
-    
-    put: (endpoint, body, options = {}) => 
+
+    put: (endpoint, body, options = {}) =>
         fetchApi(endpoint, { ...options, method: 'PUT', body }),
-    
-    patch: (endpoint, body, options = {}) => 
+
+    patch: (endpoint, body, options = {}) =>
         fetchApi(endpoint, { ...options, method: 'PATCH', body }),
-    
-    delete: (endpoint, options = {}) => 
+
+    delete: (endpoint, options = {}) =>
         fetchApi(endpoint, { ...options, method: 'DELETE' }),
 };
 
