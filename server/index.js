@@ -4,6 +4,7 @@ const express = require('express');
 const cors = require('cors');
 const morgan = require('morgan');
 const dotenv = require('dotenv');
+const path = require('path');
 dotenv.config();
 // express.raw(); // For Stripe webhook
 
@@ -23,14 +24,14 @@ const devLogger = require('./middleware/devLogger');
 const sessionRoutes = require('./routes/sessionRoutes');
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 8080;
 
 // CORS configuration
 const corsOptions = {
-    origin: process.env.CLIENT_URL || 'https://client-six-kappa-83.vercel.app',
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
+  origin: ["http://localhost:3000", "https://client-six-kappa-83.vercel.app"],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 };
 
 // Middleware
@@ -43,7 +44,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/classes', classRoutes);
 app.use('/api/enrollments', enrollmentRoutes);
 // app.use('/api/payments', paymentRoutes);
-app.use('/api/webhook', stripeWebhook); 
+app.use('/api/webhook', stripeWebhook);
 app.use('/api/admin/analytics', analyticsRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/certificates', certificateRoutes);
@@ -125,6 +126,21 @@ app.get('/keepalive', (req, res) => {
     message: 'Service is alive and running'
   });
 });
+
+// =================== SPA Fallback for Production ===================
+if (process.env.NODE_ENV === "production") {
+  const clientPath = path.join(__dirname, "../client/dist");
+
+  // Serve static files from the client build
+  app.use(express.static(clientPath));
+
+  // SPA fallback to index.html
+  app.get("*", (req, res) => {
+    res.sendFile(path.join(clientPath, "index.html"));
+  });
+}
+// ==================================================================
+
 
 // Only start the server if this file is run directly
 if (require.main === module) {
