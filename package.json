@@ -10,7 +10,8 @@
     "test": "jest",
     "client": "vite",
     "client:dev": "vite",
-    "dev": "concurrently \"npm run start:dev\" \"npm run client:dev\""
+    "dev": "concurrently \"npm run start:dev\" \"npm run client:dev\"",
+    "build": "cd client && npm install && npm run build"
   },
   "keywords": [],
   "author": "",
