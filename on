@@ -1,0 +1,5 @@
+[33m6db3438[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m Fix Vercel deployment: Update API configuration to use existing VITE_API_URL env var for Railway backend integration
+[33m1037ae5[m updated client build
+[33mfa5dd54[m updated client build
+[33m9c1f2e3[m updated client build
+[33ma27a325[m updated client build

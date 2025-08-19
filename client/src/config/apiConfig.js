@@ -2,7 +2,15 @@
 const getApiBaseUrl = () => {
     // Use the existing VITE_API_URL environment variable
     if (import.meta.env.VITE_API_URL) {
-        return import.meta.env.VITE_API_URL;
+        let url = import.meta.env.VITE_API_URL;
+
+        // Ensure the URL has a protocol
+        if (!url.startsWith('http://') && !url.startsWith('https://')) {
+            url = 'https://' + url;
+        }
+
+        // Add /api prefix for Railway backend
+        return url + '/api';
     }
 
     // Fallback to relative paths for local development

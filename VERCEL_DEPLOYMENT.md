@@ -16,7 +16,7 @@ This guide explains how to deploy the YJ Child Care Plus frontend to Vercel whil
 3. Add the following environment variables:
 
 ```
-VITE_API_URL = https://your-railway-app.railway.app
+VITE_API_URL = yjchildcareplus-nodeenv.up.railway.app
 VITE_SUPABASE_URL = your_supabase_url
 VITE_SUPABASE_ANON_KEY = your_supabase_anon_key
 ```
@@ -33,7 +33,8 @@ VITE_SUPABASE_ANON_KEY = your_supabase_anon_key
 
 ### Production Mode (Vercel)
 - Uses the `VITE_API_URL` environment variable for all API calls
-- Example: `https://your-railway-app.railway.app/classes`
+- Automatically adds `https://` protocol and `/api` prefix if needed
+- Example: `https://yjchildcareplus-nodeenv.up.railway.app/api/classes`
 
 ## Deployment Steps
 
