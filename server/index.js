@@ -10,7 +10,7 @@ dotenv.config();
 const userRoutes = require('./routes/userRoutes');
 const classRoutes = require('./routes/classRoutes');
 const enrollmentRoutes = require('./routes/enrollmentRoutes');
-// const paymentRoutes = require('./routes/paymentRoutes');;
+// const paymentRoutes = require('./routes/paymentRoutes');
 const stripeWebhook = require('./routes/stripeWebhook');
 const adminRoutes = require('./routes/adminRoutes');
 const certificateRoutes = require('./routes/certificateRoutes');
@@ -27,7 +27,7 @@ const PORT = process.env.PORT || 5000;
 
 // CORS configuration
 const corsOptions = {
-    origin: process.env.CLIENT_URL || 'https://client-six-kappa-83.vercel.app/',
+    origin: process.env.CLIENT_URL || 'https://client-six-kappa-83.vercel.app',
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization']
