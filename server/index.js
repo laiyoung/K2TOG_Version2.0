@@ -35,7 +35,8 @@ const corsOptions = {
     // Keep specific domains for backward compatibility
     "https://client-six-kappa-83.vercel.app",
     "https://client-nsoumyuuy-deniseosorias-projects.vercel.app",
-    "https://client-ri13jqi56-deniseosorias-projects.vercel.app"
+    "https://client-ri13jqi56-deniseosorias-projects.vercel.app",
+    "https://client-ndie67jbi-deniseosorias-projects.vercel.app"
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
