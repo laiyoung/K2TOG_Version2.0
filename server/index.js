@@ -30,8 +30,12 @@ const PORT = process.env.PORT || 8080;
 const corsOptions = {
   origin: [
     "http://localhost:3000",
+    // Wildcard pattern for all Vercel preview domains
+    /^https:\/\/client-.*-deniseosorias-projects\.vercel\.app$/,
+    // Keep specific domains for backward compatibility
     "https://client-six-kappa-83.vercel.app",
-    "https://client-nsoumyuuy-deniseosorias-projects.vercel.app"
+    "https://client-nsoumyuuy-deniseosorias-projects.vercel.app",
+    "https://client-ri13jqi56-deniseosorias-projects.vercel.app"
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
