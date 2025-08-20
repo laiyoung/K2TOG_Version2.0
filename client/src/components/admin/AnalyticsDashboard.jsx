@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import adminService from '../../services/adminService';
 import { useNotifications } from '../../utils/notificationUtils';
+import { API_BASE_URL } from '../../config/apiConfig.js';
 import {
     Chart as ChartJS,
     CategoryScale,
@@ -141,16 +142,16 @@ function AnalyticsDashboard() {
                 classEnrollmentsRes,
                 userEngagementRes
             ] = await Promise.all([
-                fetch(`/api/admin/analytics/summary?startDate=${formatDateForAPI(dateRange.startDate)}&endDate=${formatDateForAPI(dateRange.endDate)}`, {
+                fetch(`${API_BASE_URL}/admin/analytics/summary?startDate=${formatDateForAPI(dateRange.startDate)}&endDate=${formatDateForAPI(dateRange.endDate)}`, {
                     headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
                 }),
-                fetch(`/api/admin/analytics/revenue/classes?startDate=${formatDateForAPI(dateRange.startDate)}&endDate=${formatDateForAPI(dateRange.endDate)}`, {
+                fetch(`${API_BASE_URL}/admin/analytics/revenue/classes?startDate=${formatDateForAPI(dateRange.startDate)}&endDate=${formatDateForAPI(dateRange.endDate)}`, {
                     headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
                 }),
-                fetch(`/api/admin/analytics/enrollments/classes?startDate=${formatDateForAPI(dateRange.startDate)}&endDate=${formatDateForAPI(dateRange.endDate)}`, {
+                fetch(`${API_BASE_URL}/admin/analytics/enrollments/classes?startDate=${formatDateForAPI(dateRange.startDate)}&endDate=${formatDateForAPI(dateRange.endDate)}`, {
                     headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
                 }),
-                fetch(`/api/admin/analytics/users/engagement?startDate=${formatDateForAPI(dateRange.startDate)}&endDate=${formatDateForAPI(dateRange.endDate)}`, {
+                fetch(`${API_BASE_URL}/admin/analytics/users/engagement?startDate=${formatDateForAPI(dateRange.startDate)}&endDate=${formatDateForAPI(dateRange.endDate)}`, {
                     headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
                 })
             ]);
