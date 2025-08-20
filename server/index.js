@@ -135,19 +135,19 @@ app.get('/keepalive', (req, res) => {
   });
 });
 
-// =================== SPA Fallback for Production ===================
-if (process.env.NODE_ENV === "production") {
-  const clientPath = path.join(__dirname, "../client/dist");
+// // =================== SPA Fallback for Production ===================
+// if (process.env.NODE_ENV === "production") {
+//   const clientPath = path.join(__dirname, "../client/dist");
 
-  // Serve static files from the client build
-  app.use(express.static(clientPath));
+//   // Serve static files from the client build
+//   app.use(express.static(clientPath));
 
-  // SPA fallback to index.html
-  app.get("*", (req, res) => {
-    res.sendFile(path.join(clientPath, "index.html"));
-  });
-}
-// ==================================================================
+//   // SPA fallback to index.html
+//   app.get("*", (req, res) => {
+//     res.sendFile(path.join(clientPath, "index.html"));
+//   });
+// }
+// // ==================================================================
 
 
 // Only start the server if this file is run directly
