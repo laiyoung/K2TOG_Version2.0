@@ -4,6 +4,9 @@ const getApiBaseUrl = () => {
     if (import.meta.env.VITE_API_URL) {
         let url = import.meta.env.VITE_API_URL;
 
+        // Remove trailing slash if present
+        url = url.replace(/\/$/, '');
+
         // Ensure the URL has a protocol
         if (!url.startsWith('http://') && !url.startsWith('https://')) {
             url = 'https://' + url;
