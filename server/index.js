@@ -4,7 +4,7 @@ const express = require('express');
 const cors = require('cors');
 const morgan = require('morgan');
 const dotenv = require('dotenv');
-const path = require('path');
+// path module no longer needed since we removed SPA fallback
 dotenv.config();
 // express.raw(); // For Stripe webhook
 
@@ -135,19 +135,7 @@ app.get('/keepalive', (req, res) => {
   });
 });
 
-// // =================== SPA Fallback for Production ===================
-// if (process.env.NODE_ENV === "production") {
-//   const clientPath = path.join(__dirname, "../client/dist");
 
-//   // Serve static files from the client build
-//   app.use(express.static(clientPath));
-
-//   // SPA fallback to index.html
-//   app.get("*", (req, res) => {
-//     res.sendFile(path.join(clientPath, "index.html"));
-//   });
-// }
-// // ==================================================================
 
 
 // Only start the server if this file is run directly
