@@ -7,8 +7,7 @@ const ProfileHeader = ({ profile, onUpdate }) => {
     const [formData, setFormData] = useState({
         first_name: profile?.first_name || '',
         last_name: profile?.last_name || '',
-        phone_number: profile?.phone_number || '',
-        profile_picture_url: profile?.profile_picture_url || ''
+        phone_number: profile?.phone_number || ''
     });
     const [error, setError] = useState(null);
     const [success, setSuccess] = useState(null);
@@ -36,46 +35,27 @@ const ProfileHeader = ({ profile, onUpdate }) => {
         }
     };
 
-    const handleImageUpload = async (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-
-        try {
-            const response = await userService.uploadProfilePicture(file);
-            setFormData(prev => ({
-                ...prev,
-                profile_picture_url: response.data.profile_picture_url
-            }));
-            onUpdate(response.data);
-        } catch (err) {
-            setError('Failed to upload profile picture');
-        }
-    };
-
     return (
         <div className="profile-header">
             <div className="profile-header-content">
-                <div className="profile-picture-container">
-                    <img
-                        src={profile?.profile_picture_url || '/default-profile.png'}
-                        alt={`${profile?.first_name || 'User'}'s profile`}
-                        className="profile-picture"
-                    />
-                    {isEditing && (
-                        <label className="upload-picture-label">
-                            <input
-                                type="file"
-                                accept="image/*"
-                                onChange={handleImageUpload}
-                                style={{ display: 'none' }}
-                            />
-                            <i className="fas fa-camera"></i>
-                        </label>
-                    )}
-                </div>
-
                 <div className="profile-info">
-                    {isEditing ? (
+                    {!isEditing ? (
+                        <>
+                            <h1>{profile?.first_name || 'User'} {profile?.last_name || ''}</h1>
+                            <p className="email">{profile?.email || 'No email provided'}</p>
+                            <p className="phone">
+                                <i className="fas fa-phone"></i>
+                                {profile?.phone_number || 'No phone number provided'}
+                            </p>
+                            <button
+                                className="edit-profile-btn btn btn-outline"
+                                onClick={() => setIsEditing(true)}
+                            >
+                                <i className="fas fa-edit"></i>
+                                Edit Profile
+                            </button>
+                        </>
+                    ) : (
                         <form onSubmit={handleSubmit} className="edit-profile-form">
                             <div className="form-row">
                                 <div className="form-group">
@@ -87,6 +67,7 @@ const ProfileHeader = ({ profile, onUpdate }) => {
                                         value={formData.first_name}
                                         onChange={handleChange}
                                         className="form-control"
+                                        placeholder="Enter your first name"
                                         required
                                     />
                                 </div>
@@ -99,6 +80,7 @@ const ProfileHeader = ({ profile, onUpdate }) => {
                                         value={formData.last_name}
                                         onChange={handleChange}
                                         className="form-control"
+                                        placeholder="Enter your last name"
                                         required
                                     />
                                 </div>
@@ -112,57 +94,37 @@ const ProfileHeader = ({ profile, onUpdate }) => {
                                     value={formData.phone_number}
                                     onChange={handleChange}
                                     className="form-control"
+                                    placeholder="Enter your phone number"
                                 />
                             </div>
                             <div className="form-actions">
                                 <button type="submit" className="btn btn-primary">
+                                    <i className="fas fa-save"></i>
                                     Save Changes
                                 </button>
                                 <button
                                     type="button"
-                                    className="btn btn-secondary"
-                                    onClick={() => {
-                                        setIsEditing(false);
-                                        setFormData({
-                                            first_name: profile?.first_name || '',
-                                            last_name: profile?.last_name || '',
-                                            phone_number: profile?.phone_number || '',
-                                            profile_picture_url: profile?.profile_picture_url || ''
-                                        });
-                                    }}
+                                    className="btn btn-outline"
+                                    onClick={() => setIsEditing(false)}
                                 >
+                                    <i className="fas fa-times"></i>
                                     Cancel
                                 </button>
                             </div>
                         </form>
-                    ) : (
-                        <>
-                            <h1>{`${profile?.first_name || ''} ${profile?.last_name || ''}`}</h1>
-                            <p className="email">{profile?.email}</p>
-                            {profile?.phone_number && (
-                                <p className="phone">
-                                    <i className="fas fa-phone"></i> {profile.phone_number}
-                                </p>
-                            )}
-                            <button
-                                className="btn btn-primary edit-profile-btn"
-                                onClick={() => setIsEditing(true)}
-                            >
-                                <i className="fas fa-edit"></i> Edit Profile
-                            </button>
-                        </>
                     )}
                 </div>
             </div>
-
             {error && (
                 <div className="alert alert-error">
-                    <i className="fas fa-exclamation-circle"></i> {error}
+                    <i className="fas fa-exclamation-circle"></i>
+                    {error}
                 </div>
             )}
             {success && (
                 <div className="alert alert-success">
-                    <i className="fas fa-check-circle"></i> {success}
+                    <i className="fas fa-check-circle"></i>
+                    {success}
                 </div>
             )}
         </div>

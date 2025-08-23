@@ -385,6 +385,7 @@ function EnrollmentManagement() {
                     onClose={handleCloseEnrollmentDialog}
                     maxWidth="md"
                     fullWidth
+                    sx={{ zIndex: 1200 }}
                 >
                     <DialogTitle>
                         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

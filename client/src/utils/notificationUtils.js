@@ -10,6 +10,7 @@ export const showSuccessNotification = (enqueueSnackbar, message, options = {}) 
   enqueueSnackbar(message, {
     variant: 'success',
     autoHideDuration: 5000,
+    style: { zIndex: 1200 },
     ...options
   });
 };
@@ -24,6 +25,7 @@ export const showErrorNotification = (enqueueSnackbar, message, options = {}) =>
   enqueueSnackbar(message, {
     variant: 'error',
     autoHideDuration: 6000,
+    style: { zIndex: 1200 },
     ...options
   });
 };

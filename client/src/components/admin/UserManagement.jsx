@@ -642,6 +642,7 @@ const UserManagement = () => {
                 onClose={() => setRoleDialogOpen(false)}
                 disableEnforceFocus
                 keepMounted={false}
+                sx={{ zIndex: 1200 }}
             >
                 <DialogTitle>Change User Role</DialogTitle>
                 <DialogContent>
@@ -680,6 +681,7 @@ const UserManagement = () => {
                 onClose={() => setStatusDialogOpen(false)}
                 disableEnforceFocus
                 keepMounted={false}
+                sx={{ zIndex: 1200 }}
             >
                 <DialogTitle>Change User Status</DialogTitle>
                 <DialogContent>
@@ -725,6 +727,7 @@ const UserManagement = () => {
                 }}
                 disableEnforceFocus
                 keepMounted={false}
+                sx={{ zIndex: 1200 }}
             >
                 <DialogTitle>Reset User Password</DialogTitle>
                 <DialogContent>
@@ -778,6 +781,7 @@ const UserManagement = () => {
                 onClose={() => setDeleteDialogOpen(false)}
                 disableEnforceFocus
                 keepMounted={false}
+                sx={{ zIndex: 1200 }}
             >
                 <DialogTitle>Delete User</DialogTitle>
                 <DialogContent>
@@ -809,6 +813,7 @@ const UserManagement = () => {
                 fullWidth
                 disableEnforceFocus
                 keepMounted={false}
+                sx={{ zIndex: 1200 }}
             >
                 <DialogTitle>
                     <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
@@ -1185,6 +1190,7 @@ const UserManagement = () => {
                 }}
                 disableEnforceFocus
                 keepMounted={false}
+                sx={{ zIndex: 1200 }}
             >
                 <DialogTitle>
                     {selectedUser?.id ?
@@ -1238,6 +1244,7 @@ const UserManagement = () => {
                 open={snackbar.open}
                 autoHideDuration={6000}
                 onClose={() => setSnackbar({ ...snackbar, open: false })}
+                sx={{ zIndex: 1200 }}
             >
                 <Alert
                     onClose={() => setSnackbar({ ...snackbar, open: false })}
@@ -1254,6 +1261,7 @@ const UserManagement = () => {
                 onClose={handleCloseEnrollmentDialog}
                 maxWidth="lg"
                 fullWidth
+                sx={{ zIndex: 1200 }}
             >
                 <DialogTitle>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

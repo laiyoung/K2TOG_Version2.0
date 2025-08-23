@@ -1,10 +1,15 @@
+import { useEffect } from 'react';
 import Header from '../components/layout/Header';
 import Footer from '../components/layout/Footer';
 
 function Contact() {
+    useEffect(() => {
+        // Scroll to top when component mounts
+        window.scrollTo(0, 0);
+    }, []);
     return (
         <div className="bg-white min-h-screen font-montserrat">
-            
+
             {/* Hero Section */}
             <section className="w-full" style={{ marginBottom: '48px' }}>
                 <div className="w-full h-[300px] bg-black flex items-center justify-center">

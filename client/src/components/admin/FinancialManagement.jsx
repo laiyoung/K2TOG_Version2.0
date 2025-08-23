@@ -424,6 +424,7 @@ const FinancialManagement = () => {
                 onClose={handleReminderCancel}
                 maxWidth="sm"
                 fullWidth
+                sx={{ zIndex: 1200 }}
             >
                 <DialogTitle>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>

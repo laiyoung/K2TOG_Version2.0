@@ -182,7 +182,7 @@ function ClassManagement() {
     } catch (error) {
       console.error('Error in handleEdit:', error);
       handleError(error, "Failed to fetch class details");
-      setShowModal(false); // Close modal on error
+      handleCloseModal(); // Close modal on error
     } finally {
       setLoading(false);
     }
@@ -329,7 +329,7 @@ function ClassManagement() {
         showSuccess("Class created successfully");
       }
       await fetchClasses(); // Refresh the list
-      setShowModal(false);
+      handleCloseModal();
       setDeletedSessionIds([]);
     } catch (error) {
       handleError(error, "Failed to save class");
@@ -371,11 +371,11 @@ function ClassManagement() {
       if (action === 'approved') {
         // Use 'approved' status (which is allowed by the database constraint)
         status = 'approved';
-        successMessage = 'Waitlist entry approved successfully';
+        successMessage = 'Waitlist entry approved and moved to enrollments successfully';
       } else if (action === 'rejected') {
         // Use 'rejected' status (which is allowed by the database constraint)
         status = 'rejected';
-        successMessage = 'Waitlist entry rejected successfully';
+        successMessage = 'Waitlist entry rejected and moved to enrollments for tracking';
       } else {
         status = action;
         successMessage = `Waitlist entry ${action} successfully`;
@@ -385,8 +385,14 @@ function ClassManagement() {
       await adminService.updateWaitlistStatus(waitlistClass.id, waitlistEntryId, status);
       showSuccess(successMessage);
 
-      // Refresh the waitlist
-      await handleViewWaitlist(waitlistClass);
+      // Remove the processed entry from the waitlist view since it's now in enrollments
+      if (waitlistClass.waitlist) {
+        const updatedWaitlist = waitlistClass.waitlist.filter(entry => entry.id !== waitlistEntryId);
+        setWaitlistClass({
+          ...waitlistClass,
+          waitlist: updatedWaitlist
+        });
+      }
     } catch (error) {
       handleError(error, `Failed to ${action} waitlist entry`);
     } finally {
@@ -473,12 +479,20 @@ function ClassManagement() {
   const handleError = (error, customMessage = 'An error occurred') => {
     console.error(error);
     setError(error.message || customMessage);
-    showError(error.message || customMessage);
+    // Only show notification if dialog is not open (to avoid duplicate error displays)
+    if (!showModal) {
+      showError(error.message || customMessage);
+    }
+  };
+
+  const handleCloseModal = () => {
+    setShowModal(false);
+    setError(null); // Clear any errors when closing modal
   };
 
   return (
     <Box className="class-management">
-      {error && (
+      {error && !showModal && (
         <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
           {error}
         </Alert>
@@ -600,14 +614,30 @@ function ClassManagement() {
       {showModal && (
         <Dialog
           open={showModal}
-          onClose={() => !loading && setShowModal(false)}
+          onClose={() => !loading && handleCloseModal()}
           maxWidth="md"
           fullWidth
+          sx={{
+            zIndex: 1200,
+            '& .MuiDialog-paper': {
+              maxHeight: '90vh',
+              margin: '20px',
+              position: 'relative',
+              top: '5vh'
+            }
+          }}
         >
           <DialogTitle>
             {editClass ? "Edit Class" : "Add New Class"}
           </DialogTitle>
-          <DialogContent>
+          {error && (
+            <Box sx={{ px: 3, pt: 1 }}>
+              <Alert severity="error" onClose={() => setError(null)}>
+                {error}
+              </Alert>
+            </Box>
+          )}
+          <DialogContent sx={{ maxHeight: '70vh', overflow: 'auto' }}>
             <Box sx={{ mt: 2, display: "flex", flexDirection: "column", gap: 2 }}>
               <TextField
                 name="title"
@@ -758,7 +788,7 @@ function ClassManagement() {
             </Box>
           </DialogContent>
           <DialogActions>
-            <Button onClick={() => setShowModal(false)} disabled={loading}>
+            <Button onClick={handleCloseModal} disabled={loading}>
               Cancel
             </Button>
             <Button
@@ -779,6 +809,15 @@ function ClassManagement() {
         onClose={handleCloseStudents}
         maxWidth="lg"
         fullWidth
+        sx={{
+          zIndex: 1200,
+          '& .MuiDialog-paper': {
+            maxHeight: '90vh',
+            margin: '20px',
+            position: 'relative',
+            top: '5vh'
+          }
+        }}
       >
         <DialogContent>
           {selectedClass && (
@@ -796,6 +835,15 @@ function ClassManagement() {
           onClose={() => setSessionsClass(null)}
           maxWidth="sm"
           fullWidth
+          sx={{
+            zIndex: 1200,
+            '& .MuiDialog-paper': {
+              maxHeight: '90vh',
+              margin: '20px',
+              position: 'relative',
+              top: '5vh'
+            }
+          }}
         >
           <DialogTitle>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -859,7 +907,7 @@ function ClassManagement() {
       )}
 
       {waitlistClass && (
-        <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-[1350]">
           <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[80vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-medium">
@@ -878,117 +926,127 @@ function ClassManagement() {
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
               </div>
             ) : waitlistClass.waitlist && waitlistClass.waitlist.length > 0 ? (
-              <div className="overflow-x-auto">
-                <table className="min-w-full bg-white border border-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">
-                        Student
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">
-                        Email
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">
-                        Position
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">
-                        Status
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">
-                        Next Session
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200">
-                    {waitlistClass.waitlist.map((entry, idx) => (
-                      <tr key={`${entry.id}-${entry.user_id}-${idx}`} className="hover:bg-gray-50">
-                        <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900 border-b">
-                          {entry.user_name || entry.student_name || entry.user || entry.name || 'N/A'}
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 border-b">
-                          {entry.user_email || entry.student_email || entry.email || 'N/A'}
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 border-b">
-                          {entry.position || idx + 1}
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap border-b">
-                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${entry.status === 'waiting' ? 'bg-yellow-100 text-yellow-800' :
-                            entry.status === 'offered' ? 'bg-blue-100 text-blue-800' :
-                              entry.status === 'approved' ? 'bg-green-100 text-green-800' :
-                                entry.status === 'rejected' ? 'bg-red-100 text-red-800' :
-                                  entry.status === 'pending' ? 'bg-orange-100 text-orange-800' :
-                                    entry.status === 'cancelled' ? 'bg-gray-100 text-gray-800' :
-                                      'bg-gray-100 text-gray-800'
-                            }`}>
-                            {entry.status || 'waiting'}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 border-b">
-                          {entry.next_session_date ? (
-                            <div>
-                              <div>{new Date(entry.next_session_date).toLocaleDateString()}</div>
-                              {entry.next_session_start_time && entry.next_session_end_time && (
-                                <div className="text-xs text-gray-400">
-                                  {entry.next_session_start_time} - {entry.next_session_end_time}
-                                </div>
-                              )}
-                            </div>
-                          ) : 'N/A'}
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm font-medium border-b">
-                          <div className="flex space-x-2">
-                            {(entry.status === 'waiting' || entry.status === 'pending') && (
-                              <>
-                                <button
-                                  onClick={() => handleWaitlistAction(entry.id, 'approved')}
-                                  className="text-green-600 hover:text-green-900 bg-green-50 hover:bg-green-100 px-2 py-1 rounded text-xs"
-                                  disabled={loading}
-                                >
-                                  Approve
-                                </button>
-                                <button
-                                  onClick={() => handleWaitlistAction(entry.id, 'rejected')}
-                                  className="text-red-600 hover:text-red-900 bg-red-50 hover:bg-red-100 px-2 py-1 rounded text-xs"
-                                  disabled={loading}
-                                >
-                                  Reject
-                                </button>
-                              </>
-                            )}
-                            {entry.status === 'offered' && (
-                              <span className="text-blue-600 text-xs">
-                                Offer sent - waiting for response
-                              </span>
-                            )}
-                            {entry.status === 'approved' && (
-                              <span className="text-green-600 text-xs">
-                                Approved
-                              </span>
-                            )}
-                            {entry.status === 'rejected' && (
-                              <span className="text-red-600 text-xs">
-                                Rejected
-                              </span>
-                            )}
-                            {/* Fallback for any unhandled status */}
-                            {!['waiting', 'pending', 'offered', 'accepted', 'approved', 'declined', 'rejected'].includes(entry.status) && (
-                              <span className="text-gray-600 text-xs">
-                                Status: {entry.status}
-                              </span>
-                            )}
-                          </div>
-                        </td>
+              <>
+                <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
+                  <p className="text-sm text-blue-700">
+                    <strong>Note:</strong> When you approve or reject a waitlist entry, it will automatically be moved to the enrollments system for tracking purposes.
+                    Approved entries will be enrolled in the class, while rejected entries will be marked as rejected enrollments.
+                  </p>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full bg-white border border-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">
+                          Student
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">
+                          Email
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">
+                          Position
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">
+                          Status
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">
+                          Next Session
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">
+                          Actions
+                        </th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {waitlistClass.waitlist
+                        .filter(entry => entry.status === 'waiting' || entry.status === 'pending')
+                        .map((entry, idx) => (
+                          <tr key={`${entry.id}-${entry.user_id}-${idx}`} className="hover:bg-gray-50">
+                            <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900 border-b">
+                              {entry.user_name || entry.student_name || entry.user || entry.name || 'N/A'}
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 border-b">
+                              {entry.user_email || entry.student_email || entry.email || 'N/A'}
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 border-b">
+                              {entry.position || idx + 1}
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap border-b">
+                              <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${entry.status === 'waiting' ? 'bg-yellow-100 text-yellow-800' :
+                                entry.status === 'offered' ? 'bg-blue-100 text-blue-800' :
+                                  entry.status === 'approved' ? 'bg-green-100 text-green-800' :
+                                    entry.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                                      entry.status === 'pending' ? 'bg-orange-100 text-orange-800' :
+                                        entry.status === 'cancelled' ? 'bg-gray-100 text-gray-800' :
+                                          'bg-gray-100 text-gray-800'
+                                }`}>
+                                {entry.status || 'waiting'}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 border-b">
+                              {entry.next_session_date ? (
+                                <div>
+                                  <div>{new Date(entry.next_session_date).toLocaleDateString()}</div>
+                                  {entry.next_session_start_time && entry.next_session_end_time && (
+                                    <div className="text-xs text-gray-400">
+                                      {entry.next_session_start_time} - {entry.next_session_end_time}
+                                    </div>
+                                  )}
+                                </div>
+                              ) : 'N/A'}
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm font-medium border-b">
+                              <div className="flex space-x-2">
+                                {(entry.status === 'waiting' || entry.status === 'pending') && (
+                                  <>
+                                    <button
+                                      onClick={() => handleWaitlistAction(entry.id, 'approved')}
+                                      className="text-green-600 hover:text-green-900 bg-green-50 hover:bg-green-100 px-2 py-1 rounded text-xs"
+                                      disabled={loading}
+                                    >
+                                      Approve
+                                    </button>
+                                    <button
+                                      onClick={() => handleWaitlistAction(entry.id, 'rejected')}
+                                      className="text-red-600 hover:text-red-900 bg-red-50 hover:bg-red-100 px-2 py-1 rounded text-xs"
+                                      disabled={loading}
+                                    >
+                                      Reject
+                                    </button>
+                                  </>
+                                )}
+                                {entry.status === 'offered' && (
+                                  <span className="text-blue-600 text-xs">
+                                    Offer sent - waiting for response
+                                  </span>
+                                )}
+                                {entry.status === 'approved' && (
+                                  <span className="text-green-600 text-xs">
+                                    Approved
+                                  </span>
+                                )}
+                                {entry.status === 'rejected' && (
+                                  <span className="text-red-600 text-xs">
+                                    Rejected
+                                  </span>
+                                )}
+                                {/* Fallback for any unhandled status */}
+                                {!['waiting', 'pending', 'offered', 'accepted', 'approved', 'declined', 'rejected'].includes(entry.status) && (
+                                  <span className="text-gray-600 text-xs">
+                                    Status: {entry.status}
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
             ) : (
               <div className="text-center py-8">
-                <p className="text-gray-500">No students on waitlist for this class.</p>
+                <p className="text-gray-500">No pending waitlist entries for this class.</p>
               </div>
             )}
           </div>
@@ -996,8 +1054,8 @@ function ClassManagement() {
       )}
 
       {statusClass && (
-        <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+        <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-[1350]">
+          <div className="bg-white rounded-lg p-10">
             <h3 className="text-lg font-medium mb-4">
               Update Status for {statusClass.title}
             </h3>
@@ -1036,6 +1094,15 @@ function ClassManagement() {
           onClose={() => setAllEnrollmentsClass(null)}
           maxWidth="lg"
           fullWidth
+          sx={{
+            zIndex: 1200,
+            '& .MuiDialog-paper': {
+              maxHeight: '90vh',
+              margin: '20px',
+              position: 'relative',
+              top: '5vh'
+            }
+          }}
         >
           <DialogTitle>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -1157,6 +1224,6 @@ function ClassManagement() {
       )}
     </Box>
   );
-}
+};
 
 export default ClassManagement;

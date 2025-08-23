@@ -59,23 +59,6 @@ const userService = {
         return api.get('/users/activity-history');
     },
 
-    // Update user avatar
-    updateAvatar: async (avatarData) => {
-        const formData = new FormData();
-        formData.append('avatar', avatarData);
-        return api.post('/users/avatar', formData, {
-            customHeaders: {
-                // Don't set Content-Type, let the browser set it with the boundary
-                'Content-Type': undefined
-            }
-        });
-    },
-
-    // Delete user avatar
-    deleteAvatar: async () => {
-        return api.delete('/users/avatar');
-    },
-
     // Get user dashboard data
     getDashboardData: async () => {
         return api.get('/users/dashboard');

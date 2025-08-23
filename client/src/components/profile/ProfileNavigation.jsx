@@ -19,7 +19,10 @@ const ProfileNavigation = ({ activeSection, onSectionChange, profile }) => {
     const waitlistEntries = profile?.waitlist_entries || [];
     const unreadNotifications = notifications.filter(n => !n.is_read).length;
     const paymentsDue = payments.filter(p => p.status !== 'paid').length;
-    const waitlistCount = waitlistEntries.length;
+    // Only count pending waitlist entries - approved/rejected ones are now in enrollments
+    const waitlistCount = waitlistEntries.filter(entry =>
+        entry.status === 'waiting' || entry.status === 'pending' || entry.status === 'offered'
+    ).length;
 
     const menuItems = [
         { value: 'overview', label: 'Overview', icon: <PersonIcon /> },

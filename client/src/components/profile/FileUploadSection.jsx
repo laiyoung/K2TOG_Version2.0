@@ -13,7 +13,6 @@ import {
 } from '@mui/material';
 import {
     Delete as DeleteIcon,
-    Download as DownloadIcon,
     PictureAsPdf as PdfIcon,
     Image as ImageIcon
 } from '@mui/icons-material';
@@ -70,16 +69,6 @@ const FileUploadSection = ({ userId, title = 'My Files', folder = 'general' }) =
             console.error('Error deleting file:', error);
             setError('Failed to delete file');
         }
-    };
-
-    const handleFileDownload = (file) => {
-        // Create a temporary link to download the file
-        const link = document.createElement('a');
-        link.href = file.url;
-        link.download = file.name;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
     };
 
     const formatFileSize = (bytes) => {
@@ -159,13 +148,6 @@ const FileUploadSection = ({ userId, title = 'My Files', folder = 'general' }) =
                                     }
                                 />
                                 <ListItemSecondaryAction>
-                                    <IconButton
-                                        edge="end"
-                                        onClick={() => handleFileDownload(file)}
-                                        sx={{ mr: 1 }}
-                                    >
-                                        <DownloadIcon />
-                                    </IconButton>
                                     <IconButton
                                         edge="end"
                                         onClick={() => handleFileDelete(file.path)}

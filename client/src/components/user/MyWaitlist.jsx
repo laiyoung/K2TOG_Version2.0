@@ -38,7 +38,11 @@ function MyWaitlist() {
         try {
             setLoading(true);
             const entries = await enrollmentService.getUserWaitlistEntries();
-            setWaitlistEntries(entries);
+            // Only show pending waitlist entries - accepted/rejected ones are now in enrollments
+            const pendingEntries = entries.filter(entry =>
+                entry.status === 'waiting' || entry.status === 'pending' || entry.status === 'offered'
+            );
+            setWaitlistEntries(pendingEntries);
         } catch (err) {
             setError(err.message || 'Failed to fetch waitlist entries');
             showError('Failed to load waitlist entries');
@@ -108,10 +112,10 @@ function MyWaitlist() {
         return (
             <Box textAlign="center" py={4}>
                 <Typography variant="h6" color="textSecondary" gutterBottom>
-                    No Waitlist Entries
+                    No Pending Waitlist Entries
                 </Typography>
                 <Typography color="textSecondary">
-                    You are not currently on any waitlists.
+                    You are not currently on any pending waitlists. Check your enrollments for approved or rejected applications.
                 </Typography>
                 <Button
                     variant="contained"
@@ -128,7 +132,10 @@ function MyWaitlist() {
     return (
         <Box>
             <Typography variant="h5" gutterBottom>
-                My Waitlist
+                My Pending Waitlist
+            </Typography>
+            <Typography variant="body2" color="textSecondary" sx={{ mb: 3 }}>
+                Showing only pending waitlist entries. Approved or rejected applications can be found in your enrollments.
             </Typography>
             <Grid container spacing={3}>
                 {waitlistEntries.map((entry) => (

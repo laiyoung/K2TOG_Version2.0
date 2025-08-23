@@ -12,7 +12,13 @@ function Landing() {
                 <div className="relative z-20 flex flex-col items-center justify-center w-full h-full">
                     <h1 className="hero-title font-normal mb-4" style={{ fontSize: '64px', fontFamily: 'Montserrat, sans-serif' }}>Grow your business.</h1>
                     <h3 className="hero-txt mb-8 max-w-2xl mx-auto" style={{ fontSize: '16px', fontFamily: 'Montserrat, sans-serif', fontWeight: 400 }}>Give your business a boost with a beautifully crafted homepage.</h3>
-                    <Link to="#" className="hero-button bg-white text-black px-8 py-4 font-normal border-0 hover:bg-gray-100 transition-colors" style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 400, fontSize: '16px' }}>LEARN MORE</Link>
+                    <button
+                        onClick={() => document.getElementById('who-we-are').scrollIntoView({ behavior: 'smooth' })}
+                        className="hero-button bg-white text-black px-8 py-4 font-normal border-0 hover:bg-gray-100 transition-colors"
+                        style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 400, fontSize: '16px' }}
+                    >
+                        LEARN MORE
+                    </button>
                 </div>
             </section>
 
@@ -29,11 +35,11 @@ function Landing() {
             <div className="w-full border-t border-gray-200 my-0" />
 
             {/* Who we are */}
-            <section className="py-16 max-w-6xl mx-auto flex flex-col md:flex-row items-center gap-12 px-8">
+            <section id="who-we-are" className="py-16 max-w-6xl mx-auto flex flex-col md:flex-row items-center gap-12 px-8">
                 <div className="flex-1 text-left">
                     <h3 className="text-2xl font-semibold mb-4 text-gray-900" style={{ fontSize: '28px', fontFamily: 'Montserrat, sans-serif' }}>Who we are</h3>
                     <p className="text-gray-700 mb-8" style={{ fontSize: '16px', fontFamily: 'Montserrat, sans-serif' }}>Nulla vel sodales tellus, quis condimentum enim. Nunc porttitor venenatis feugiat. Etiam quis faucibus erat, non accumsan leo. Aliquam erat volutpat. Vestibulum ac faucibus eros. Cras ullamcorper gravida tellus ut consequat.</p>
-                    <Link to="#" className="bg-black text-white px-8 py-4 font-normal border-0 hover:bg-gray-900 transition-colors" style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 400, fontSize: '16px' }}>LEARN MORE</Link>
+                    <Link to="/classes" className="bg-black text-white px-8 py-4 font-normal border-0 hover:bg-gray-900 transition-colors" style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 400, fontSize: '16px' }}>LEARN MORE</Link>
                 </div>
                 <img src="/images/whoImg.jpeg" alt="Who we are" className="flex-1 w-full max-w-[500px] h-[350px] object-cover" />
             </section>
@@ -46,7 +52,7 @@ function Landing() {
                 <div className="flex-1 text-left">
                     <h3 className="text-2xl font-semibold mb-4 text-gray-900" style={{ fontSize: '28px', fontFamily: 'Montserrat, sans-serif' }}>What we do</h3>
                     <p className="text-gray-700 mb-8" style={{ fontSize: '16px', fontFamily: 'Montserrat, sans-serif' }}>Nulla vel sodales tellus, quis condimentum enim. Nunc porttitor venenatis feugiat. Etiam quis faucibus erat, non accumsan leo. Aliquam erat volutpat. Vestibulum ac faucibus eros. Cras ullamcorper gravida tellus ut consequat.</p>
-                    <Link to="#" className="bg-black text-white px-8 py-4 font-normal border-0 hover:bg-gray-900 transition-colors" style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 400, fontSize: '16px' }}>LEARN MORE</Link>
+                    <Link to="/classes" className="bg-black text-white px-8 py-4 font-normal border-0 hover:bg-gray-900 transition-colors" style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 400, fontSize: '16px' }}>LEARN MORE</Link>
                 </div>
                 <img src="/images/whatImg.jpeg" alt="What we do" className="flex-1 w-full max-w-[500px] h-[350px] object-cover" />
             </section>
@@ -59,7 +65,7 @@ function Landing() {
                 <div className="max-w-2xl mx-auto text-center">
                     <h2 className="text-3xl font-semibold mb-4 text-gray-900" style={{ fontSize: '34px', fontFamily: 'Montserrat, sans-serif' }}>Grow your business.</h2>
                     <p className="mb-8 text-gray-700" style={{ fontSize: '16px', fontFamily: 'Montserrat, sans-serif' }}>Today is the day to build the business of your dreams. Share your mission with the world — and blow your customers away.</p>
-                    <button className="bg-black text-white px-8 py-4 font-normal border-0 hover:bg-gray-900 transition-colors" style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 400, fontSize: '16px' }}>START NOW</button>
+                    <Link to="/contact" className="bg-black text-white px-8 py-4 font-normal border-0 hover:bg-gray-900 transition-colors" style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 400, fontSize: '16px' }}>START NOW</Link>
                 </div>
             </section>
             <Footer />

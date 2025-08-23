@@ -1,8 +1,8 @@
 const { getProfileWithDetails: getUserProfileWithDetails, updateProfile: updateUserProfile, getUserById, updatePassword: updateUserPassword } = require('../models/userModel');
-const {Certificate} = require('../models/certificateModel');
-const {PaymentMethod} = require('../models/paymentMethodModel');
+const { Certificate } = require('../models/certificateModel');
+const { PaymentMethod } = require('../models/paymentMethodModel');
 const { createActivityLog } = require('../models/activityLogModel');
-const {Notification} = require('../models/notificationModel');
+const { Notification } = require('../models/notificationModel');
 const { getHistoricalEnrollmentsByUserId } = require('../models/enrollmentModel');
 const bcrypt = require('bcrypt');
 
@@ -22,15 +22,14 @@ const getProfileWithDetails = async (req, res) => {
 // Update user profile
 const updateProfile = async (req, res) => {
     try {
-        const { first_name, last_name, phone_number, profile_picture_url, email_notifications } = req.body;
+        const { first_name, last_name, phone_number, email_notifications } = req.body;
         await updateUserProfile(req.user.id, {
             first_name,
             last_name,
             phone_number,
-            profile_picture_url,
             email_notifications
         });
-        
+
         await createActivityLog(req.user.id, 'update_profile', {
             updated_fields: Object.keys(req.body)
         });
@@ -49,7 +48,7 @@ const updatePassword = async (req, res) => {
     try {
         const { currentPassword, newPassword } = req.body;
         const user = await getUserById(req.user.id);
-        
+
         if (!user) {
             return res.status(404).json({ message: 'User not found' });
         }
@@ -61,7 +60,7 @@ const updatePassword = async (req, res) => {
 
         const hashedPassword = await bcrypt.hash(newPassword, 10);
         await updateUserPassword(req.user.id, hashedPassword);
-        
+
         await createActivityLog(req.user.id, 'update_password', {
             timestamp: new Date()
         });
@@ -102,7 +101,7 @@ const addPaymentMethod = async (req, res) => {
             expiry_date,
             is_default
         });
-        
+
         await createActivityLog(req.user.id, 'add_payment_method', { payment_type, last_four });
 
         res.status(201).json(paymentMethod);
@@ -117,7 +116,7 @@ const setDefaultPaymentMethod = async (req, res) => {
         if (!paymentMethod) {
             return res.status(404).json({ message: 'Payment method not found' });
         }
-        
+
         await createActivityLog(req.user.id, 'set_default_payment_method', { payment_method_id: req.params.id });
 
         res.json(paymentMethod);
@@ -132,7 +131,7 @@ const deletePaymentMethod = async (req, res) => {
         if (!paymentMethod) {
             return res.status(404).json({ message: 'Payment method not found' });
         }
-        
+
         await createActivityLog(req.user.id, 'delete_payment_method', { payment_method_id: req.params.id });
 
         res.json({ message: 'Payment method deleted successfully' });

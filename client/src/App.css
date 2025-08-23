@@ -27,4 +27,28 @@ body {
     width: 100%;
     min-height: calc(100vh - 64px); /* Subtract header height if needed */
     background-color: #f9fafb;
+}
+
+/* Override notistack z-index to appear below header */
+.SnackbarContainer-root {
+    z-index: 1200 !important;
+}
+
+/* Additional specificity for notistack */
+[data-testid="notistack-snackbar"] {
+    z-index: 1200 !important;
+}
+
+/* Target the actual snackbar elements */
+.MuiSnackbar-root {
+    z-index: 1200 !important;
+}
+
+/* Snackbar positioning to avoid header overlap */
+.MuiSnackbar-root {
+  z-index: 1000 !important;
+}
+
+.MuiSnackbar-anchorOriginTopRight {
+  top: 80px !important;
 } 

@@ -83,11 +83,33 @@ function AppContent() {
             <HeaderWrapper />
             {isAdminRoute ? (
                 <div className="admin-route">
-                    <Outlet />
+                    <SnackbarProvider
+                        maxSnack={3}
+                        anchorOrigin={{
+                            vertical: 'top',
+                            horizontal: 'right',
+                        }}
+                        dense
+                        preventDuplicate
+                        style={{ marginTop: '80px' }}
+                    >
+                        <Outlet />
+                    </SnackbarProvider>
                 </div>
             ) : (
                 <main className="container mx-auto px-4 py-8">
-                    <Outlet />
+                    <SnackbarProvider
+                        maxSnack={3}
+                        anchorOrigin={{
+                            vertical: 'top',
+                            horizontal: 'right',
+                        }}
+                        dense
+                        preventDuplicate
+                        style={{ marginTop: '80px' }}
+                    >
+                        <Outlet />
+                    </SnackbarProvider>
                 </main>
             )}
         </div>
@@ -170,17 +192,9 @@ const router = createBrowserRouter(
 // Main App component
 const App = React.memo(() => {
     return (
-        <SnackbarProvider
-            maxSnack={3}
-            anchorOrigin={{
-                vertical: 'top',
-                horizontal: 'right',
-            }}
-        >
-            <AuthProvider>
-                <RouterProvider router={router} />
-            </AuthProvider>
-        </SnackbarProvider>
+        <AuthProvider>
+            <RouterProvider router={router} />
+        </AuthProvider>
     );
 });
 

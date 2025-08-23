@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -8,6 +8,25 @@ function Header() {
     const location = useLocation();
     const isAdminRoute = location.pathname.startsWith('/admin');
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const [isMobileView, setIsMobileView] = useState(false);
+
+    // Check screen size and automatically switch to mobile view
+    useEffect(() => {
+        const checkScreenSize = () => {
+            // Switch to mobile view when screen width is less than 1024px (lg breakpoint)
+            // This ensures the toggle menu appears before the navigation becomes cramped
+            setIsMobileView(window.innerWidth < 1024);
+        };
+
+        // Check on mount
+        checkScreenSize();
+
+        // Add event listener for window resize
+        window.addEventListener('resize', checkScreenSize);
+
+        // Cleanup
+        return () => window.removeEventListener('resize', checkScreenSize);
+    }, []);
 
     // Debug logging for auth state
     console.log('Header auth state:', { user, loading, initialized });
@@ -38,13 +57,6 @@ function Header() {
                 style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 400, fontSize: '14px', padding: '12px 16px' }}
             >
                 Classes
-            </Link>
-            <Link
-                to="#"
-                className="nav-button uppercase text-gray-500 hover:text-black transition-colors"
-                style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 400, fontSize: '14px', padding: '12px 16px' }}
-            >
-                Resources
             </Link>
             <Link
                 to="/contact"
@@ -119,7 +131,7 @@ function Header() {
     }, []);
 
     return (
-        <header className="bg-white shadow-sm">
+        <header className="bg-white shadow-sm relative z-[1400]">
             <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="flex justify-between h-24">
                     <div className="flex">
@@ -132,36 +144,45 @@ function Header() {
                                 />
                             </div>
                         </Link>
-                        <div className="hidden sm:ml-6 sm:flex sm:space-x-8 sm:items-center">
-                            {navigationLinks}
+                        {/* Show navigation links only when NOT in mobile view */}
+                        {!isMobileView && (
+                            <div className="ml-6 flex space-x-8 items-center">
+                                {navigationLinks}
+                            </div>
+                        )}
+                    </div>
+                    {/* Show auth links only when NOT in mobile view */}
+                    {!isMobileView && (
+                        <div className="ml-6 flex items-center">
+                            {authLinks}
                         </div>
-                    </div>
-                    <div className="hidden sm:ml-6 sm:flex sm:items-center">
-                        {authLinks}
-                    </div>
-                    <div className="-mr-2 flex items-center sm:hidden">
-                        <button
-                            onClick={toggleMenu}
-                            className="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500"
-                        >
-                            <span className="sr-only">Open main menu</span>
-                            {isMenuOpen ? (
-                                <svg className="block h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                            ) : (
-                                <svg className="block h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                                </svg>
-                            )}
-                        </button>
-                    </div>
+                    )}
+                    {/* Show toggle button when in mobile view */}
+                    {isMobileView && (
+                        <div className="flex items-center">
+                            <button
+                                onClick={toggleMenu}
+                                className="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500"
+                            >
+                                <span className="sr-only">Open main menu</span>
+                                {isMenuOpen ? (
+                                    <svg className="block h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                ) : (
+                                    <svg className="block h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                                    </svg>
+                                )}
+                            </button>
+                        </div>
+                    )}
                 </div>
             </nav>
 
-            {/* Mobile menu */}
-            {isMenuOpen && (
-                <div className="sm:hidden">
+            {/* Mobile menu - show when menu is open AND in mobile view */}
+            {isMenuOpen && isMobileView && (
+                <div className="lg:hidden">
                     <div className="pt-2 pb-3 space-y-1">
                         {navigationLinks}
                     </div>
