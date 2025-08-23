@@ -41,55 +41,55 @@ const FEATURED_CLASSES = [
 
 function ClassesSection() {
     return (
-        <section className="w-full py-16 px-6 bg-[#ebfaf7]">
+        <section className="w-full py-8 sm:py-12 lg:py-16 px-4 sm:px-6 lg:px-8 bg-[#ebfaf7]">
             <div className="max-w-7xl mx-auto">
-                <div className="text-center mb-16">
-                    <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
+                <div className="text-center mb-8 sm:mb-12 lg:mb-16">
+                    <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 mb-4 sm:mb-6 px-4">
                         Our Activities Inside Gigglio
                     </h2>
-                    <p className="text-lg text-gray-700 max-w-3xl mx-auto">
+                    <p className="text-base sm:text-lg text-gray-700 max-w-3xl mx-auto px-4">
                         Gigglio offers a variety of engaging and educational activities designed to spark creativity, curiosity, and joy in young minds.
                     </p>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
+                <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 md:gap-8">
                     {FEATURED_CLASSES.map(classItem => (
                         <div
                             key={classItem.id}
-                            className={`${classItem.bgColor} rounded-[2rem] overflow-hidden`}
+                            className={`${classItem.bgColor} rounded-[1rem] sm:rounded-[1.5rem] lg:rounded-[2rem] overflow-hidden`}
                         >
                             {classItem.imageUrl && (
                                 <div className="relative">
-                                    <div className="p-4 pb-0">
-                                        <div className="rounded-[1.5rem] overflow-hidden">
+                                    <div className="p-3 sm:p-4 pb-0">
+                                        <div className="rounded-[0.75rem] sm:rounded-[1rem] lg:rounded-[1.5rem] overflow-hidden">
                                             <img
                                                 src={classItem.imageUrl}
                                                 alt={classItem.title}
-                                                className="w-full h-72 object-cover"
+                                                className="w-full h-48 sm:h-60 md:h-72 object-cover"
                                             />
                                         </div>
                                     </div>
                                 </div>
                             )}
-                            <div className="p-8">
-                                <h3 className="text-2xl md:text-3xl font-bold text-gray-900 mb-4">
+                            <div className="p-4 sm:p-6 lg:p-8">
+                                <h3 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 mb-3 sm:mb-4">
                                     {classItem.title}
                                 </h3>
-                                <p className="text-gray-800 mb-6 text-lg">
+                                <p className="text-gray-800 mb-4 sm:mb-6 text-sm sm:text-base lg:text-lg">
                                     {classItem.description}
                                 </p>
-                                <div className="flex items-center justify-between mb-6">
+                                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 sm:mb-6 gap-2 sm:gap-0">
                                     <div className="flex items-center gap-2">
-                                        <span className="text-gray-900 font-semibold">Duration:</span>
-                                        <span className="text-gray-800">{classItem.duration}</span>
+                                        <span className="text-gray-900 font-semibold text-sm sm:text-base">Duration:</span>
+                                        <span className="text-gray-800 text-sm sm:text-base">{classItem.duration}</span>
                                     </div>
                                     <div className="flex items-center gap-2">
-                                        <span className="text-gray-900 font-semibold">{classItem.ageGroup}</span>
+                                        <span className="text-gray-900 font-semibold text-sm sm:text-base">{classItem.ageGroup}</span>
                                     </div>
                                 </div>
                                 <Link
                                     to={`/activities/${classItem.id}`}
-                                    className="inline-flex items-center bg-white rounded-full px-6 py-3 text-gray-900 font-semibold hover:bg-opacity-90 transition-opacity"
+                                    className="inline-flex items-center bg-white rounded-full px-4 sm:px-6 py-2 sm:py-3 text-gray-900 font-semibold hover:bg-opacity-90 transition-opacity text-sm sm:text-base"
                                 >
                                     More Details <span className="ml-2">→</span>
                                 </Link>

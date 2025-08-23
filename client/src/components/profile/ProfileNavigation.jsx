@@ -13,7 +13,7 @@ import {
 } from '@mui/icons-material';
 import './ProfileNavigation.css';
 
-const ProfileNavigation = ({ activeSection, onSectionChange, profile }) => {
+const ProfileNavigation = ({ activeSection, onSectionChange, profile, isMobile = false }) => {
     const notifications = profile?.notifications || [];
     const payments = profile?.payments || [];
     const waitlistEntries = profile?.waitlist_entries || [];
@@ -54,8 +54,32 @@ const ProfileNavigation = ({ activeSection, onSectionChange, profile }) => {
         }
     ];
 
+    if (isMobile) {
+        return (
+            <Paper className="profile-navigation mobile" elevation={1}>
+                <List component="nav" className="mobile-nav-list">
+                    {menuItems.map((item) => (
+                        <ListItemButton
+                            key={item.value}
+                            selected={activeSection === item.value}
+                            onClick={() => onSectionChange(item.value)}
+                            className="nav-item mobile-nav-item"
+                            data-value={item.value}
+                        >
+                            <ListItemIcon className="mobile-nav-icon">{item.icon}</ListItemIcon>
+                            <ListItemText
+                                primary={item.label}
+                                className="mobile-nav-text"
+                            />
+                        </ListItemButton>
+                    ))}
+                </List>
+            </Paper>
+        );
+    }
+
     return (
-        <Paper className="profile-navigation" elevation={1}>
+        <Paper className="profile-navigation desktop" elevation={1}>
             <List component="nav">
                 {menuItems.map((item) => (
                     <ListItemButton

@@ -1,36 +1,125 @@
-.profile-navigation {
+/* Desktop Navigation Styles */
+.profile-navigation.desktop {
     width: 240px;
     min-width: 240px;
     height: 100%;
     border-right: 1px solid rgba(0, 0, 0, 0.12);
 }
 
-.profile-navigation .nav-item {
+.profile-navigation.desktop .nav-item {
     padding: 12px 24px;
     transition: background-color 0.2s ease;
 }
 
-.profile-navigation .nav-item:hover {
+.profile-navigation.desktop .nav-item:hover {
     background-color: rgba(0, 0, 0, 0.04);
 }
 
-.profile-navigation .nav-item.Mui-selected {
+.profile-navigation.desktop .nav-item.Mui-selected {
     background-color: rgba(25, 118, 210, 0.08);
 }
 
-.profile-navigation .nav-item.Mui-selected:hover {
+.profile-navigation.desktop .nav-item.Mui-selected:hover {
     background-color: rgba(25, 118, 210, 0.12);
 }
 
-.profile-navigation .MuiListItemIcon-root {
+.profile-navigation.desktop .MuiListItemIcon-root {
     min-width: 40px;
 }
 
-@media (max-width: 600px) {
-    .profile-navigation {
-        width: 100%;
-        min-width: 100%;
-        border-right: none;
-        border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+/* Mobile Navigation Styles */
+.profile-navigation.mobile {
+    width: 100%;
+    min-width: 100%;
+    border-right: none;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.profile-navigation.mobile .mobile-nav-list {
+    padding: 0;
+}
+
+.profile-navigation.mobile .mobile-nav-item {
+    padding: 16px 20px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+    transition: background-color 0.2s ease;
+    cursor: pointer;
+}
+
+.profile-navigation.mobile .mobile-nav-item:hover {
+    background-color: rgba(0, 0, 0, 0.04);
+}
+
+.profile-navigation.mobile .mobile-nav-item.Mui-selected {
+    background-color: rgba(25, 118, 210, 0.08);
+    border-left: 4px solid #1976d2;
+}
+
+.profile-navigation.mobile .mobile-nav-item.Mui-selected .mobile-nav-icon {
+    color: #1976d2;
+}
+
+.profile-navigation.mobile .mobile-nav-icon {
+    min-width: 40px;
+    color: #666;
+    transition: color 0.2s ease;
+}
+
+.profile-navigation.mobile .mobile-nav-text {
+    font-size: 1rem;
+    font-weight: 500;
+    color: #333;
+}
+
+.profile-navigation.mobile .mobile-nav-text .MuiTypography-root {
+    font-size: 1rem;
+    font-weight: 500;
+}
+
+/* Ensure overview button is prominent */
+.profile-navigation.mobile .mobile-nav-item[data-value="overview"] {
+    background-color: rgba(25, 118, 210, 0.04);
+    border-left: 3px solid #1976d2;
+}
+
+.profile-navigation.mobile .mobile-nav-item[data-value="overview"]:hover {
+    background-color: rgba(25, 118, 210, 0.08);
+}
+
+.profile-navigation.mobile .mobile-nav-item[data-value="overview"] .mobile-nav-icon {
+    color: #1976d2;
+}
+
+/* Responsive Breakpoints */
+@media (max-width: 1024px) {
+    .profile-navigation.desktop {
+        width: 220px;
+        min-width: 220px;
+    }
+}
+
+@media (max-width: 768px) {
+    .profile-navigation.desktop {
+        display: none;
+    }
+    
+    .profile-navigation.mobile {
+        display: block;
+    }
+}
+
+@media (max-width: 480px) {
+    .profile-navigation.mobile .mobile-nav-item {
+        padding: 14px 16px;
+    }
+    
+    .profile-navigation.mobile .mobile-nav-text .MuiTypography-root {
+        font-size: 0.9rem;
+    }
+    
+    .profile-navigation.mobile .mobile-nav-icon {
+        min-width: 36px;
     }
 } 

@@ -2,30 +2,33 @@
     background-color: white;
     border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    padding: 2rem;
-    margin-bottom: 2rem;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
 }
 
 .profile-header-content {
     display: flex;
     align-items: flex-start;
-    gap: 2rem;
+    gap: 1.5rem;
 }
 
 .profile-info {
     flex-grow: 1;
+    text-align: center;
 }
 
 .profile-info h1 {
     margin: 0 0 0.5rem 0;
     color: #2c3e50;
-    font-size: 2rem;
+    font-size: 1.5rem;
+    line-height: 1.2;
 }
 
 .profile-info .email {
     color: #7f8c8d;
     margin: 0 0 0.5rem 0;
-    font-size: 1.1rem;
+    font-size: 1rem;
+    word-break: break-word;
 }
 
 .profile-info .phone {
@@ -33,11 +36,15 @@
     margin: 0 0 1rem 0;
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 0.5rem;
+    font-size: 1rem;
 }
 
 .edit-profile-btn {
     margin-top: 1rem;
+    padding: 0.75rem 1.5rem;
+    font-size: 0.9rem;
 }
 
 .edit-profile-btn i {
@@ -46,6 +53,7 @@
 
 .edit-profile-form {
     max-width: 600px;
+    width: 100%;
 }
 
 .form-row {
@@ -53,6 +61,33 @@
     grid-template-columns: 1fr 1fr;
     gap: 1rem;
     margin-bottom: 1rem;
+}
+
+.form-group {
+    margin-bottom: 1rem;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    color: #2c3e50;
+    font-weight: 500;
+    font-size: 0.9rem;
+}
+
+.form-control {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    transition: border-color 0.2s;
+}
+
+.form-control:focus {
+    border-color: #3498db;
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
 }
 
 .form-actions {
@@ -68,6 +103,7 @@
     display: flex;
     align-items: center;
     gap: 0.5rem;
+    font-size: 0.9rem;
 }
 
 .alert-error {
@@ -83,30 +119,102 @@
 }
 
 /* Responsive Design */
+@media (max-width: 1024px) {
+    .profile-header {
+        padding: 1.25rem;
+        margin-bottom: 1.25rem;
+    }
+
+    .profile-header-content {
+        gap: 1.25rem;
+    }
+
+    .profile-info h1 {
+        font-size: 1.4rem;
+    }
+}
+
 @media (max-width: 768px) {
     .profile-header {
         padding: 1rem;
+        margin-bottom: 1rem;
     }
 
     .profile-header-content {
         flex-direction: column;
         align-items: center;
         text-align: center;
+        gap: 1rem;
     }
 
     .profile-info {
         width: 100%;
     }
 
+    .profile-info h1 {
+        font-size: 1.3rem;
+    }
+
+    .profile-info .email,
+    .profile-info .phone {
+        font-size: 0.95rem;
+    }
+
     .form-row {
         grid-template-columns: 1fr;
+        gap: 0.75rem;
     }
 
     .form-actions {
         flex-direction: column;
+        gap: 0.75rem;
     }
 
     .form-actions button {
         width: 100%;
+    }
+
+    .edit-profile-btn {
+        padding: 0.75rem 1.25rem;
+        font-size: 0.85rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .profile-header {
+        padding: 0.75rem;
+        margin-bottom: 0.75rem;
+    }
+
+    .profile-header-content {
+        gap: 0.75rem;
+    }
+
+    .profile-info h1 {
+        font-size: 1.2rem;
+    }
+
+    .profile-info .email,
+    .profile-info .phone {
+        font-size: 0.9rem;
+    }
+
+    .edit-profile-btn {
+        padding: 0.6rem 1rem;
+        font-size: 0.8rem;
+    }
+
+    .form-control {
+        padding: 0.6rem;
+        font-size: 0.85rem;
+    }
+
+    .form-group label {
+        font-size: 0.85rem;
+    }
+
+    .alert {
+        padding: 0.75rem;
+        font-size: 0.85rem;
     }
 } 

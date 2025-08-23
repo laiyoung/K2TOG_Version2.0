@@ -19,6 +19,7 @@ const ProfilePage = () => {
     const [profile, setProfile] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -54,6 +55,8 @@ const ProfilePage = () => {
     const handleSectionChange = (section) => {
         console.log('Changing section to:', section); // Debug log
         setActiveSection(section);
+        // Close mobile menu when a section is selected
+        setIsMobileMenuOpen(false);
     };
 
     const handleProfileUpdate = async (updatedData) => {
@@ -95,6 +98,10 @@ const ProfilePage = () => {
             console.error('Failed to update notifications:', error);
             setError('Failed to update notifications. Please try again.');
         }
+    };
+
+    const toggleMobileMenu = () => {
+        setIsMobileMenuOpen(!isMobileMenuOpen);
     };
 
     if (loading) {
@@ -167,13 +174,46 @@ const ProfilePage = () => {
     return (
         <div className="profile-page">
             <ProfileHeader profile={profile} onUpdate={handleProfileUpdate} />
+
             <div className="profile-content">
-                <ProfileNavigation
-                    activeSection={activeSection}
-                    onSectionChange={handleSectionChange}
-                    profile={profile}
-                />
+                {/* Desktop Navigation - Hidden on mobile */}
+                <div className="desktop-navigation">
+                    <ProfileNavigation
+                        activeSection={activeSection}
+                        onSectionChange={handleSectionChange}
+                        profile={profile}
+                    />
+                </div>
+
+                {/* Mobile Navigation Toggle and Menu */}
+                <div className="mobile-navigation-container">
+                    {/* Mobile Menu Toggle Button */}
+                    <div className="mobile-menu-toggle">
+                        <button
+                            className="mobile-menu-button"
+                            onClick={toggleMobileMenu}
+                            aria-label="Toggle navigation menu"
+                        >
+                            <span className="mobile-menu-icon">
+                                {isMobileMenuOpen ? '✕' : '☰'}
+                            </span>
+                            <span className="mobile-menu-text">Navigation</span>
+                        </button>
+                    </div>
+
+                    {/* Mobile Navigation - Toggleable */}
+                    <div className={`mobile-navigation ${isMobileMenuOpen ? 'open' : ''}`}>
+                        <ProfileNavigation
+                            activeSection={activeSection}
+                            onSectionChange={handleSectionChange}
+                            profile={profile}
+                            isMobile={true}
+                        />
+                    </div>
+                </div>
+
                 <div className="profile-section">
+
                     {activeSection === 'overview' && (
                         <ProfileOverview
                             profile={profile}
