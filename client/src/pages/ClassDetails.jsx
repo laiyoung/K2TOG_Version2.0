@@ -250,6 +250,48 @@ function ClassDetails() {
                             <p className="text-gray-700 leading-relaxed">{classData.description}</p>
                         </div>
 
+                        {/* Location Section - All Screen Sizes */}
+                        <div>
+                            <h2 className="text-2xl font-semibold mb-4 text-gray-900">Location</h2>
+                            <p className="text-gray-700">
+                                <span className="font-medium">Type:</span> {classData.location_type}<br />
+                                <span className="font-medium">Details:</span> {classData.location_details}
+                            </p>
+                        </div>
+
+                        {/* Enrollment Card - Mobile Only */}
+                        <div className="md:hidden">
+                            <div className="bg-gray-50 p-6 rounded-lg shadow-sm">
+                                <div className="space-y-4">
+                                    <div>
+                                        <h2 className="text-xl font-semibold mb-2 text-gray-900">Enrollment</h2>
+                                        <p className="text-2xl font-semibold text-blue-600">${classData.price}</p>
+                                    </div>
+
+                                    <div className="space-y-3">
+                                        <div className="flex items-center space-x-2">
+                                            <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                                            </svg>
+                                            <span className="text-sm text-gray-700">Certificate of Completion</span>
+                                        </div>
+                                        <div className="flex items-center space-x-2">
+                                            <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                                            </svg>
+                                            <span className="text-sm text-gray-700">Expert Instruction</span>
+                                        </div>
+                                        <div className="flex items-center space-x-2">
+                                            <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                                            </svg>
+                                            <span className="text-sm text-gray-700">Hands-on Learning</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                         {sessions.length > 0 && (
                             <div>
                                 <h2 className="text-2xl font-semibold mb-4 text-gray-900">Available Sessions</h2>
@@ -331,18 +373,10 @@ function ClassDetails() {
                             </div>
                         )}
 
-                        <div>
-                            <h2 className="text-2xl font-semibold mb-4 text-gray-900">Location</h2>
-                            <p className="text-gray-700">
-                                <span className="font-medium">Type:</span> {classData.location_type}<br />
-                                <span className="font-medium">Details:</span> {classData.location_details}
-                            </p>
-                        </div>
-
                     </div>
 
-                    {/* Right Column - Enrollment Card */}
-                    <div className="bg-gray-50 p-8 rounded-lg shadow-sm">
+                    {/* Right Column - Enrollment Card - Desktop Only */}
+                    <div className="hidden md:block bg-gray-50 p-8 rounded-lg shadow-sm">
                         <div className="space-y-6">
                             <div>
                                 <h2 className="text-2xl font-semibold mb-2 text-gray-900">Enrollment</h2>

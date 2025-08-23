@@ -1,6 +1,44 @@
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import classService from '../../services/classService';
 
 function Footer() {
+    const [classes, setClasses] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const navigate = useNavigate();
+
+    useEffect(() => {
+        const fetchClasses = async () => {
+            try {
+                const data = await classService.getAllClasses();
+                setClasses(data);
+            } catch (error) {
+                console.error('Error fetching classes for footer:', error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchClasses();
+    }, []);
+
+    // Helper function to get class link by title
+    const getClassLink = (title) => {
+        const classItem = classes.find(c => c.title === title);
+        return classItem ? `/classes/${classItem.id}` : '#';
+    };
+
+    // Function to handle navigation with scroll to top
+    const handleClassNavigation = (title) => {
+        const link = getClassLink(title);
+        if (link !== '#') {
+            // Scroll to top before navigation
+            window.scrollTo(0, 0);
+            // Navigate to the class details page
+            navigate(link);
+        }
+    };
+
     return (
         <footer className="w-full bg-white font-montserrat border-t border-gray-200 mt-12 sm:mt-16 lg:mt-24 pt-8 sm:pt-10 lg:pt-12 pb-4 text-[#222] text-sm" style={{ fontFamily: 'Montserrat, sans-serif' }}>
             <div className="max-w-7xl mx-auto flex flex-col lg:flex-row justify-between items-start px-4 sm:px-6 lg:px-8 gap-6 sm:gap-8">
@@ -14,11 +52,38 @@ function Footer() {
                 <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8 w-full">
                     <div className="text-center lg:text-left">
                         <div className="text-[#979797] text-xs mb-3 uppercase tracking-widest">Classes</div>
-                        <div className="mb-2"><Link to="#" className="text-[#222] no-underline hover:underline text-sm">Development and Operations</Link></div>
-                        <div className="mb-2"><Link to="#" className="text-[#222] no-underline hover:underline text-sm">CDA</Link></div>
-                        <div className="mb-2"><Link to="#" className="text-[#222] no-underline hover:underline text-sm">CPR</Link></div>
+                        {loading ? (
+                            <div className="text-[#222] text-sm">Loading...</div>
+                        ) : (
+                            <>
+                                <div className="mb-2">
+                                    <button
+                                        onClick={() => handleClassNavigation('Development and Operations')}
+                                        className="text-[#222] no-underline hover:underline text-sm bg-transparent border-none cursor-pointer p-0 text-left"
+                                    >
+                                        Development and Operations
+                                    </button>
+                                </div>
+                                <div className="mb-2">
+                                    <button
+                                        onClick={() => handleClassNavigation('Child Development Associate (CDA)')}
+                                        className="text-[#222] no-underline hover:underline text-sm bg-transparent border-none cursor-pointer p-0 text-left"
+                                    >
+                                        CDA
+                                    </button>
+                                </div>
+                                <div className="mb-2">
+                                    <button
+                                        onClick={() => handleClassNavigation('CPR and First Aid Certification')}
+                                        className="text-[#222] no-underline hover:underline text-sm bg-transparent border-none cursor-pointer p-0 text-left"
+                                    >
+                                        CPR
+                                    </button>
+                                </div>
+                            </>
+                        )}
                     </div>
-                    <div className="text-center lg:text-left">
+                    {/* <div className="text-center lg:text-left">
                         <div className="text-[#979797] text-xs mb-3 uppercase tracking-widest">Resources</div>
                         <div className="mb-2"><Link to="#" className="text-[#222] no-underline hover:underline text-sm">Applications</Link></div>
                         <div className="mb-2"><Link to="#" className="text-[#222] no-underline hover:underline text-sm">Scholarships</Link></div>
@@ -34,7 +99,7 @@ function Footer() {
                             />
                             <button type="submit" className="bg-black text-white px-4 text-xs py-2">→</button>
                         </form>
-                    </div>
+                    </div> */}
                 </div>
             </div>
             <div className="w-full text-center text-[#979797] text-xs mt-6 sm:mt-8 pt-4 border-t border-gray-100 px-4">
