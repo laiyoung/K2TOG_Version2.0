@@ -4,9 +4,9 @@ const adminModel = {
   async getWaitlist() {
     const query = `
       SELECT w.*, c.name as class_name, c.location, u.name as user_name, u.email
-      FROM waitlist w
-      JOIN classes c ON w.class_id = c.class_id
-      JOIN users u ON w.user_id = u.user_id
+      FROM class_waitlist w
+      JOIN classes c ON w.class_id = c.id
+      JOIN users u ON w.user_id = u.id
       ORDER BY w.created_at DESC
     `;
     const result = await pool.query(query);
@@ -14,15 +14,15 @@ const adminModel = {
   },
 
   async updateWaitlistStatus(waitlistId, status) {
-    const validStatuses = ['pending', 'approved', 'rejected'];
+    const validStatuses = ['waiting', 'pending', 'approved', 'rejected', 'cancelled'];
     if (!validStatuses.includes(status)) {
       throw new Error('Invalid status');
     }
 
     const query = `
-      UPDATE waitlist
+      UPDATE class_waitlist
       SET status = $1, updated_at = CURRENT_TIMESTAMP
-      WHERE waitlist_id = $2
+      WHERE id = $2
       RETURNING *
     `;
     const result = await pool.query(query, [status, waitlistId]);

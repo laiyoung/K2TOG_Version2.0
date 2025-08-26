@@ -518,6 +518,8 @@ const {
   // @access  Admin
   const adminUpdateWaitlistStatus = async (req, res) => {
       const { status } = req.body;
+      const { classId, waitlistId } = req.params;
+      
   const validStatuses = ['waiting', 'pending', 'approved', 'rejected', 'cancelled'];
 
   if (!validStatuses.includes(status)) {
@@ -528,7 +530,7 @@ const {
   }
   
     try {
-      const updatedWaitlist = await updateWaitlistStatus(req.params.waitlistId, status);
+      const updatedWaitlist = await updateWaitlistStatus(waitlistId, status);
       if (!updatedWaitlist) {
         return res.status(404).json({ error: 'Waitlist entry not found' });
       }
