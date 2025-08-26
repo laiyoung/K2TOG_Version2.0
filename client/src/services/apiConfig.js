@@ -45,7 +45,7 @@ const fetchApi = async (endpoint, options = {}) => {
     try {
         console.log('Making API request to:', `${API_BASE_URL}${endpoint}`); // Add logging
         const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
-        console.log('API response status:', response.status); // Add logging
+        console.log('API response status:', response.status, 'for endpoint:', endpoint); // Add logging
 
         const contentType = response.headers.get('content-type');
 

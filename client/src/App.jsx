@@ -92,6 +92,9 @@ function AppContent() {
                         dense
                         preventDuplicate
                         style={{ marginTop: '80px' }}
+                        autoHideDuration={5000}
+                        disableWindowBlurListener={false}
+                        resumePause={false}
                     >
                         <Outlet />
                     </SnackbarProvider>
@@ -107,6 +110,9 @@ function AppContent() {
                         dense
                         preventDuplicate
                         style={{ marginTop: '80px' }}
+                        autoHideDuration={5000}
+                        disableWindowBlurListener={false}
+                        resumePause={false}
                     >
                         <Outlet />
                     </SnackbarProvider>

@@ -71,27 +71,27 @@ const enrollInClass = async (req, res) => {
     // Create enrollment
     const enrollment = await enrollUserInClass(userId, classId, sessionId, "paid");
 
-    // Send confirmation email
-    try {
-      await emailService.sendEnrollmentConfirmationEmail(
-        req.user.email,
-        req.user.name || `${req.user.first_name} ${req.user.last_name}`,
-        classDetails.title,
-        {
-          location_details: classDetails.location_details
-        },
-        {
-          session_date: session.rows[0].session_date,
-          start_time: session.rows[0].start_time,
-          end_time: session.rows[0].end_time
-        }
-      );
+    // Send confirmation email asynchronously (don't wait for it)
+    emailService.sendEnrollmentConfirmationEmail(
+      req.user.email,
+      req.user.name || `${req.user.first_name} ${req.user.last_name}`,
+      classDetails.title,
+      {
+        location_details: classDetails.location_details
+      },
+      {
+        session_date: session.rows[0].session_date,
+        start_time: session.rows[0].start_time,
+        end_time: session.rows[0].end_time
+      }
+    ).then(() => {
       console.log(`Enrollment confirmation email sent to: ${req.user.email}`);
-    } catch (emailError) {
+    }).catch((emailError) => {
       console.error("Email sending failed:", emailError);
-      // Continue with enrollment even if email fails
-    }
+      // Email failure doesn't affect enrollment success
+    });
 
+    // Send response immediately without waiting for email
     res.status(201).json(enrollment);
   } catch (err) {
     console.error("Enrollment error:", err);
@@ -180,7 +180,7 @@ const getAllEnrollmentsAdmin = async (req, res) => {
 
     const { enrollments, total } = await getAllEnrollments(filters);
     console.log('Enrollments found:', enrollments.length, 'Total:', total);
-    
+
     res.json({ enrollments, total });
   } catch (err) {
     console.error("Admin fetch error:", err);
@@ -237,27 +237,27 @@ const approveEnrollmentRequest = async (req, res) => {
 
     const approvedEnrollment = await approveEnrollment(id, adminId, adminNotes);
 
-    // Send approval email
-    try {
-      await emailService.sendEnrollmentApprovalEmail(
-        enrollment.user_email,
-        enrollment.user_name,
-        enrollment.class_title,
-        {
-          location_details: enrollment.location_details
-        },
-        {
-          session_date: enrollment.class_date,
-          start_time: enrollment.start_time,
-          end_time: enrollment.end_time
-        },
-        adminNotes
-      );
+    // Send approval email asynchronously (don't wait for it)
+    emailService.sendEnrollmentApprovalEmail(
+      enrollment.user_email,
+      enrollment.user_name,
+      enrollment.class_title,
+      {
+        location_details: enrollment.location_details
+      },
+      {
+        session_date: enrollment.class_date,
+        start_time: enrollment.start_time,
+        end_time: enrollment.end_time
+      },
+      adminNotes
+    ).then(() => {
       console.log(`Enrollment approval email sent to: ${enrollment.user_email}`);
-    } catch (emailError) {
+    }).catch((emailError) => {
       console.error("Email sending failed:", emailError);
-    }
+    });
 
+    // Send response immediately without waiting for email
     res.json(approvedEnrollment);
   } catch (err) {
     console.error("Approve enrollment error:", err);
@@ -285,27 +285,27 @@ const rejectEnrollmentRequest = async (req, res) => {
 
     const rejectedEnrollment = await rejectEnrollment(id, adminId, adminNotes);
 
-    // Send rejection email
-    try {
-      await emailService.sendEnrollmentRejectionEmail(
-        enrollment.user_email,
-        enrollment.user_name,
-        enrollment.class_title,
-        {
-          location_details: enrollment.location_details
-        },
-        {
-          session_date: enrollment.class_date,
-          start_time: enrollment.start_time,
-          end_time: enrollment.end_time
-        },
-        adminNotes
-      );
+    // Send rejection email asynchronously (don't wait for it)
+    emailService.sendEnrollmentRejectionEmail(
+      enrollment.user_email,
+      enrollment.user_name,
+      enrollment.class_title,
+      {
+        location_details: enrollment.location_details
+      },
+      {
+        session_date: enrollment.class_date,
+        start_time: enrollment.start_time,
+        end_time: enrollment.end_time
+      },
+      adminNotes
+    ).then(() => {
       console.log(`Enrollment rejection email sent to: ${enrollment.user_email}`);
-    } catch (emailError) {
+    }).catch((emailError) => {
       console.error("Email sending failed:", emailError);
-    }
+    });
 
+    // Send response immediately without waiting for email
     res.json(rejectedEnrollment);
   } catch (err) {
     console.error("Reject enrollment error:", err);

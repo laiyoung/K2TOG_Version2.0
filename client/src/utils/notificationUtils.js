@@ -7,6 +7,7 @@ import { useSnackbar } from 'notistack';
  * @param {Object} options - Additional options for the notification
  */
 export const showSuccessNotification = (enqueueSnackbar, message, options = {}) => {
+  console.log('Showing success notification:', message); // Add debugging
   enqueueSnackbar(message, {
     variant: 'success',
     autoHideDuration: 5000,
@@ -22,6 +23,7 @@ export const showSuccessNotification = (enqueueSnackbar, message, options = {}) 
  * @param {Object} options - Additional options for the notification
  */
 export const showErrorNotification = (enqueueSnackbar, message, options = {}) => {
+  console.log('Showing error notification:', message); // Add debugging
   enqueueSnackbar(message, {
     variant: 'error',
     autoHideDuration: 6000,

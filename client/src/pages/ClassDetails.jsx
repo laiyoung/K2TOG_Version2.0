@@ -157,9 +157,13 @@ function ClassDetails() {
         setEnrollLoading(true);
         setEnrollError('');
         try {
+            console.log('Starting enrollment process...'); // Add debugging
             await enrollmentService.enrollInClass(id, { sessionId });
+            console.log('Enrollment successful, updating state...'); // Add debugging
             setIsEnrolled(true);
+            console.log('Showing success message...'); // Add debugging
             showSuccess('Successfully enrolled in class');
+            console.log('Success message called'); // Add debugging
         } catch (err) {
             setEnrollError(err.message || 'Enrollment operation failed');
             showError(err.message || 'Enrollment operation failed');
