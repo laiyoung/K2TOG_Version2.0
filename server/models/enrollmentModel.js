@@ -5,7 +5,7 @@ const enrollUserInClass = async (userId, classId, sessionId, paymentStatus = 'pa
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    
+
     // Create the enrollment
     const result = await client.query(
       `INSERT INTO enrollments (user_id, class_id, session_id, payment_status, enrollment_status)
@@ -13,19 +13,19 @@ const enrollUserInClass = async (userId, classId, sessionId, paymentStatus = 'pa
        RETURNING *`,
       [userId, classId, sessionId, paymentStatus]
     );
-    
+
     // Update the session enrollment count
     await client.query(
       `UPDATE class_sessions SET enrolled_count = enrolled_count + 1 WHERE id = $1`,
       [sessionId]
     );
-    
+
     // Automatically convert user to student if not already
     await client.query(
       `UPDATE users SET role = 'student' WHERE id = $1 AND role != 'student'`,
       [userId]
     );
-    
+
     await client.query('COMMIT');
     return result.rows[0];
   } catch (error) {
@@ -41,21 +41,21 @@ const approveEnrollment = async (enrollmentId, adminId, adminNotes = null) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    
+
     // Get the enrollment with session_id and current status before updating
     const enrollmentResult = await client.query(
       `SELECT session_id, enrollment_status FROM enrollments WHERE id = $1`,
       [enrollmentId]
     );
-    
+
     if (enrollmentResult.rows.length === 0) {
       await client.query('ROLLBACK');
       throw new Error('Enrollment not found');
     }
-    
+
     const sessionId = enrollmentResult.rows[0].session_id;
     const currentStatus = enrollmentResult.rows[0].enrollment_status;
-    
+
     // Update the enrollment status
     const result = await client.query(
       `UPDATE enrollments 
@@ -67,7 +67,7 @@ const approveEnrollment = async (enrollmentId, adminId, adminNotes = null) => {
        RETURNING *`,
       [adminNotes, adminId, enrollmentId]
     );
-    
+
     // If the enrollment was previously rejected, increment the session enrollment count
     if (currentStatus === 'rejected') {
       await client.query(
@@ -75,7 +75,7 @@ const approveEnrollment = async (enrollmentId, adminId, adminNotes = null) => {
         [sessionId]
       );
     }
-    
+
     await client.query('COMMIT');
     return result.rows[0];
   } catch (error) {
@@ -91,20 +91,20 @@ const rejectEnrollment = async (enrollmentId, adminId, adminNotes = null) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    
+
     // Get the enrollment with session_id before updating
     const enrollmentResult = await client.query(
       `SELECT session_id FROM enrollments WHERE id = $1`,
       [enrollmentId]
     );
-    
+
     if (enrollmentResult.rows.length === 0) {
       await client.query('ROLLBACK');
       throw new Error('Enrollment not found');
     }
-    
+
     const sessionId = enrollmentResult.rows[0].session_id;
-    
+
     // Update the enrollment status
     const result = await client.query(
       `UPDATE enrollments 
@@ -116,13 +116,13 @@ const rejectEnrollment = async (enrollmentId, adminId, adminNotes = null) => {
        RETURNING *`,
       [adminNotes, adminId, enrollmentId]
     );
-    
+
     // Decrement the session enrollment count
     await client.query(
       `UPDATE class_sessions SET enrolled_count = GREATEST(enrolled_count - 1, 0) WHERE id = $1`,
       [sessionId]
     );
-    
+
     await client.query('COMMIT');
     return result.rows[0];
   } catch (error) {
@@ -138,21 +138,21 @@ const setEnrollmentPending = async (enrollmentId, adminId, adminNotes = null) =>
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    
+
     // Get the enrollment with session_id and current status before updating
     const enrollmentResult = await client.query(
       `SELECT session_id, enrollment_status FROM enrollments WHERE id = $1`,
       [enrollmentId]
     );
-    
+
     if (enrollmentResult.rows.length === 0) {
       await client.query('ROLLBACK');
       throw new Error('Enrollment not found');
     }
-    
+
     const sessionId = enrollmentResult.rows[0].session_id;
     const currentStatus = enrollmentResult.rows[0].enrollment_status;
-    
+
     // Update the enrollment status
     const result = await client.query(
       `UPDATE enrollments 
@@ -164,7 +164,7 @@ const setEnrollmentPending = async (enrollmentId, adminId, adminNotes = null) =>
        RETURNING *`,
       [adminNotes, adminId, enrollmentId]
     );
-    
+
     // If the enrollment was previously rejected, increment the session enrollment count
     if (currentStatus === 'rejected') {
       await client.query(
@@ -172,7 +172,7 @@ const setEnrollmentPending = async (enrollmentId, adminId, adminNotes = null) =>
         [sessionId]
       );
     }
-    
+
     await client.query('COMMIT');
     return result.rows[0];
   } catch (error) {
@@ -247,7 +247,7 @@ const cancelEnrollment = async (userId, classId) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    
+
     // Get the enrollment with session_id before deleting
     const enrollmentResult = await client.query(
       `SELECT session_id FROM enrollments 
@@ -256,14 +256,14 @@ const cancelEnrollment = async (userId, classId) => {
        AND enrollment_status = 'approved'`,
       [userId, classId]
     );
-    
+
     if (enrollmentResult.rows.length === 0) {
       await client.query('ROLLBACK');
       return null;
     }
-    
+
     const sessionId = enrollmentResult.rows[0].session_id;
-    
+
     // Delete the enrollment
     const result = await client.query(
       `DELETE FROM enrollments 
@@ -273,13 +273,13 @@ const cancelEnrollment = async (userId, classId) => {
        RETURNING *`,
       [userId, classId]
     );
-    
+
     // Decrement the session enrollment count
     await client.query(
       `UPDATE class_sessions SET enrolled_count = GREATEST(enrolled_count - 1, 0) WHERE id = $1`,
       [sessionId]
     );
-    
+
     await client.query('COMMIT');
     return { ...result.rows[0], session_id: sessionId };
   } catch (error) {
@@ -459,7 +459,17 @@ const getHistoricalEnrollmentsByUserId = async (userId) => {
 // Check if a user is already enrolled in a specific class
 const isUserAlreadyEnrolled = async (userId, classId) => {
   const result = await pool.query(
-    `SELECT * FROM enrollments WHERE user_id = $1 AND class_id = $2 AND enrollment_status IN ('approved', 'pending')`,
+    `SELECT e.*, cs.session_date, cs.end_date 
+     FROM enrollments e
+     LEFT JOIN class_sessions cs ON cs.id = e.session_id AND cs.deleted_at IS NULL
+     WHERE e.user_id = $1 
+       AND e.class_id = $2 
+       AND e.enrollment_status IN ('approved', 'pending')
+       AND (
+         -- Session hasn't ended yet (either no end_date or end_date is in the future)
+         (cs.end_date IS NULL AND cs.session_date > NOW())
+         OR (cs.end_date IS NOT NULL AND cs.end_date > NOW())
+       )`,
     [userId, classId]
   );
   return result.rows.length > 0;
@@ -468,9 +478,9 @@ const isUserAlreadyEnrolled = async (userId, classId) => {
 // Get all enrollments (admin view)
 const getAllEnrollments = async (filters = {}) => {
   const { status, class_id, user_id, start_date, end_date, page = 1, limit = 20 } = filters;
-  
+
   console.log('getAllEnrollments called with filters:', filters);
-  
+
   let query = `
     SELECT 
       e.*,
@@ -498,7 +508,7 @@ const getAllEnrollments = async (filters = {}) => {
     WHERE u.role NOT IN ('admin', 'instructor')
   `;
   let countQuery = `SELECT COUNT(*) FROM enrollments e JOIN users u ON u.id = e.user_id WHERE u.role NOT IN ('admin', 'instructor')`;
-  
+
   const queryParams = [];
   const countParams = [];
   let paramCount = 1;
