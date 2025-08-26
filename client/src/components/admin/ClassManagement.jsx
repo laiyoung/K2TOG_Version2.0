@@ -1175,7 +1175,7 @@ function ClassManagement() {
                           <TableCell>Email</TableCell>
                           <TableCell>Session Date</TableCell>
                           <TableCell>Status</TableCell>
-                          <TableCell>Archived</TableCell>
+                          <TableCell>Completed/Archived</TableCell>
                           <TableCell>Reason</TableCell>
                         </TableRow>
                       </TableHead>
@@ -1195,12 +1195,13 @@ function ClassManagement() {
                               />
                             </TableCell>
                             <TableCell>
-                              {enrollment.archived_at ? new Date(enrollment.archived_at).toLocaleDateString() : 'N/A'}
+                              {enrollment.completed_at ? new Date(enrollment.completed_at).toLocaleDateString() :
+                                enrollment.archived_at ? new Date(enrollment.archived_at).toLocaleDateString() : 'N/A'}
                             </TableCell>
                             <TableCell>
-                              <Tooltip title={enrollment.archived_reason}>
+                              <Tooltip title={enrollment.completion_reason || enrollment.archived_reason}>
                                 <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                                  {enrollment.archived_reason?.substring(0, 20)}...
+                                  {(enrollment.completion_reason || enrollment.archived_reason || 'N/A').substring(0, 20)}...
                                 </Typography>
                               </Tooltip>
                             </TableCell>

@@ -172,7 +172,7 @@ const ClassStudents = ({ classId, className }) => {
                                         <TableCell>Enrollment Status</TableCell>
                                         <TableCell>Payment Status</TableCell>
                                         {session.session_type === 'historical' && (
-                                            <TableCell>Archived Info</TableCell>
+                                            <TableCell>Completed/Archived Info</TableCell>
                                         )}
                                     </TableRow>
                                 </TableHead>
@@ -214,11 +214,12 @@ const ClassStudents = ({ classId, className }) => {
                                                     {session.session_type === 'historical' && (
                                                         <TableCell>
                                                             <Typography variant="caption" color="text.secondary">
-                                                                {student.archived_at ? new Date(student.archived_at).toLocaleDateString() : 'N/A'}
+                                                                {student.completed_at ? new Date(student.completed_at).toLocaleDateString() :
+                                                                    student.archived_at ? new Date(student.archived_at).toLocaleDateString() : 'N/A'}
                                                             </Typography>
-                                                            {student.archived_reason && (
+                                                            {(student.completion_reason || student.archived_reason) && (
                                                                 <Typography variant="caption" display="block" color="text.secondary">
-                                                                    {student.archived_reason}
+                                                                    {student.completion_reason || student.archived_reason}
                                                                 </Typography>
                                                             )}
                                                         </TableCell>

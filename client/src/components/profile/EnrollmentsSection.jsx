@@ -213,20 +213,20 @@ const EnrollmentsSection = ({ enrollments, historicalEnrollments, loading = fals
                             Enrolled: {enrollment.enrollment_date || enrollment.enrolled_at ? formatDate(enrollment.enrollment_date || enrollment.enrolled_at) : 'N/A'}
                         </Typography>
 
-                        {isHistorical && enrollment.archived_at && (
+                        {isHistorical && (enrollment.completed_at || enrollment.archived_at) && (
                             <Typography variant="caption" color="text.secondary" display="block">
-                                Archived: {formatDate(enrollment.archived_at)}
+                                {enrollment.completed_at ? 'Completed' : 'Archived'}: {formatDate(enrollment.completed_at || enrollment.archived_at)}
                             </Typography>
                         )}
 
-                        {isHistorical && enrollment.archived_reason && (
-                            <Tooltip title={enrollment.archived_reason}>
+                        {isHistorical && (enrollment.completion_reason || enrollment.archived_reason) && (
+                            <Tooltip title={enrollment.completion_reason || enrollment.archived_reason}>
                                 <Typography variant="caption" color="text.secondary" display="block" sx={{
                                     overflow: 'hidden',
                                     textOverflow: 'ellipsis',
                                     whiteSpace: 'nowrap'
                                 }}>
-                                    Reason: {enrollment.archived_reason}
+                                    Reason: {enrollment.completion_reason || enrollment.archived_reason}
                                 </Typography>
                             </Tooltip>
                         )}

@@ -893,7 +893,7 @@ const getHistoricalEnrollments = async (classId) => {
 const getAllEnrollmentsForClass = async (classId) => {
   const client = await pool.connect();
   try {
-    // Get active enrollments
+    // Get active enrollments - only those with sessions that haven't ended
     const activeResult = await client.query(
       `SELECT 
         e.id as enrollment_id,
@@ -915,6 +915,42 @@ const getAllEnrollmentsForClass = async (classId) => {
       JOIN users u ON u.id = e.user_id
       LEFT JOIN class_sessions cs ON cs.id = e.session_id AND cs.deleted_at IS NULL
       WHERE e.class_id = $1
+        AND (
+          (cs.end_date IS NOT NULL AND cs.end_date > NOW())
+          OR (cs.end_date IS NULL AND cs.session_date > NOW())
+        )
+      ORDER BY e.enrolled_at DESC`,
+      [classId]
+    );
+
+    // Get completed enrollments from active enrollments table (sessions that have ended)
+    const completedActiveResult = await client.query(
+      `SELECT 
+        e.id as enrollment_id,
+        e.enrollment_status,
+        e.payment_status,
+        e.enrolled_at,
+        e.admin_notes,
+        e.reviewed_at,
+        u.id as user_id,
+        u.name,
+        u.email,
+        u.phone_number,
+        cs.session_date,
+        cs.start_time,
+        cs.end_time,
+        cs.status as session_status,
+        'completed' as data_type,
+        cs.end_date as completed_at,
+        'Session ended' as completion_reason
+      FROM enrollments e
+      JOIN users u ON u.id = e.user_id
+      LEFT JOIN class_sessions cs ON cs.id = e.session_id AND cs.deleted_at IS NULL
+      WHERE e.class_id = $1
+        AND (
+          (cs.end_date IS NOT NULL AND cs.end_date <= NOW())
+          OR (cs.end_date IS NULL AND cs.session_date <= NOW())
+        )
       ORDER BY e.enrolled_at DESC`,
       [classId]
     );
@@ -947,6 +983,7 @@ const getAllEnrollmentsForClass = async (classId) => {
           he.payment_status,
           he.enrolled_at,
           he.admin_notes,
+          he.reviewed_by,
           he.reviewed_at,
           he.historical_session_id,
           he.archived_at,
@@ -954,7 +991,7 @@ const getAllEnrollmentsForClass = async (classId) => {
         FROM historical_enrollments he
         JOIN historical_sessions hs ON hs.id = he.historical_session_id
         WHERE he.class_id = $1
-                 ORDER BY he.user_id, hs.original_session_id, COALESCE(he.archived_at, '1900-01-01'::timestamp) DESC
+        ORDER BY he.user_id, hs.original_session_id, COALESCE(he.archived_at, '1900-01-01'::timestamp) DESC
       ) he
       JOIN users u ON u.id = he.user_id
       JOIN historical_sessions hs ON hs.id = he.historical_session_id
@@ -962,10 +999,18 @@ const getAllEnrollmentsForClass = async (classId) => {
       [classId]
     );
 
+    // Combine completed active enrollments with historical enrollments
+    const allHistorical = [...completedActiveResult.rows, ...historicalResult.rows];
+    allHistorical.sort((a, b) => {
+      const dateA = a.completed_at || a.archived_at ? new Date(a.completed_at || a.archived_at) : new Date(0);
+      const dateB = b.completed_at || b.archived_at ? new Date(b.completed_at || b.archived_at) : new Date(0);
+      return dateB - dateA; // Sort by most recent first
+    });
+
     return {
       active: activeResult.rows,
-      historical: historicalResult.rows,
-      total: activeResult.rows.length + historicalResult.rows.length
+      historical: allHistorical,
+      total: activeResult.rows.length + allHistorical.length
     };
   } finally {
     client.release();

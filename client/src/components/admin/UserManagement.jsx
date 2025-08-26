@@ -1121,14 +1121,14 @@ const UserManagement = () => {
                                                 Historical Enrollments ({userEnrollments.historical?.length || 0})
                                             </Typography>
                                             {userEnrollments.historical?.length > 0 ? (
-                                                <TableContainer component={Paper}>
+                                                <TableContainer component={Paper} sx={{ mb: 3 }}>
                                                     <Table size="small">
                                                         <TableHead>
                                                             <TableRow key="enrollment-dialog-historical-header">
                                                                 <TableCell>Class</TableCell>
                                                                 <TableCell>Session Date</TableCell>
                                                                 <TableCell>Status</TableCell>
-                                                                <TableCell>Archived</TableCell>
+                                                                <TableCell>Completed/Archived</TableCell>
                                                                 <TableCell>Reason</TableCell>
                                                             </TableRow>
                                                         </TableHead>
@@ -1147,12 +1147,13 @@ const UserManagement = () => {
                                                                         />
                                                                     </TableCell>
                                                                     <TableCell>
-                                                                        {enrollment.archived_at ? new Date(enrollment.archived_at).toLocaleDateString() : 'N/A'}
+                                                                        {enrollment.completed_at ? new Date(enrollment.completed_at).toLocaleDateString() :
+                                                                            enrollment.archived_at ? new Date(enrollment.archived_at).toLocaleDateString() : 'N/A'}
                                                                     </TableCell>
                                                                     <TableCell>
-                                                                        <Tooltip title={enrollment.archived_reason}>
+                                                                        <Tooltip title={enrollment.completion_reason || enrollment.archived_reason}>
                                                                             <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                                                                                {enrollment.archived_reason?.substring(0, 20)}...
+                                                                                {(enrollment.completion_reason || enrollment.archived_reason || 'N/A').substring(0, 20)}...
                                                                             </Typography>
                                                                         </Tooltip>
                                                                     </TableCell>
@@ -1162,8 +1163,8 @@ const UserManagement = () => {
                                                     </Table>
                                                 </TableContainer>
                                             ) : (
-                                                <Typography color="text.secondary">
-                                                    No historical enrollments found
+                                                <Typography color="text.secondary" sx={{ mb: 3 }}>
+                                                    No historical enrollments
                                                 </Typography>
                                             )}
                                         </Box>
@@ -1332,7 +1333,7 @@ const UserManagement = () => {
                                         <TableCell>Class</TableCell>
                                         <TableCell>Session Date</TableCell>
                                         <TableCell>Status</TableCell>
-                                        <TableCell>Archived</TableCell>
+                                        <TableCell>Completed/Archived</TableCell>
                                         <TableCell>Reason</TableCell>
                                     </TableRow>
                                 </TableHead>
@@ -1351,12 +1352,13 @@ const UserManagement = () => {
                                                 />
                                             </TableCell>
                                             <TableCell>
-                                                {enrollment.archived_at ? new Date(enrollment.archived_at).toLocaleDateString() : 'N/A'}
+                                                {enrollment.completed_at ? new Date(enrollment.completed_at).toLocaleDateString() :
+                                                    enrollment.archived_at ? new Date(enrollment.archived_at).toLocaleDateString() : 'N/A'}
                                             </TableCell>
                                             <TableCell>
-                                                <Tooltip title={enrollment.archived_reason}>
+                                                <Tooltip title={enrollment.completion_reason || enrollment.archived_reason}>
                                                     <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                                                        {enrollment.archived_reason?.substring(0, 20)}...
+                                                        {(enrollment.completion_reason || enrollment.archived_reason || 'N/A').substring(0, 20)}...
                                                     </Typography>
                                                 </Tooltip>
                                             </TableCell>
