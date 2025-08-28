@@ -65,10 +65,10 @@ const formatDateForAPI = (date) => {
     return format(date, 'yyyy-MM-dd');
 };
 
-// Helper to get default date range (last year to today)
+// Helper to get default date range (last 6 months to today)
 const getDefaultDateRange = () => {
     const endDate = endOfDay(new Date());
-    const startDate = startOfDay(subYears(endDate, 1));
+    const startDate = startOfDay(subYears(endDate, 0.5)); // Changed from 1 year to 6 months
     return { startDate, endDate };
 };
 
@@ -102,10 +102,14 @@ function AnalyticsDashboard() {
     const [selectedMetric, setSelectedMetric] = useState('revenue');
 
     // Memoize the date range string to prevent unnecessary re-renders
-    const dateRangeString = useMemo(() => ({
-        startDate: formatDateForAPI(dateRange.startDate),
-        endDate: formatDateForAPI(dateRange.endDate)
-    }), [dateRange.startDate, dateRange.endDate]);
+    const dateRangeString = useMemo(() => {
+        const result = {
+            startDate: formatDateForAPI(dateRange.startDate),
+            endDate: formatDateForAPI(dateRange.endDate)
+        };
+        console.log('Date range string calculated:', result);
+        return result;
+    }, [dateRange.startDate, dateRange.endDate]);
 
     // Memoize the updateLoadingState function
     const updateLoadingState = useCallback((key, isLoading) => {
@@ -140,7 +144,9 @@ function AnalyticsDashboard() {
                 summaryRes,
                 revenueByClassRes,
                 classEnrollmentsRes,
-                userEngagementRes
+                userEngagementRes,
+                revenueRes,
+                enrollmentTrendsRes
             ] = await Promise.all([
                 fetch(`${API_BASE_URL}/admin/analytics/summary?startDate=${formatDateForAPI(dateRange.startDate)}&endDate=${formatDateForAPI(dateRange.endDate)}`, {
                     headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
@@ -153,6 +159,12 @@ function AnalyticsDashboard() {
                 }),
                 fetch(`${API_BASE_URL}/admin/analytics/users/engagement?startDate=${formatDateForAPI(dateRange.startDate)}&endDate=${formatDateForAPI(dateRange.endDate)}`, {
                     headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                }),
+                fetch(`${API_BASE_URL}/admin/analytics/revenue?startDate=${formatDateForAPI(dateRange.startDate)}&endDate=${formatDateForAPI(dateRange.endDate)}`, {
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                }),
+                fetch(`${API_BASE_URL}/admin/analytics/enrollments/trends?startDate=${formatDateForAPI(dateRange.startDate)}&endDate=${formatDateForAPI(dateRange.endDate)}`, {
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
                 })
             ]);
 
@@ -160,11 +172,32 @@ function AnalyticsDashboard() {
             if (!revenueByClassRes.ok) throw new Error('Failed to fetch revenue by class');
             if (!classEnrollmentsRes.ok) throw new Error('Failed to fetch class enrollments');
             if (!userEngagementRes.ok) throw new Error('Failed to fetch user engagement');
+            if (!revenueRes.ok) throw new Error('Failed to fetch revenue trends');
+            if (!enrollmentTrendsRes.ok) throw new Error('Failed to fetch enrollment trends');
 
             const summary = await summaryRes.json();
             const revenueByClass = await revenueByClassRes.json();
             const classEnrollments = await classEnrollmentsRes.json();
             const userEngagement = await userEngagementRes.json();
+            const revenue = await revenueRes.json();
+            const enrollmentTrends = await enrollmentTrendsRes.json();
+
+            console.log('Analytics API Responses:', {
+                summary,
+                revenueByClass,
+                classEnrollments,
+                userEngagement,
+                revenue,
+                enrollmentTrends
+            });
+
+            // Debug enrollment trends specifically
+            console.log('Enrollment Trends Data:', {
+                raw: enrollmentTrends,
+                isArray: Array.isArray(enrollmentTrends),
+                length: Array.isArray(enrollmentTrends) ? enrollmentTrends.length : 'not array',
+                sample: Array.isArray(enrollmentTrends) && enrollmentTrends.length > 0 ? enrollmentTrends[0] : 'no data'
+            });
 
             setAnalyticsData({
                 summary: {
@@ -177,9 +210,9 @@ function AnalyticsDashboard() {
                     waitlistCount: Number(summary.waitlist_count) || 0,
                     enrollmentRate: Number(summary.enrollment_rate) || 0,
                 },
-                revenue: [], // Not used in these cards
+                revenue: Array.isArray(revenue) ? revenue : [],
                 revenueByClass: Array.isArray(revenueByClass) ? revenueByClass : [],
-                enrollmentTrends: [], // Not used in these cards
+                enrollmentTrends: Array.isArray(enrollmentTrends) ? enrollmentTrends : [],
                 classEnrollments: Array.isArray(classEnrollments) ? classEnrollments : [],
                 userEngagement: Array.isArray(userEngagement) ? userEngagement : [],
                 userActivity: []
@@ -204,8 +237,10 @@ function AnalyticsDashboard() {
 
     // Memoize the handleDateRangeChange function with validation
     const handleDateRangeChange = useCallback((newDateRange) => {
+        console.log('handleDateRangeChange called with:', newDateRange);
         setDateRange(prev => {
             const updated = { ...prev, ...newDateRange };
+            console.log('Date range updated from:', prev, 'to:', updated);
 
             // Validate dates
             if (updated.startDate && updated.endDate) {
@@ -256,70 +291,72 @@ function AnalyticsDashboard() {
 
     // Effect to fetch data when component mounts with default dates
     useEffect(() => {
+        console.log('Component mounted, initial date range:', dateRange);
+        console.log('Default date range function result:', getDefaultDateRange());
         fetchAnalyticsData();
     }, []); // Empty dependency array means this runs once on mount
 
     // Memoize the summary cards to prevent unnecessary re-renders
     const summaryCards = useMemo(() => (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-white p-6 rounded-lg shadow">
-                <h3 className="text-sm font-medium text-gray-500">Monthly Revenue</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            <div className="bg-white p-4 sm:p-6 rounded-lg shadow">
+                <h3 className="text-xs sm:text-sm font-medium text-gray-500">Monthly Revenue</h3>
                 {loadingStates.summary ? (
-                    <CircularProgress size={24} className="mt-2" />
+                    <CircularProgress size={20} className="mt-2" />
                 ) : (
                     <>
-                        <p className="mt-2 text-3xl font-semibold text-gray-900">
+                        <p className="mt-2 text-2xl sm:text-3xl font-semibold text-gray-900">
                             ${parseNumericValue(analyticsData.summary?.monthlyRevenue).toLocaleString()}
                         </p>
-                        <p className="mt-2 text-sm text-gray-600">
+                        <p className="mt-2 text-xs sm:text-sm text-gray-600">
                             {parseNumericValue(analyticsData.summary?.recentPayments)} recent payments
                         </p>
                     </>
                 )}
             </div>
 
-            <div className="bg-white p-6 rounded-lg shadow">
-                <h3 className="text-sm font-medium text-gray-500">Active Enrollments</h3>
+            <div className="bg-white p-4 sm:p-6 rounded-lg shadow">
+                <h3 className="text-xs sm:text-sm font-medium text-gray-500">Active Enrollments</h3>
                 {loadingStates.summary ? (
-                    <CircularProgress size={24} className="mt-2" />
+                    <CircularProgress size={20} className="mt-2" />
                 ) : (
                     <>
-                        <p className="mt-2 text-3xl font-semibold text-gray-900">
+                        <p className="mt-2 text-2xl sm:text-3xl font-semibold text-gray-900">
                             {parseNumericValue(analyticsData.summary?.activeEnrollments)}
                         </p>
-                        <p className="mt-2 text-sm text-gray-600">
+                        <p className="mt-2 text-xs sm:text-sm text-gray-600">
                             {parseNumericValue(analyticsData.summary?.enrollmentRate)}% enrollment rate
                         </p>
                     </>
                 )}
             </div>
 
-            <div className="bg-white p-6 rounded-lg shadow">
-                <h3 className="text-sm font-medium text-gray-500">Active Users</h3>
+            <div className="bg-white p-4 sm:p-6 rounded-lg shadow">
+                <h3 className="text-xs sm:text-sm font-medium text-gray-500">Active Users</h3>
                 {loadingStates.summary ? (
-                    <CircularProgress size={24} className="mt-2" />
+                    <CircularProgress size={20} className="mt-2" />
                 ) : (
                     <>
-                        <p className="mt-2 text-3xl font-semibold text-gray-900">
+                        <p className="mt-2 text-2xl sm:text-3xl font-semibold text-gray-900">
                             {parseNumericValue(analyticsData.summary?.activeUsers)}
                         </p>
-                        <p className="mt-2 text-sm text-gray-600">
+                        <p className="mt-2 text-xs sm:text-sm text-gray-600">
                             {parseNumericValue(analyticsData.summary?.recentCertificates)} recent certificates
                         </p>
                     </>
                 )}
             </div>
 
-            <div className="bg-white p-6 rounded-lg shadow">
-                <h3 className="text-sm font-medium text-gray-500">Active Classes</h3>
+            <div className="bg-white p-4 sm:p-6 rounded-lg shadow">
+                <h3 className="text-xs sm:text-sm font-medium text-gray-500">Active Classes</h3>
                 {loadingStates.summary ? (
-                    <CircularProgress size={24} className="mt-2" />
+                    <CircularProgress size={20} className="mt-2" />
                 ) : (
                     <>
-                        <p className="mt-2 text-3xl font-semibold text-gray-900">
+                        <p className="mt-2 text-2xl sm:text-3xl font-semibold text-gray-900">
                             {parseNumericValue(analyticsData.summary?.activeClasses)}
                         </p>
-                        <p className="mt-2 text-sm text-gray-600">
+                        <p className="mt-2 text-xs sm:text-sm text-gray-600">
                             {parseNumericValue(analyticsData.summary?.waitlistCount)} on waitlist
                         </p>
                     </>
@@ -330,95 +367,203 @@ function AnalyticsDashboard() {
 
     // Memoize the charts to prevent unnecessary re-renders
     const charts = useMemo(() => (
-        <Grid container spacing={3}>
-            <Grid item xs={12} md={6}>
-                <Paper className="p-4">
-                    <Typography variant="h6" gutterBottom>
+        <Grid container spacing={3} sx={{ mt: 3 }}>
+            <Grid item xs={12} lg={6}>
+                <Paper className="p-4 sm:p-6" sx={{ height: { xs: '350px', sm: '400px', md: '450px' } }}>
+                    <Typography variant="h6" gutterBottom sx={{ fontSize: { xs: '1rem', sm: '1.25rem' }, mb: 2 }}>
                         Enrollment Trends
                     </Typography>
                     {loadingStates.enrollmentTrends ? (
-                        <div className="flex justify-center items-center h-64">
+                        <div className="flex justify-center items-center h-48 sm:h-64">
                             <CircularProgress />
                         </div>
-                    ) : (
-                        <Line
-                            data={{
-                                labels: analyticsData.enrollmentTrends?.map(item => new Date(item.period).toLocaleDateString()) || [],
-                                datasets: [{
-                                    label: 'Total Enrollments',
-                                    data: analyticsData.enrollmentTrends?.map(item => parseNumericValue(item.total_enrollments)) || [],
-                                    borderColor: 'rgba(16, 185, 129, 1)',
-                                    backgroundColor: 'rgba(16, 185, 129, 0.2)',
-                                    tension: 0.4
-                                }, {
-                                    label: 'Approved Enrollments',
-                                    data: analyticsData.enrollmentTrends?.map(item => parseNumericValue(item.approved_enrollments)) || [],
-                                    borderColor: 'rgba(59, 130, 246, 1)',
-                                    backgroundColor: 'rgba(59, 130, 246, 0.2)',
-                                    tension: 0.4
-                                }]
-                            }}
-                            options={{
-                                responsive: true,
-                                plugins: {
-                                    legend: {
-                                        position: 'top',
+                    ) : analyticsData.enrollmentTrends && analyticsData.enrollmentTrends.length > 0 ? (
+                        <div style={{ height: 'calc(100% - 60px)', position: 'relative' }}>
+                            {/* Debug info */}
+                            <div style={{ fontSize: '10px', color: '#666', marginBottom: '10px' }}>
+                                Data points: {analyticsData.enrollmentTrends.length} |
+                                Sample: {JSON.stringify(analyticsData.enrollmentTrends[0])}
+                            </div>
+                            <Line
+                                data={{
+                                    labels: analyticsData.enrollmentTrends.map(item => {
+                                        try {
+                                            const date = new Date(item.period);
+                                            return isValid(date) ? date.toLocaleDateString() : item.period;
+                                        } catch (error) {
+                                            console.warn('Error parsing date:', item.period, error);
+                                            return item.period;
+                                        }
+                                    }),
+                                    datasets: [{
+                                        label: 'Total Enrollments',
+                                        data: analyticsData.enrollmentTrends.map(item => parseNumericValue(item.total_enrollments)),
+                                        borderColor: 'rgba(16, 185, 129, 1)',
+                                        backgroundColor: 'rgba(16, 185, 129, 0.2)',
+                                        tension: 0.4
+                                    }, {
+                                        label: 'Approved Enrollments',
+                                        data: analyticsData.enrollmentTrends.map(item => parseNumericValue(item.approved_enrollments)),
+                                        borderColor: 'rgba(59, 130, 246, 1)',
+                                        backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                                        tension: 0.4
+                                    }]
+                                }}
+                                options={{
+                                    responsive: true,
+                                    maintainAspectRatio: false,
+                                    plugins: {
+                                        legend: {
+                                            position: 'top',
+                                            labels: {
+                                                padding: 20,
+                                                usePointStyle: true,
+                                                pointStyle: 'circle'
+                                            }
+                                        },
+                                        title: {
+                                            display: false
+                                        }
                                     },
-                                    title: {
-                                        display: false
+                                    scales: {
+                                        x: {
+                                            ticks: {
+                                                maxRotation: 45,
+                                                minRotation: 0,
+                                                padding: 10,
+                                                font: {
+                                                    size: 11
+                                                }
+                                            },
+                                            grid: {
+                                                display: false
+                                            }
+                                        },
+                                        y: {
+                                            beginAtZero: true,
+                                            ticks: {
+                                                padding: 10,
+                                                font: {
+                                                    size: 11
+                                                }
+                                            },
+                                            grid: {
+                                                color: 'rgba(0, 0, 0, 0.1)'
+                                            }
+                                        }
+                                    },
+                                    layout: {
+                                        padding: {
+                                            top: 20,
+                                            right: 20,
+                                            bottom: 30,
+                                            left: 20
+                                        }
                                     }
-                                },
-                                scales: {
-                                    y: {
-                                        beginAtZero: true
-                                    }
-                                }
-                            }}
-                        />
+                                }}
+                            />
+                        </div>
+                    ) : (
+                        <div className="flex justify-center items-center h-48 sm:h-64 text-gray-500">
+                            <Typography variant="body2">No enrollment trend data available</Typography>
+                        </div>
                     )}
                 </Paper>
             </Grid>
-            <Grid item xs={12} md={6}>
-                <Paper className="p-4">
-                    <Typography variant="h6" gutterBottom>
+            <Grid item xs={12} lg={6}>
+                <Paper className="p-4 sm:p-6" sx={{ height: { xs: '350px', sm: '400px', md: '450px' } }}>
+                    <Typography variant="h6" gutterBottom sx={{ fontSize: { xs: '1rem', sm: '1.25rem' }, mb: 2 }}>
                         Revenue Overview
                     </Typography>
                     {loadingStates.revenue ? (
-                        <div className="flex justify-center items-center h-64">
+                        <div className="flex justify-center items-center h-48 sm:h-64">
                             <CircularProgress />
                         </div>
-                    ) : (
-                        <Bar
-                            data={{
-                                labels: analyticsData.revenue?.map(item => new Date(item.period).toLocaleDateString()) || [],
-                                datasets: [{
-                                    label: 'Net Revenue',
-                                    data: analyticsData.revenue?.map(item => parseNumericValue(item.net_revenue)) || [],
-                                    backgroundColor: 'rgba(59, 130, 246, 0.5)',
-                                    borderColor: 'rgba(59, 130, 246, 1)',
-                                    borderWidth: 1
-                                }]
-                            }}
-                            options={{
-                                responsive: true,
-                                plugins: {
-                                    legend: {
-                                        position: 'top',
+                    ) : analyticsData.revenue && analyticsData.revenue.length > 0 ? (
+                        <div style={{ height: 'calc(100% - 60px)', position: 'relative' }}>
+                            {/* Debug info */}
+                            <div style={{ fontSize: '10px', color: '#666', marginBottom: '10px' }}>
+                                Data points: {analyticsData.revenue.length} |
+                                Sample: {JSON.stringify(analyticsData.revenue[0])}
+                            </div>
+                            <Bar
+                                data={{
+                                    labels: analyticsData.revenue.map(item => {
+                                        try {
+                                            const date = new Date(item.period);
+                                            return isValid(date) ? date.toLocaleDateString() : item.period;
+                                        } catch (error) {
+                                            console.warn('Error parsing date:', item.period, error);
+                                            return item.period;
+                                        }
+                                    }),
+                                    datasets: [{
+                                        label: 'Net Revenue',
+                                        data: analyticsData.revenue.map(item => parseNumericValue(item.net_revenue)),
+                                        backgroundColor: 'rgba(59, 130, 246, 0.5)',
+                                        borderColor: 'rgba(59, 130, 246, 1)',
+                                        borderWidth: 1
+                                    }]
+                                }}
+                                options={{
+                                    responsive: true,
+                                    maintainAspectRatio: false,
+                                    plugins: {
+                                        legend: {
+                                            position: 'top',
+                                            labels: {
+                                                padding: 20,
+                                                usePointStyle: true,
+                                                pointStyle: 'circle'
+                                            }
+                                        },
+                                        title: {
+                                            display: false
+                                        }
                                     },
-                                    title: {
-                                        display: false
-                                    }
-                                },
-                                scales: {
-                                    y: {
-                                        beginAtZero: true,
-                                        ticks: {
-                                            callback: value => `$${value}`
+                                    scales: {
+                                        x: {
+                                            ticks: {
+                                                maxRotation: 45,
+                                                minRotation: 0,
+                                                padding: 10,
+                                                font: {
+                                                    size: 11
+                                                }
+                                            },
+                                            grid: {
+                                                display: false
+                                            }
+                                        },
+                                        y: {
+                                            beginAtZero: true,
+                                            ticks: {
+                                                padding: 10,
+                                                font: {
+                                                    size: 11
+                                                },
+                                                callback: value => `$${value}`
+                                            },
+                                            grid: {
+                                                color: 'rgba(0, 0, 0, 0.1)'
+                                            }
+                                        }
+                                    },
+                                    layout: {
+                                        padding: {
+                                            top: 20,
+                                            right: 20,
+                                            bottom: 30,
+                                            left: 20
                                         }
                                     }
-                                }
-                            }}
-                        />
+                                }}
+                            />
+                        </div>
+                    ) : (
+                        <div className="flex justify-center items-center h-48 sm:h-64 text-gray-500">
+                            <Typography variant="body2">No revenue data available</Typography>
+                        </div>
                     )}
                 </Paper>
             </Grid>
@@ -432,76 +577,89 @@ function AnalyticsDashboard() {
                     {error}
                 </Alert>
             )}
-            <div className="flex justify-between items-center mb-4">
+            <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4 mb-6">
                 <h2 className="text-xl font-semibold text-gray-900">Analytics Dashboard</h2>
-                <div className="flex gap-4 items-center">
-                    <FormControl>
-                        <InputLabel>Metric</InputLabel>
-                        <Select
-                            value={selectedMetric}
-                            label="Metric"
-                            onChange={(e) => setSelectedMetric(e.target.value)}
-                            sx={{ minWidth: 120 }}
+                <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center">
+                    <div className="flex flex-col sm:flex-row gap-3">
+                        <FormControl sx={{ minWidth: 140 }}>
+                            <InputLabel>Metric</InputLabel>
+                            <Select
+                                value={selectedMetric}
+                                label="Metric"
+                                onChange={(e) => setSelectedMetric(e.target.value)}
+                                size="small"
+                            >
+                                <MenuItem value="summary">Summary</MenuItem>
+                                <MenuItem value="revenue">Revenue</MenuItem>
+                                <MenuItem value="revenue-by-class">Revenue by Class</MenuItem>
+                                <MenuItem value="enrollments">Enrollments</MenuItem>
+                                <MenuItem value="class-enrollments">Class Enrollments</MenuItem>
+                                <MenuItem value="user-engagement">User Engagement</MenuItem>
+                                <MenuItem value="user-activity">User Activity</MenuItem>
+                            </Select>
+                        </FormControl>
+                        <LocalizationProvider dateAdapter={AdapterDateFns}>
+                            <DatePicker
+                                label="Start Date"
+                                value={toDateOrNull(dateRange.startDate)}
+                                onChange={(date) => handleDateRangeChange({ startDate: date })}
+                                maxDate={dateRange.endDate || undefined}
+                                slotProps={{
+                                    textField: {
+                                        error: !dateRange.startDate,
+                                        helperText: !dateRange.startDate ? 'Start date is required' : '',
+                                        size: "small",
+                                        sx: { minWidth: 140 }
+                                    }
+                                }}
+                            />
+                            <DatePicker
+                                label="End Date"
+                                value={toDateOrNull(dateRange.endDate)}
+                                onChange={(date) => handleDateRangeChange({ endDate: date })}
+                                minDate={dateRange.startDate || undefined}
+                                slotProps={{
+                                    textField: {
+                                        error: !dateRange.endDate,
+                                        helperText: !dateRange.endDate ? 'End date is required' : '',
+                                        size: "small",
+                                        sx: { minWidth: 140 }
+                                    }
+                                }}
+                            />
+                        </LocalizationProvider>
+                    </div>
+                    <div className="flex flex-col sm:flex-row gap-3">
+                        <button
+                            onClick={fetchAnalyticsData}
+                            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
                         >
-                            <MenuItem value="summary">Summary</MenuItem>
-                            <MenuItem value="revenue">Revenue</MenuItem>
-                            <MenuItem value="revenue-by-class">Revenue by Class</MenuItem>
-                            <MenuItem value="enrollments">Enrollments</MenuItem>
-                            <MenuItem value="class-enrollments">Class Enrollments</MenuItem>
-                            <MenuItem value="user-engagement">User Engagement</MenuItem>
-                            <MenuItem value="user-activity">User Activity</MenuItem>
-                        </Select>
-                    </FormControl>
-                    <LocalizationProvider dateAdapter={AdapterDateFns}>
-                        <DatePicker
-                            label="Start Date"
-                            value={toDateOrNull(dateRange.startDate)}
-                            onChange={(date) => handleDateRangeChange({ startDate: date })}
-                            maxDate={dateRange.endDate || undefined}
-                            slotProps={{
-                                textField: {
-                                    error: !dateRange.startDate,
-                                    helperText: !dateRange.startDate ? 'Start date is required' : ''
-                                }
-                            }}
-                        />
-                        <DatePicker
-                            label="End Date"
-                            value={toDateOrNull(dateRange.endDate)}
-                            onChange={(date) => handleDateRangeChange({ endDate: date })}
-                            minDate={dateRange.startDate || undefined}
-                            slotProps={{
-                                textField: {
-                                    error: !dateRange.endDate,
-                                    helperText: !dateRange.endDate ? 'End date is required' : ''
-                                }
-                            }}
-                        />
-                    </LocalizationProvider>
-                    <button
-                        onClick={fetchAnalyticsData}
-                        className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
-                    >
-                        Refresh Data
-                    </button>
-                    <Button
-                        variant="contained"
-                        startIcon={<Download />}
-                        onClick={handleExportReport}
-                        disabled={!ENABLE_EXPORT}
-                        title={!ENABLE_EXPORT ? "Export functionality coming soon" : "Export Report"}
-                    >
-                        Export Report
-                    </Button>
+                            Refresh Data
+                        </button>
+                        <Button
+                            variant="contained"
+                            startIcon={<Download />}
+                            onClick={handleExportReport}
+                            disabled={!ENABLE_EXPORT}
+                            title={!ENABLE_EXPORT ? "Export functionality coming soon" : "Export Report"}
+                            size="small"
+                        >
+                            Export Report
+                        </Button>
+                    </div>
                 </div>
             </div>
 
             {summaryCards}
-            {charts}
+
+            {/* Charts Section with better spacing */}
+            <Box sx={{ mt: 4 }}>
+                {charts}
+            </Box>
 
             {/* Additional Metrics */}
-            <Grid container spacing={3} sx={{ mt: 2 }}>
-                <Grid item xs={12} md={4}>
+            <Grid container spacing={3} sx={{ mt: 4 }}>
+                <Grid item xs={12} md={6}>
                     <Paper className="p-4">
                         <Typography variant="h6" gutterBottom>
                             Top Performing Classes
@@ -530,7 +688,7 @@ function AnalyticsDashboard() {
                         )}
                     </Paper>
                 </Grid>
-                <Grid item xs={12} md={4}>
+                <Grid item xs={12} md={6}>
                     <Paper className="p-4">
                         <Typography variant="h6" gutterBottom>
                             Revenue by Class
@@ -559,35 +717,7 @@ function AnalyticsDashboard() {
                         )}
                     </Paper>
                 </Grid>
-                <Grid item xs={12} md={4}>
-                    <Paper className="p-4">
-                        <Typography variant="h6" gutterBottom>
-                            User Engagement Summary
-                        </Typography>
-                        {loadingStates.userEngagement ? (
-                            <div className="flex justify-center items-center h-32">
-                                <CircularProgress />
-                            </div>
-                        ) : (
-                            <List>
-                                {analyticsData.userEngagement && analyticsData.userEngagement.length > 0 ? (
-                                    analyticsData.userEngagement.map((user, index) => (
-                                        <ListItem key={index}>
-                                            <ListItemText
-                                                primary={`${user.first_name || user.firstName || ''} ${user.last_name || user.lastName || ''}`}
-                                                secondary={`${Number(user.enrolled_classes || user.enrolledClasses || 0)} classes, ${Number(user.activity_count || user.activityCount || 0)} activities`}
-                                            />
-                                        </ListItem>
-                                    ))
-                                ) : (
-                                    <ListItem>
-                                        <ListItemText primary="No data available" />
-                                    </ListItem>
-                                )}
-                            </List>
-                        )}
-                    </Paper>
-                </Grid>
+
             </Grid>
         </Box>
     );

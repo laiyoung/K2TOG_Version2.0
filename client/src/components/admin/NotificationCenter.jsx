@@ -902,6 +902,7 @@ const NotificationCenter = () => {
             alignItems: "center",
             flexWrap: "wrap",
             gap: 1,
+            fontSize: { xs: '1.25rem', sm: '1.5rem' }
           }}
         >
           Notification Center
@@ -910,6 +911,7 @@ const NotificationCenter = () => {
               label={`${unreadCount} unread`}
               color="primary"
               size="small"
+              sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}
             />
           )}
         </Typography>
@@ -928,6 +930,8 @@ const NotificationCenter = () => {
             sx={{
               minWidth: { xs: "100%", sm: "auto" },
               whiteSpace: "nowrap",
+              height: { xs: '48px', sm: '40px' },
+              fontSize: { xs: '0.875rem', sm: '1rem' }
             }}
           >
             New Template
@@ -939,6 +943,8 @@ const NotificationCenter = () => {
             sx={{
               minWidth: { xs: "100%", sm: "auto" },
               whiteSpace: "nowrap",
+              height: { xs: '48px', sm: '40px' },
+              fontSize: { xs: '0.875rem', sm: '1rem' }
             }}
           >
             Send Notification
@@ -951,6 +957,8 @@ const NotificationCenter = () => {
             sx={{
               minWidth: { xs: "100%", sm: "auto" },
               whiteSpace: "nowrap",
+              height: { xs: '48px', sm: '40px' },
+              fontSize: { xs: '0.875rem', sm: '1rem' }
             }}
           >
             Broadcast
@@ -965,6 +973,12 @@ const NotificationCenter = () => {
           variant="scrollable"
           scrollButtons="auto"
           allowScrollButtonsMobile
+          sx={{
+            '& .MuiTab-root': {
+              fontSize: { xs: '0.875rem', sm: '1rem' },
+              minHeight: { xs: '48px', sm: '40px' }
+            }
+          }}
         >
           <Tab label="Received Notifications" />
           <Tab label="Sent Notifications" />

@@ -49,10 +49,16 @@ async function getRevenueByClass({ startDate, endDate }) {
         LEFT JOIN payments p ON c.id = p.class_id 
             AND p.status = 'completed'
             AND p.created_at BETWEEN $1 AND $2
-        WHERE EXISTS (
+        WHERE c.deleted_at IS NULL
+        AND EXISTS (
             SELECT 1 FROM class_sessions cs 
             WHERE cs.class_id = c.id 
-            AND cs.status IN ('scheduled', 'completed')
+            AND cs.deleted_at IS NULL
+            AND cs.status = 'scheduled'
+            AND (
+                (cs.end_date IS NOT NULL AND cs.end_date > CURRENT_DATE) OR
+                (cs.end_date IS NULL AND cs.session_date > CURRENT_DATE)
+            )
         )
         GROUP BY c.id, c.title
         ORDER BY net_revenue DESC
@@ -63,31 +69,34 @@ async function getRevenueByClass({ startDate, endDate }) {
 
 // Get enrollment trends
 async function getEnrollmentTrends({ startDate, endDate, groupBy = 'month' }) {
-    const dateTrunc = groupBy === 'day' ? 'day' : 'month';
+    let dateTrunc = 'month';
+    if (groupBy === 'week') dateTrunc = 'week';
+    if (groupBy === 'day') dateTrunc = 'day';
+
     const query = `
-        WITH enrollment_data AS (
-            SELECT 
-                DATE_TRUNC($1, e.enrolled_at) as period,
-                COUNT(*) as total_enrollments,
-                COUNT(CASE WHEN e.enrollment_status = 'approved' THEN 1 END) as approved_enrollments,
-                COUNT(CASE WHEN e.enrollment_status = 'pending' THEN 1 END) as pending_enrollments,
-                COUNT(CASE WHEN e.enrollment_status = 'rejected' THEN 1 END) as rejected_enrollments
-            FROM enrollments e
-            WHERE e.enrolled_at BETWEEN $2 AND $3
-            GROUP BY DATE_TRUNC($1, e.enrolled_at)
-        )
         SELECT 
-            period,
-            total_enrollments,
-            approved_enrollments,
-            pending_enrollments,
-            rejected_enrollments,
-            ROUND((approved_enrollments::numeric / NULLIF(total_enrollments, 0) * 100), 2) as approval_rate
-        FROM enrollment_data
-        ORDER BY period DESC
+            DATE_TRUNC($1, e.enrolled_at) as period,
+            COUNT(*) as total_enrollments,
+            COUNT(CASE WHEN e.enrollment_status = 'approved' THEN 1 END) as approved_enrollments,
+            COUNT(CASE WHEN e.enrollment_status = 'pending' THEN 1 END) as pending_enrollments,
+            COUNT(CASE WHEN e.enrollment_status = 'rejected' THEN 1 END) as rejected_enrollments
+        FROM enrollments e
+        JOIN classes c ON e.class_id = c.id
+        WHERE e.enrolled_at BETWEEN $2 AND $3
+        AND c.deleted_at IS NULL
+        GROUP BY DATE_TRUNC($1, e.enrolled_at)
+        ORDER BY period ASC
     `;
-    const { rows } = await pool.query(query, [dateTrunc, startDate, endDate]);
-    return rows;
+
+    try {
+        console.log('Executing enrollment trends query with params:', { dateTrunc, startDate, endDate });
+        const { rows } = await pool.query(query, [dateTrunc, startDate, endDate]);
+        console.log('Enrollment trends query result:', rows);
+        return rows;
+    } catch (error) {
+        console.error('Error executing enrollment trends query:', error);
+        throw error;
+    }
 }
 
 // Get class enrollment statistics with updated active logic
@@ -110,7 +119,13 @@ async function getClassEnrollmentStats({ startDate, endDate }) {
             AND e.enrolled_at BETWEEN $1 AND $2
         LEFT JOIN class_waitlist w ON c.id = w.class_id 
             AND w.created_at BETWEEN $1 AND $2
-        WHERE cs.status IN ('scheduled', 'completed')
+        WHERE c.deleted_at IS NULL
+        AND cs.deleted_at IS NULL
+        AND cs.status = 'scheduled'
+        AND (
+            (cs.end_date IS NOT NULL AND cs.end_date > CURRENT_DATE) OR
+            (cs.end_date IS NULL AND cs.session_date > CURRENT_DATE)
+        )
         GROUP BY c.id, c.title, cs.capacity
         ORDER BY total_enrollments DESC
     `;
@@ -190,7 +205,7 @@ async function getUserActivityTrends({ startDate, endDate, groupBy = 'month' }) 
 // Get dashboard summary with date range
 async function getDashboardSummary({ startDate, endDate }) {
     console.log('Getting dashboard summary for date range:', { startDate, endDate });
-    
+
     const query = `
         WITH summary AS (
             SELECT 
@@ -206,18 +221,31 @@ async function getDashboardSummary({ startDate, endDate }) {
                 (SELECT COUNT(DISTINCT c.id) 
                  FROM classes c 
                  JOIN class_sessions cs ON cs.class_id = c.id
-                 WHERE cs.status IN ('scheduled', 'completed') 
+                 WHERE c.deleted_at IS NULL
+                 AND cs.deleted_at IS NULL
+                 AND cs.status = 'scheduled'
+                 AND (
+                     (cs.end_date IS NOT NULL AND cs.end_date > CURRENT_DATE) OR
+                     (cs.end_date IS NULL AND cs.session_date > CURRENT_DATE)
+                 )
                  AND EXISTS (
                      SELECT 1 FROM enrollments e 
                      WHERE e.class_id = c.id 
                      AND e.enrollment_status IN ('active', 'approved')
-                     AND e.enrolled_at BETWEEN $1 AND $2
                  )) as active_classes,
                 
                 (SELECT COUNT(*) 
-                 FROM enrollments e 
+                 FROM enrollments e
+                 JOIN classes c ON e.class_id = c.id
+                 LEFT JOIN class_sessions cs ON e.session_id = cs.id AND cs.deleted_at IS NULL
                  WHERE e.enrollment_status IN ('active', 'approved') 
-                 AND e.enrolled_at BETWEEN $1 AND $2) as active_enrollments,
+                 AND c.deleted_at IS NULL
+                 AND (
+                     cs.status = 'scheduled' AND (
+                         (cs.end_date IS NOT NULL AND cs.end_date > CURRENT_DATE) OR
+                         (cs.end_date IS NULL AND cs.session_date > CURRENT_DATE)
+                     )
+                 )) as active_enrollments,
                 
                 (SELECT COUNT(*) 
                  FROM payments p 
@@ -244,14 +272,14 @@ async function getDashboardSummary({ startDate, endDate }) {
             ROUND((active_enrollments::numeric / NULLIF(active_users, 0) * 100), 2) as enrollment_rate
         FROM summary
     `;
-    
+
     try {
-        console.log('Executing dashboard summary query with params:', [startDate, endDate]);
+        console.log('Executing dashboard summary query with params:', { startDate, endDate });
         const { rows } = await pool.query(query, [startDate, endDate]);
         console.log('Dashboard summary query result:', rows[0]);
         return rows[0];
     } catch (error) {
-        console.error('Error in getDashboardSummary:', error);
+        console.error('Error executing dashboard summary query:', error);
         throw error;
     }
 }
@@ -270,7 +298,21 @@ async function getClassCount() {
 
 // Get enrollment count
 async function getEnrollmentCount() {
-    const result = await pool.query('SELECT COUNT(*) FROM enrollments');
+    const query = `
+        SELECT COUNT(*) 
+        FROM enrollments e
+        JOIN classes c ON e.class_id = c.id
+        LEFT JOIN class_sessions cs ON e.session_id = cs.id AND cs.deleted_at IS NULL
+        WHERE c.deleted_at IS NULL
+        AND e.enrollment_status IN ('active', 'approved')
+        AND (
+            cs.status = 'scheduled' AND (
+                (cs.end_date IS NOT NULL AND cs.end_date > CURRENT_DATE) OR
+                (cs.end_date IS NULL AND cs.session_date > CURRENT_DATE)
+            )
+        )
+    `;
+    const result = await pool.query(query);
     return parseInt(result.rows[0].count, 10);
 }
 

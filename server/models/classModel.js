@@ -431,7 +431,14 @@ const getClassWithDetails = async (classId) => {
     `SELECT COUNT(*) as total_enrollments
      FROM enrollments e
      JOIN class_sessions cs ON e.session_id = cs.id
-     WHERE cs.class_id = $1 AND e.enrollment_status = 'approved'`,
+     WHERE cs.class_id = $1 
+     AND e.enrollment_status = 'approved'
+     AND cs.deleted_at IS NULL
+     AND cs.status = 'scheduled'
+     AND (
+       (cs.end_date IS NOT NULL AND cs.end_date > CURRENT_DATE) OR
+       (cs.end_date IS NULL AND cs.session_date > CURRENT_DATE)
+     )`,
     [classId]
   );
 
@@ -739,7 +746,17 @@ const updateClassWithSessions = async (classId, classData) => {
       for (const sessionId of classData.deletedSessionIds) {
         // Check if session has enrollments
         const enrollmentsResult = await client.query(
-          'SELECT COUNT(*) as count FROM enrollments WHERE session_id = $1',
+          `SELECT COUNT(*) as count 
+           FROM enrollments e
+           JOIN class_sessions cs ON e.session_id = cs.id
+           WHERE e.session_id = $1 
+           AND e.enrollment_status IN ('approved', 'active')
+           AND cs.deleted_at IS NULL
+           AND cs.status = 'scheduled'
+           AND (
+             (cs.end_date IS NOT NULL AND cs.end_date > CURRENT_DATE) OR
+             (cs.end_date IS NULL AND cs.session_date > CURRENT_DATE)
+           )`,
           [sessionId]
         );
 

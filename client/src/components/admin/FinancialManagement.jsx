@@ -229,57 +229,77 @@ const FinancialManagement = () => {
             )}
 
             {/* Stats Cards */}
-            <Grid container spacing={3} className="mb-6">
-                <Grid item xs={12} md={3} sx={{ height: '100%' }}>
+            <Grid container spacing={2} className="mb-6">
+                <Grid item xs={12} sm={6} md={3} sx={{ height: '100%' }}>
                     <Card sx={{ height: '100%' }}>
-                        <CardContent sx={{ display: 'flex', flexDirection: 'column', height: 140 }}>
-                            <Typography color="textSecondary" gutterBottom>
+                        <CardContent sx={{ 
+                            display: 'flex', 
+                            flexDirection: 'column', 
+                            height: { xs: '120px', sm: '140px' },
+                            p: { xs: 2, sm: 3 }
+                        }}>
+                            <Typography color="textSecondary" gutterBottom sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }}>
                                 Total Outstanding
                             </Typography>
-                            <Typography variant="h4">
+                            <Typography variant="h4" sx={{ fontSize: { xs: '1.5rem', sm: '2rem' } }}>
                                 {formatCurrency(paymentStats?.total_outstanding)}
                             </Typography>
                             <Typography variant="body2" color="text.secondary" sx={{ minHeight: 24 }}>&nbsp;</Typography>
                         </CardContent>
                     </Card>
                 </Grid>
-                <Grid item xs={12} md={3} sx={{ height: '100%' }}>
+                <Grid item xs={12} sm={6} md={3} sx={{ height: '100%' }}>
                     <Card sx={{ height: '100%' }}>
-                        <CardContent sx={{ display: 'flex', flexDirection: 'column', height: 140 }}>
-                            <Typography color="textSecondary" gutterBottom>
+                        <CardContent sx={{ 
+                            display: 'flex', 
+                            flexDirection: 'column', 
+                            height: { xs: '120px', sm: '140px' },
+                            p: { xs: 2, sm: 3 }
+                        }}>
+                            <Typography color="textSecondary" gutterBottom sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }}>
                                 Overdue Amount
                             </Typography>
-                            <Typography variant="h4" color="error">
+                            <Typography variant="h4" color="error" sx={{ fontSize: { xs: '1.5rem', sm: '2rem' } }}>
                                 {formatCurrency(paymentStats?.overdue_amount)}
                             </Typography>
-                            <Typography variant="body2" color="text.secondary" sx={{ minHeight: 24 }}>
+                            <Typography variant="body2" color="text.secondary" sx={{ minHeight: 24, fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
                                 {paymentStats?.overdue_count ?? 0} payments overdue
                             </Typography>
                         </CardContent>
                     </Card>
                 </Grid>
-                <Grid item xs={12} md={3} sx={{ height: '100%' }}>
+                <Grid item xs={12} sm={6} md={3} sx={{ height: '100%' }}>
                     <Card sx={{ height: '100%' }}>
-                        <CardContent sx={{ display: 'flex', flexDirection: 'column', height: 140 }}>
-                            <Typography color="textSecondary" gutterBottom>
+                        <CardContent sx={{ 
+                            display: 'flex', 
+                            flexDirection: 'column', 
+                            height: { xs: '120px', sm: '140px' },
+                            p: { xs: 2, sm: 3 }
+                        }}>
+                            <Typography color="textSecondary" gutterBottom sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }}>
                                 Due Soon
                             </Typography>
-                            <Typography variant="h4" color="warning.main">
+                            <Typography variant="h4" color="warning.main" sx={{ fontSize: { xs: '1.5rem', sm: '2rem' } }}>
                                 {formatCurrency(paymentStats?.due_soon_amount)}
                             </Typography>
-                            <Typography variant="body2" color="text.secondary" sx={{ minHeight: 24 }}>
+                            <Typography variant="body2" color="text.secondary" sx={{ minHeight: 24, fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
                                 {paymentStats?.due_soon_count ?? 0} payments due soon
                             </Typography>
                         </CardContent>
                     </Card>
                 </Grid>
-                <Grid item xs={12} md={3} sx={{ height: '100%' }}>
+                <Grid item xs={12} sm={6} md={3} sx={{ height: '100%' }}>
                     <Card sx={{ height: '100%' }}>
-                        <CardContent sx={{ display: 'flex', flexDirection: 'column', height: 140 }}>
-                            <Typography color="textSecondary" gutterBottom>
+                        <CardContent sx={{ 
+                            display: 'flex', 
+                            flexDirection: 'column', 
+                            height: { xs: '120px', sm: '140px' },
+                            p: { xs: 2, sm: 3 }
+                        }}>
+                            <Typography color="textSecondary" gutterBottom sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }}>
                                 Total Students with Outstanding Payments
                             </Typography>
-                            <Typography variant="h4">
+                            <Typography variant="h4" sx={{ fontSize: { xs: '1.5rem', sm: '2rem' } }}>
                                 {filteredPayments.length}
                             </Typography>
                             <Typography variant="body2" color="text.secondary" sx={{ minHeight: 24 }}>&nbsp;</Typography>
@@ -289,7 +309,7 @@ const FinancialManagement = () => {
             </Grid>
 
             {/* Date Range Filter Bar */}
-            <Paper sx={{ p: 2, mb: 4, mt: 2 }}>
+            <Paper sx={{ p: { xs: 2, sm: 3 }, mb: 4, mt: 2 }}>
                 <Grid container spacing={2} alignItems="center">
                     <Grid item xs={12} sm={5} md={4}>
                         <TextField
@@ -299,6 +319,11 @@ const FinancialManagement = () => {
                             value={dateRange.startDate}
                             onChange={(e) => handleDateRangeChange({ ...dateRange, startDate: e.target.value })}
                             size="small"
+                            sx={{
+                                '& .MuiInputBase-root': {
+                                    height: { xs: '48px', sm: '40px' }
+                                }
+                            }}
                         />
                     </Grid>
                     <Grid item xs={12} sm={5} md={4}>
@@ -309,9 +334,19 @@ const FinancialManagement = () => {
                             value={dateRange.endDate}
                             onChange={(e) => handleDateRangeChange({ ...dateRange, endDate: e.target.value })}
                             size="small"
+                            sx={{
+                                '& .MuiInputBase-root': {
+                                    height: { xs: '48px', sm: '40px' }
+                                }
+                            }}
                         />
                     </Grid>
-                    <Grid item xs={12} sm={2} md={4} sx={{ display: 'flex', alignItems: 'center', justifyContent: { xs: 'flex-start', sm: 'flex-end' } }}>
+                    <Grid item xs={12} sm={2} md={4} sx={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: { xs: 'flex-start', sm: 'flex-end' },
+                        mt: { xs: 1, sm: 0 }
+                    }}>
                         <Tooltip title={<Typography sx={{ fontSize: '1rem', fontWeight: 400 }}>Export</Typography>} placement="top" arrow sx={{ '& .MuiTooltip-tooltip': { fontSize: '1rem', fontWeight: 400 } }}>
                             <span>
                                 <Button

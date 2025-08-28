@@ -174,102 +174,74 @@ function EnrollmentManagement() {
                     {error}
                 </Alert>
             )}
-            {/* Dashboard Stats Section */}
-            <Grid container spacing={3} className="mb-6">
-                <Grid item xs={12} md={3}>
-                    <Card>
-                        <CardContent>
-                            <Typography color="textSecondary" gutterBottom>
-                                Total Enrollments
-                            </Typography>
-                            <Typography variant="h4">
-                                {stats?.totalEnrollments || 0}
-                            </Typography>
-                        </CardContent>
-                    </Card>
-                </Grid>
-                <Grid item xs={12} md={3}>
-                    <Card>
-                        <CardContent>
-                            <Typography color="textSecondary" gutterBottom>
-                                Pending Approvals
-                            </Typography>
-                            <Typography variant="h4">
-                                {stats?.pendingEnrollments || 0}
-                            </Typography>
-                        </CardContent>
-                    </Card>
-                </Grid>
-                <Grid item xs={12} md={3}>
-                    <Card>
-                        <CardContent>
-                            <Typography color="textSecondary" gutterBottom>
-                                Active Students
-                            </Typography>
-                            <Typography variant="h4">
-                                {stats?.activeStudents || 0}
-                            </Typography>
-                        </CardContent>
-                    </Card>
-                </Grid>
-                <Grid item xs={12} md={3}>
-                    <Card>
-                        <CardContent>
-                            <Typography color="textSecondary" gutterBottom>
-                                Enrollment Rate
-                            </Typography>
-                            <Typography variant="h4">
-                                {analytics?.enrollmentRate ? `${analytics.enrollmentRate}%` : '0%'}
-                            </Typography>
-                        </CardContent>
-                    </Card>
-                </Grid>
-            </Grid>
 
-            {/* Analytics Summary */}
-            {analytics && (
-                <Box className="mb-6">
-                    <Typography variant="h6" className="mb-2">Enrollment Analytics</Typography>
-                    <Grid container spacing={2}>
-                        <Grid item xs={12} md={4}>
-                            <Paper className="p-3">
-                                <Typography variant="subtitle2" color="textSecondary">
-                                    Average Processing Time
+            {/* Dashboard Stats Section */}
+            <Box className="mb-6">
+                <Typography variant="h5" className="mb-4" sx={{ fontSize: { xs: '1.25rem', sm: '1.5rem' } }}>
+                    Enrollment Overview
+                </Typography>
+                <Grid container spacing={3}>
+                    <Grid item xs={12} sm={6} md={3}>
+                        <Card sx={{ height: '100%' }}>
+                            <CardContent sx={{ p: 3, textAlign: 'center' }}>
+                                <Typography color="textSecondary" gutterBottom sx={{ fontSize: '0.875rem', mb: 1 }}>
+                                    Active Enrollments
                                 </Typography>
-                                <Typography variant="h6">
-                                    {analytics.avgProcessingTime || '0'} days
+                                <Typography variant="h4" sx={{ fontSize: { xs: '1.5rem', sm: '2rem' }, fontWeight: 600 }}>
+                                    {stats?.totalEnrollments || 0}
                                 </Typography>
-                            </Paper>
-                        </Grid>
-                        <Grid item xs={12} md={4}>
-                            <Paper className="p-3">
-                                <Typography variant="subtitle2" color="textSecondary">
-                                    Most Popular Class
+                                <Typography variant="caption" color="textSecondary" sx={{ fontSize: '0.7rem' }}>
+                                    From active classes only
                                 </Typography>
-                                <Typography variant="h6">
-                                    {analytics.mostPopularClass || 'N/A'}
-                                </Typography>
-                            </Paper>
-                        </Grid>
-                        <Grid item xs={12} md={4}>
-                            <Paper className="p-3">
-                                <Typography variant="subtitle2" color="textSecondary">
-                                    Completion Rate
-                                </Typography>
-                                <Typography variant="h6">
-                                    {analytics.completionRate ? `${analytics.completionRate}%` : '0%'}
-                                </Typography>
-                            </Paper>
-                        </Grid>
+                            </CardContent>
+                        </Card>
                     </Grid>
-                </Box>
-            )}
+                    <Grid item xs={12} sm={6} md={3}>
+                        <Card sx={{ height: '100%' }}>
+                            <CardContent sx={{ p: 3, textAlign: 'center' }}>
+                                <Typography color="textSecondary" gutterBottom sx={{ fontSize: '0.875rem', mb: 1 }}>
+                                    Pending Approvals
+                                </Typography>
+                                <Typography variant="h4" sx={{ fontSize: { xs: '1.5rem', sm: '2rem' }, fontWeight: 600, color: 'warning.main' }}>
+                                    {stats?.pendingEnrollments || 0}
+                                </Typography>
+                            </CardContent>
+                        </Card>
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={3}>
+                        <Card sx={{ height: '100%' }}>
+                            <CardContent sx={{ p: 3, textAlign: 'center' }}>
+                                <Typography color="textSecondary" gutterBottom sx={{ fontSize: '0.875rem', mb: 1 }}>
+                                    Active Students
+                                </Typography>
+                                <Typography variant="h4" sx={{ fontSize: { xs: '1.5rem', sm: '2rem' }, fontWeight: 600, color: 'success.main' }}>
+                                    {stats?.activeStudents || 0}
+                                </Typography>
+                            </CardContent>
+                        </Card>
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={3}>
+                        <Card sx={{ height: '100%' }}>
+                            <CardContent sx={{ p: 3, textAlign: 'center' }}>
+                                <Typography color="textSecondary" gutterBottom sx={{ fontSize: '0.875rem', mb: 1 }}>
+                                    Enrollment Rate
+                                </Typography>
+                                <Typography variant="h4" sx={{ fontSize: { xs: '1.5rem', sm: '2rem' }, fontWeight: 600, color: 'info.main' }}>
+                                    {analytics?.enrollmentRate ? `${analytics.enrollmentRate}%` : '0%'}
+                                </Typography>
+                            </CardContent>
+                        </Card>
+                    </Grid>
+                </Grid>
+            </Box>
+
+
 
             {/* Filter Section */}
             <Box className="mb-4">
-                <Grid container spacing={2} alignItems="center">
-                    <Grid item xs={12} md={4}>
-                        <FormControl fullWidth>
+                <Grid container spacing={3} alignItems="center">
+                    <Grid item xs={12} sm={6} md={4}>
+                        <FormControl fullWidth size="small">
                             <InputLabel>Status</InputLabel>
                             <Select
                                 value={filters.status}
@@ -283,98 +255,167 @@ function EnrollmentManagement() {
                             </Select>
                         </FormControl>
                     </Grid>
-                    <Grid item xs={12} md={2}>
-                        <Button
-                            variant="contained"
-                            startIcon={<DownloadIcon />}
-                            onClick={handleExportEnrollments}
-                            disabled={loading}
-                        >
-                            Export
-                        </Button>
-                    </Grid>
                 </Grid>
             </Box>
 
-            <TableContainer component={Paper}>
-                <Table>
-                    <TableHead>
-                        <TableRow>
-                            <TableCell>Student</TableCell>
-                            <TableCell>Class</TableCell>
-                            <TableCell>Enrollment Date</TableCell>
-                            <TableCell>Status</TableCell>
-                            <TableCell>Actions</TableCell>
-                        </TableRow>
-                    </TableHead>
-                    <TableBody>
-                        {enrollments.map((enrollment) => (
-                            <TableRow key={enrollment.id}>
-                                <TableCell>{enrollment.student_name}</TableCell>
-                                <TableCell>{enrollment.class_name}</TableCell>
-                                <TableCell>
-                                    {new Date(enrollment.enrollment_date).toLocaleDateString()}
+            {/* Enrollments Table */}
+            <Box className="mb-4">
+                <Typography variant="h6" className="mb-3" sx={{ fontSize: { xs: '1.125rem', sm: '1.25rem' } }}>
+                    Enrollment Records
+                </Typography>
+                <TableContainer component={Paper} sx={{
+                    overflowX: 'auto',
+                    '& .MuiTable-root': {
+                        minWidth: { xs: '600px', sm: 'auto' }
+                    }
+                }}>
+                    <Table>
+                        <TableHead>
+                            <TableRow>
+                                <TableCell sx={{
+                                    fontWeight: 600,
+                                    fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                                    backgroundColor: 'grey.50'
+                                }}>
+                                    Student
                                 </TableCell>
-                                <TableCell>
-                                    <Chip
-                                        label={enrollment.enrollment_status}
-                                        color={getStatusColor(enrollment.enrollment_status)}
-                                        size="small"
-                                    />
+                                <TableCell sx={{
+                                    fontWeight: 600,
+                                    fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                                    backgroundColor: 'grey.50'
+                                }}>
+                                    Class
                                 </TableCell>
-                                <TableCell>
-                                    <Tooltip title={<Typography sx={{ fontSize: '1rem', fontWeight: 400 }}>View Details</Typography>} placement="top" arrow sx={{ '& .MuiTooltip-tooltip': { fontSize: '1rem', fontWeight: 400 } }}>
-                                        <IconButton
-                                            size="small"
-                                            onClick={() => handleViewDetails(enrollment)}
-                                        >
-                                            <VisibilityIcon />
-                                        </IconButton>
-                                    </Tooltip>
-                                    {enrollment.enrollment_status !== 'pending' && (
-                                        <Tooltip title={<Typography sx={{ fontSize: '1rem', fontWeight: 400 }}>Set Pending</Typography>} placement="top" arrow sx={{ '& .MuiTooltip-tooltip': { fontSize: '1rem', fontWeight: 400 } }}>
-                                            <IconButton
-                                                size="small"
-                                                onClick={() => handleStatusUpdate(enrollment.id, 'pending')}
-                                                color="warning"
-                                            >
-                                                <PendingIcon />
-                                            </IconButton>
-                                        </Tooltip>
-                                    )}
-                                    {enrollment.enrollment_status !== 'approved' && (
-                                        <Tooltip title={<Typography sx={{ fontSize: '1rem', fontWeight: 400 }}>Approve Enrollment</Typography>} placement="top" arrow sx={{ '& .MuiTooltip-tooltip': { fontSize: '1rem', fontWeight: 400 } }}>
-                                            <IconButton
-                                                size="small"
-                                                onClick={() => handleStatusUpdate(enrollment.id, 'approved')}
-                                                color="success"
-                                            >
-                                                <CheckIcon />
-                                            </IconButton>
-                                        </Tooltip>
-                                    )}
-                                    {enrollment.enrollment_status !== 'rejected' && (
-                                        <IconButton
-                                            size="small"
-                                            onClick={() => handleStatusUpdate(enrollment.id, 'rejected')}
-                                            color="error"
-                                        >
-                                            <Block />
-                                        </IconButton>
-                                    )}
+                                <TableCell sx={{
+                                    fontWeight: 600,
+                                    fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                                    backgroundColor: 'grey.50'
+                                }}>
+                                    Enrollment Date
+                                </TableCell>
+                                <TableCell sx={{
+                                    fontWeight: 600,
+                                    fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                                    backgroundColor: 'grey.50'
+                                }}>
+                                    Status
+                                </TableCell>
+                                <TableCell sx={{
+                                    fontWeight: 600,
+                                    fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                                    backgroundColor: 'grey.50'
+                                }}>
+                                    Actions
                                 </TableCell>
                             </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
-            </TableContainer>
+                        </TableHead>
+                        <TableBody>
+                            {enrollments.map((enrollment) => (
+                                <TableRow key={enrollment.id} hover>
+                                    <TableCell sx={{
+                                        fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                                        py: 2
+                                    }}>
+                                        {enrollment.student_name}
+                                    </TableCell>
+                                    <TableCell sx={{
+                                        fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                                        py: 2
+                                    }}>
+                                        {enrollment.class_name}
+                                    </TableCell>
+                                    <TableCell sx={{
+                                        fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                                        py: 2
+                                    }}>
+                                        {new Date(enrollment.enrollment_date).toLocaleDateString()}
+                                    </TableCell>
+                                    <TableCell sx={{ py: 2 }}>
+                                        <Chip
+                                            label={enrollment.enrollment_status}
+                                            color={getStatusColor(enrollment.enrollment_status)}
+                                            size="small"
+                                            sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' } }}
+                                        />
+                                    </TableCell>
+                                    <TableCell sx={{ py: 2 }}>
+                                        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                                            <Tooltip title="View Details" placement="top" arrow>
+                                                <IconButton
+                                                    size="small"
+                                                    onClick={() => handleViewDetails(enrollment)}
+                                                    sx={{
+                                                        p: 1,
+                                                        '&:hover': { backgroundColor: 'primary.50' }
+                                                    }}
+                                                >
+                                                    <VisibilityIcon sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
+                                                </IconButton>
+                                            </Tooltip>
+                                            {enrollment.enrollment_status !== 'pending' && (
+                                                <Tooltip title="Set Pending" placement="top" arrow>
+                                                    <IconButton
+                                                        size="small"
+                                                        onClick={() => handleStatusUpdate(enrollment.id, 'pending')}
+                                                        color="warning"
+                                                        sx={{
+                                                            p: 1,
+                                                            '&:hover': { backgroundColor: 'warning.50' }
+                                                        }}
+                                                    >
+                                                        <PendingIcon sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
+                                                    </IconButton>
+                                                </Tooltip>
+                                            )}
+                                            {enrollment.enrollment_status !== 'approved' && (
+                                                <Tooltip title="Approve Enrollment" placement="top" arrow>
+                                                    <IconButton
+                                                        size="small"
+                                                        onClick={() => handleStatusUpdate(enrollment.id, 'approved')}
+                                                        color="success"
+                                                        sx={{
+                                                            p: 1,
+                                                            '&:hover': { backgroundColor: 'success.50' }
+                                                        }}
+                                                    >
+                                                        <CheckIcon sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
+                                                    </IconButton>
+                                                </Tooltip>
+                                            )}
+                                            {enrollment.enrollment_status !== 'rejected' && (
+                                                <Tooltip title="Reject Enrollment" placement="top" arrow>
+                                                    <IconButton
+                                                        size="small"
+                                                        onClick={() => handleStatusUpdate(enrollment.id, 'rejected')}
+                                                        color="error"
+                                                        sx={{
+                                                            p: 1,
+                                                            '&:hover': { backgroundColor: 'error.50' }
+                                                        }}
+                                                    >
+                                                        <Block sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
+                                                    </IconButton>
+                                                </Tooltip>
+                                            )}
+                                        </Box>
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </TableContainer>
+            </Box>
+
             {/* Pagination Controls */}
-            <Box display="flex" justifyContent="center" mt={2}>
+            <Box display="flex" justifyContent="center" mt={3}>
                 <Pagination
                     count={Math.ceil(total / pageSize)}
                     page={page}
                     onChange={(_, value) => setPage(value)}
                     color="primary"
+                    size="small"
+                    showFirstButton
+                    showLastButton
                 />
             </Box>
 

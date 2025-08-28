@@ -19,6 +19,7 @@ function AdminDashboard({ defaultSection = 'analytics' }) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [dashboardData, setDashboardData] = useState(null);
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
     // Memoize the navigation items to prevent unnecessary re-renders
     const navigationItems = useMemo(() => [
@@ -65,6 +66,8 @@ function AdminDashboard({ defaultSection = 'analytics' }) {
         if (section === activeSection) return; // Prevent unnecessary navigation
         setActiveSection(section);
         navigate(`/admin/${section}`);
+        // Close sidebar on mobile after navigation
+        setIsSidebarOpen(false);
     };
 
     // Memoize the rendered section to prevent unnecessary re-renders
@@ -147,36 +150,96 @@ function AdminDashboard({ defaultSection = 'analytics' }) {
     // Main render
     return (
         <div className="min-h-screen bg-gray-100">
+            {/* Mobile Header with Toggle Button */}
+            <div className="lg:hidden bg-white shadow-sm border-b border-gray-200 px-4 py-3">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <button
+                            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                            className="p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            aria-label="Toggle menu"
+                        >
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                {isSidebarOpen ? (
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                ) : (
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                                )}
+                            </svg>
+                        </button>
+                        <div>
+                            <h1 className="text-lg font-semibold text-gray-900">Admin Dashboard</h1>
+                            <p className="text-sm text-gray-500">
+                                Welcome, {user.first_name && user.last_name ? `${user.first_name} ${user.last_name}` : user.email || 'Admin'}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             {/* Main Content */}
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                <div className="mb-6">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
+                {/* Desktop Header */}
+                <div className="hidden lg:block mb-6">
                     <h1 className="text-2xl font-semibold text-gray-900">Admin Dashboard</h1>
                     <p className="mt-1 text-sm text-gray-500">
-                        Welcome, {user.name || 'Admin'}
+                        Welcome, {user.first_name && user.last_name ? `${user.first_name} ${user.last_name}` : user.email || 'Admin'}
                     </p>
                 </div>
-                <div className="flex gap-8">
+
+                <div className="flex gap-4 lg:gap-8">
+                    {/* Mobile Sidebar Overlay */}
+                    {isSidebarOpen && (
+                        <div
+                            className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
+                            onClick={() => setIsSidebarOpen(false)}
+                        />
+                    )}
+
                     {/* Sidebar Navigation */}
-                    <div className="w-64 flex-shrink-0">
-                        <nav className="space-y-1">
-                            {navigationItems.map((item) => (
+                    <div className={`
+                        fixed lg:relative inset-y-0 left-0 z-50 w-64 bg-white shadow-lg lg:shadow-none border-r border-gray-200 lg:border-r-0
+                        transform transition-transform duration-300 ease-in-out lg:transform-none
+                        ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+                        lg:flex-shrink-0
+                    `}>
+                        <div className="flex flex-col h-full">
+                            {/* Mobile Sidebar Header */}
+                            <div className="lg:hidden flex items-center justify-between p-4 border-b border-gray-200">
+                                <h2 className="text-lg font-semibold text-gray-900">Menu</h2>
                                 <button
-                                    key={item.id}
-                                    onClick={() => handleSectionChange(item.id)}
-                                    className={`w-full flex items-center px-4 py-2 text-sm font-medium rounded-md ${activeSection === item.id
-                                        ? 'bg-blue-100 text-blue-700'
-                                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                                        }`}
+                                    onClick={() => setIsSidebarOpen(false)}
+                                    className="p-1 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+                                    style={{ minHeight: '40px', minWidth: '40px' }}
                                 >
-                                    <span className="mr-3">{item.icon}</span>
-                                    {item.label}
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
                                 </button>
-                            ))}
-                        </nav>
+                            </div>
+
+                            {/* Navigation Items */}
+                            <nav className="flex-1 p-4 lg:p-0 space-y-1">
+                                {navigationItems.map((item) => (
+                                    <button
+                                        key={item.id}
+                                        onClick={() => handleSectionChange(item.id)}
+                                        className={`w-full flex items-center px-4 py-3 lg:py-2 text-sm font-medium rounded-md transition-colors ${activeSection === item.id
+                                            ? 'bg-blue-100 text-blue-700'
+                                            : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                                            }`}
+                                        style={{ minHeight: '48px' }}
+                                    >
+                                        <span className="mr-3 text-lg lg:text-base">{item.icon}</span>
+                                        <span className="text-left">{item.label}</span>
+                                    </button>
+                                ))}
+                            </nav>
+                        </div>
                     </div>
 
                     {/* Main Content Area */}
-                    <div className="flex-1">
+                    <div className="flex-1 w-full lg:w-auto min-w-0">
                         {renderedSection}
                     </div>
                 </div>

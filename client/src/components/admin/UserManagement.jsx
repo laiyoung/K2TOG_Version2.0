@@ -441,6 +441,11 @@ const UserManagement = () => {
                                     </InputAdornment>
                                 ),
                             }}
+                            sx={{
+                                '& .MuiInputBase-root': {
+                                    height: { xs: '48px', sm: '40px' }
+                                }
+                            }}
                         />
                     </Grid>
                     <Grid item xs={12} sm={6} md={4}>
@@ -450,6 +455,11 @@ const UserManagement = () => {
                                 value={selectedRole}
                                 label="Role"
                                 onChange={(e) => setSelectedRole(e.target.value)}
+                                sx={{
+                                    '& .MuiInputBase-root': {
+                                        height: { xs: '48px', sm: '40px' }
+                                    }
+                                }}
                             >
                                 <MenuItem value="all">All Roles</MenuItem>
                                 <MenuItem value="user">Users</MenuItem>
@@ -462,16 +472,51 @@ const UserManagement = () => {
             </Paper>
 
             {/* Users Table with Pagination */}
-            <TableContainer component={Paper}>
+            <TableContainer component={Paper} sx={{ 
+                overflowX: 'auto',
+                '& .MuiTable-root': {
+                    minWidth: { xs: '600px', sm: 'auto' }
+                }
+            }}>
                 <Table>
                     <TableHead>
                         <TableRow key="header">
-                            <TableCell>User</TableCell>
-                            <TableCell>Role</TableCell>
-                            <TableCell>Status</TableCell>
-                            <TableCell>Created</TableCell>
-                            <TableCell>Last Updated</TableCell>
-                            <TableCell align="right">Actions</TableCell>
+                            <TableCell sx={{ 
+                                minWidth: { xs: '120px', sm: 'auto' },
+                                fontSize: { xs: '0.75rem', sm: '0.875rem' }
+                            }}>
+                                User
+                            </TableCell>
+                            <TableCell sx={{ 
+                                minWidth: { xs: '80px', sm: 'auto' },
+                                fontSize: { xs: '0.75rem', sm: '0.875rem' }
+                            }}>
+                                Role
+                            </TableCell>
+                            <TableCell sx={{ 
+                                minWidth: { xs: '80px', sm: 'auto' },
+                                fontSize: { xs: '0.75rem', sm: '0.875rem' }
+                            }}>
+                                Status
+                            </TableCell>
+                            <TableCell sx={{ 
+                                minWidth: { xs: '100px', sm: 'auto' },
+                                fontSize: { xs: '0.75rem', sm: '0.875rem' }
+                            }}>
+                                Created
+                            </TableCell>
+                            <TableCell sx={{ 
+                                minWidth: { xs: '100px', sm: 'auto' },
+                                fontSize: { xs: '0.75rem', sm: '0.875rem' }
+                            }}>
+                                Last Updated
+                            </TableCell>
+                            <TableCell align="right" sx={{ 
+                                minWidth: { xs: '100px', sm: 'auto' },
+                                fontSize: { xs: '0.75rem', sm: '0.875rem' }
+                            }}>
+                                Actions
+                            </TableCell>
                         </TableRow>
                     </TableHead>
                     <TableBody>
@@ -496,35 +541,65 @@ const UserManagement = () => {
                         ) : (
                             users.map((user) => (
                                 <TableRow key={user.id}>
-                                    <TableCell>
+                                    <TableCell sx={{ 
+                                        minWidth: { xs: '120px', sm: 'auto' },
+                                        fontSize: { xs: '0.75rem', sm: '0.875rem' }
+                                    }}>
                                         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                                            <PersonIcon color="action" />
-                                            <Box>
-                                                <Typography variant="body2">
+                                            <PersonIcon color="action" sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
+                                            <Box sx={{ minWidth: 0 }}>
+                                                <Typography variant="body2" sx={{ 
+                                                    fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                                                    overflow: 'hidden',
+                                                    textOverflow: 'ellipsis',
+                                                    whiteSpace: 'nowrap'
+                                                }}>
                                                     {user.first_name} {user.last_name}
                                                 </Typography>
-                                                <Typography variant="caption" color="text.secondary">
+                                                <Typography variant="caption" color="text.secondary" sx={{ 
+                                                    fontSize: { xs: '0.7rem', sm: '0.75rem' },
+                                                    overflow: 'hidden',
+                                                    textOverflow: 'ellipsis',
+                                                    whiteSpace: 'nowrap'
+                                                }}>
                                                     {user.email}
                                                 </Typography>
                                             </Box>
                                         </Box>
                                     </TableCell>
-                                    <TableCell>
+                                    <TableCell sx={{ 
+                                        minWidth: { xs: '80px', sm: 'auto' },
+                                        fontSize: { xs: '0.75rem', sm: '0.875rem' }
+                                    }}>
                                         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                                             {getRoleIcon(user.role)}
                                             <Typography
                                                 variant="body2"
-                                                sx={{ textTransform: "capitalize" }}
+                                                sx={{ 
+                                                    textTransform: "capitalize",
+                                                    fontSize: { xs: '0.75rem', sm: '0.875rem' }
+                                                }}
                                             >
                                                 {user.role}
                                             </Typography>
                                         </Box>
                                     </TableCell>
-                                    <TableCell>{getStatusChip(user.status)}</TableCell>
-                                    <TableCell>
+                                    <TableCell sx={{ 
+                                        minWidth: { xs: '80px', sm: 'auto' },
+                                        fontSize: { xs: '0.75rem', sm: '0.875rem' }
+                                    }}>
+                                        {getStatusChip(user.status)}
+                                    </TableCell>
+                                    <TableCell sx={{ 
+                                        minWidth: { xs: '100px', sm: 'auto' },
+                                        fontSize: { xs: '0.75rem', sm: '0.875rem' }
+                                    }}>
                                         {new Date(user.created_at).toLocaleDateString()}
                                     </TableCell>
-                                    <TableCell>
+                                    <TableCell sx={{ 
+                                        minWidth: { xs: '100px', sm: 'auto' },
+                                        fontSize: { xs: '0.75rem', sm: '0.875rem' }
+                                    }}>
                                         {new Date(user.updated_at).toLocaleDateString()}
                                     </TableCell>
                                     <TableCell align="right">

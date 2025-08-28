@@ -14,6 +14,9 @@ function Footer() {
                 setClasses(data);
             } catch (error) {
                 console.error('Error fetching classes for footer:', error);
+                // Don't break the footer if classes can't be loaded
+                // Set empty array to prevent errors
+                setClasses([]);
             } finally {
                 setLoading(false);
             }
@@ -54,7 +57,7 @@ function Footer() {
                         <div className="text-[#979797] text-xs mb-3 uppercase tracking-widest">Classes</div>
                         {loading ? (
                             <div className="text-[#222] text-sm">Loading...</div>
-                        ) : (
+                        ) : classes.length > 0 ? (
                             <>
                                 <div className="mb-2">
                                     <button
@@ -79,6 +82,25 @@ function Footer() {
                                     >
                                         CPR
                                     </button>
+                                </div>
+                            </>
+                        ) : (
+                            // Fallback static links when API fails
+                            <>
+                                <div className="mb-2">
+                                    <Link to="/classes" className="text-[#222] no-underline hover:underline text-sm">
+                                        Development and Operations
+                                    </Link>
+                                </div>
+                                <div className="mb-2">
+                                    <Link to="/classes" className="text-[#222] no-underline hover:underline text-sm">
+                                        CDA
+                                    </Link>
+                                </div>
+                                <div className="mb-2">
+                                    <Link to="/classes" className="text-[#222] no-underline hover:underline text-sm">
+                                        CPR
+                                    </Link>
                                 </div>
                             </>
                         )}

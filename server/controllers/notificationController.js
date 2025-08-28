@@ -1,6 +1,7 @@
+const { getUsersByIds, getUsersByStatus } = require('../models/userModel');
 const Notification = require('../models/notificationModel');
-const {getUsersByIds, getUsersByStatus} = require('../models/userModel');
 const emailService = require('../utils/emailService');
+const emailConfig = require('../config/emailConfig');
 
 // @desc    Get user notifications
 // @route   GET /api/notifications
@@ -79,7 +80,7 @@ const deleteNotification = async (req, res) => {
 const createTemplate = async (req, res) => {
     try {
         const { name, type, title_template, message_template, metadata } = req.body;
-        
+
         if (!name || !type || !title_template || !message_template) {
             return res.status(400).json({ error: 'Missing required fields' });
         }
@@ -123,7 +124,7 @@ const deleteTemplate = async (req, res) => {
     try {
         const { id } = req.params;
         const result = await Notification.deleteTemplate(id);
-        
+
         if (!result) {
             return res.status(404).json({ error: 'Template not found' });
         }
@@ -164,7 +165,7 @@ const sendBulkNotification = async (req, res) => {
         try {
             const users = await getUsersByIds(user_ids);
             const notificationTitle = variables.title || 'New Notification';
-            
+
             for (const user of users) {
                 try {
                     await emailService.sendNotificationAlertEmail(
@@ -215,7 +216,7 @@ const broadcastNotification = async (req, res) => {
         const users = await getUsersByStatus('active');
         const user_ids = users.map(user => user.id);
 
-        // Create a direct broadcast notification
+        // Create a direct broadcast notification using batch operation
         const result = await Notification.createDirectBroadcast(
             title,
             message,
@@ -223,34 +224,66 @@ const broadcastNotification = async (req, res) => {
             req.user.id
         );
 
-        // Send email alerts to all broadcast recipients
-        try {
-            const users = await getUsersByStatus('active');
-            
-            for (const user of users) {
-                try {
-                    await emailService.sendNotificationAlertEmail(
-                        user.email,
-                        user.first_name && user.last_name ? `${user.first_name} ${user.last_name}` : user.email,
-                        'broadcast',
-                        title
-                    );
-                    console.log(`Broadcast alert email sent to: ${user.email}`);
-                } catch (emailError) {
-                    console.error(`Failed to send broadcast alert email to ${user.email}:`, emailError);
-                    // Continue with other users even if one email fails
-                }
-            }
-        } catch (emailError) {
-            console.error('Failed to send broadcast alert emails:', emailError);
-            // Don't fail the broadcast creation if emails fail
-        }
-
+        // Send response immediately after database operations
         res.status(201).json({
             success: true,
             sent_count: result.sent_count,
-            message: 'Broadcast notification sent successfully'
+            failed_count: result.failed_count || 0,
+            message: 'Broadcast notification sent successfully',
+            total_users: user_ids.length
         });
+
+        // Process emails asynchronously after response is sent
+        setImmediate(async () => {
+            try {
+                console.log(`Starting async email processing for ${users.length} users...`);
+
+                // Process emails in batches to avoid overwhelming the email service
+                const batchSize = emailConfig.batchProcessing.batchSize || 10;
+                const batches = [];
+
+                for (let i = 0; i < users.length; i += batchSize) {
+                    batches.push(users.slice(i, i + batchSize));
+                }
+
+                let processedCount = 0;
+                for (const batch of batches) {
+                    // Process each batch concurrently
+                    const emailPromises = batch.map(async (user) => {
+                        try {
+                            await emailService.sendNotificationAlertEmail(
+                                user.email,
+                                user.first_name && user.last_name ? `${user.first_name} ${user.last_name}` : user.email,
+                                'broadcast',
+                                title
+                            );
+                            console.log(`Broadcast alert email sent to: ${user.email}`);
+                            return { success: true, email: user.email };
+                        } catch (emailError) {
+                            console.error(`Failed to send broadcast alert email to ${user.email}:`, emailError);
+                            return { success: false, email: user.email, error: emailError.message };
+                        }
+                    });
+
+                    // Wait for batch to complete before processing next batch
+                    const batchResults = await Promise.allSettled(emailPromises);
+                    processedCount += batch.length;
+
+                    console.log(`Processed batch: ${processedCount}/${users.length} users`);
+
+                    // Small delay between batches to avoid overwhelming email service
+                    if (batches.indexOf(batch) < batches.length - 1) {
+                        await new Promise(resolve => setTimeout(resolve, emailConfig.batchProcessing.batchDelay || 100));
+                    }
+                }
+
+                console.log(`Async email processing completed for ${users.length} users`);
+            } catch (emailError) {
+                console.error('Failed to process broadcast alert emails:', emailError);
+                // Don't fail the broadcast creation if emails fail
+            }
+        });
+
     } catch (error) {
         console.error('Broadcast notification error:', error);
         res.status(500).json({ error: 'Failed to send broadcast notification' });
@@ -263,13 +296,13 @@ const broadcastNotification = async (req, res) => {
 const sendNotification = async (req, res) => {
     try {
         const { recipient, title, message, recipientType = 'user' } = req.body;
-        
+
         if (!recipient || !title || !message) {
             return res.status(400).json({ error: 'Missing required fields: recipient, title, message' });
         }
 
         let userIds = [];
-        
+
         if (recipientType === 'user') {
             // Single user notification
             userIds = [recipient];

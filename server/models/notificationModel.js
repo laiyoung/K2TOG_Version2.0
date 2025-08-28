@@ -63,7 +63,7 @@ async function createBulkFromTemplate(templateName, userIds, variables = {}, act
     title = template.title_template;
     message = template.message_template;
     type = template.type;
-    
+
     // Replace variables in templates
     Object.entries(variables).forEach(([key, value]) => {
       const regex = new RegExp(`{{${key}}}`, 'g');
@@ -81,7 +81,7 @@ async function createBulkFromTemplate(templateName, userIds, variables = {}, act
   // Create notifications for each user
   const notifications = [];
   const failedUsers = [];
-  
+
   for (const userId of userIds) {
     try {
       const recipient = recipientInfo.rows.find(r => r.id === userId);
@@ -156,7 +156,7 @@ async function getNotificationsSentByAdmin(adminId) {
     FROM notification_data n
     ORDER BY n.created_at DESC
   `, [adminId]);
-  
+
   return result.rows;
 }
 
@@ -187,32 +187,70 @@ async function deleteTemplate(id) {
 
 // Create a direct broadcast notification
 async function createDirectBroadcast(title, message, userIds, senderId) {
-  const notifications = [];
-  const failedUsers = [];
-  
-  for (const userId of userIds) {
-    try {
-      const notification = await createNotification({
-        user_id: userId,
-        type: 'broadcast',
-        title: title,
-        message: message,
-        action_url: null,
-        metadata: { isBroadcast: true },
-        sender_id: senderId
-      });
-      notifications.push(notification);
-    } catch (error) {
-      console.error(`Failed to create broadcast notification for user ${userId}:`, error);
-      failedUsers.push(userId);
-    }
-  }
+  try {
+    // Use batch insert for better performance
+    const values = [];
+    const placeholders = [];
+    let paramCount = 1;
 
-  return {
-    sent_count: notifications.length,
-    failed_count: failedUsers.length,
-    failed_users: failedUsers
-  };
+    for (const userId of userIds) {
+      placeholders.push(`($${paramCount++}, $${paramCount++}, $${paramCount++}, $${paramCount++}, $${paramCount++}, $${paramCount++}, $${paramCount++})`);
+      values.push(
+        userId,
+        'broadcast',
+        title,
+        message,
+        null, // action_url
+        JSON.stringify({ isBroadcast: true }), // metadata
+        senderId
+      );
+    }
+
+    const query = `
+      INSERT INTO user_notifications (user_id, type, title, message, action_url, metadata, sender_id)
+      VALUES ${placeholders.join(', ')}
+      RETURNING id, user_id
+    `;
+
+    const result = await pool.query(query, values);
+
+    return {
+      sent_count: result.rows.length,
+      failed_count: 0,
+      failed_users: [],
+      notifications: result.rows
+    };
+  } catch (error) {
+    console.error('Batch broadcast creation failed, falling back to individual creation:', error);
+
+    // Fallback to individual creation if batch fails
+    const notifications = [];
+    const failedUsers = [];
+
+    for (const userId of userIds) {
+      try {
+        const notification = await createNotification({
+          user_id: userId,
+          type: 'broadcast',
+          title: title,
+          message: message,
+          action_url: null,
+          metadata: { isBroadcast: true },
+          sender_id: senderId
+        });
+        notifications.push(notification);
+      } catch (error) {
+        console.error(`Failed to create broadcast notification for user ${userId}:`, error);
+        failedUsers.push(userId);
+      }
+    }
+
+    return {
+      sent_count: notifications.length,
+      failed_count: failedUsers.length,
+      failed_users: failedUsers
+    };
+  }
 }
 
 module.exports = {

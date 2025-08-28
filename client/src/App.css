@@ -30,6 +30,29 @@ body {
     background-color: #f9fafb;
 }
 
+/* Admin Dashboard Mobile Styles */
+@media (max-width: 1024px) {
+    .admin-route {
+        min-height: calc(100vh - 80px);
+        /* Account for mobile header */
+    }
+}
+
+/* Ensure admin components are mobile-friendly */
+.admin-route .MuiGrid-container {
+    margin: 0 !important;
+}
+
+.admin-route .MuiGrid-item {
+    padding: 8px !important;
+}
+
+@media (max-width: 768px) {
+    .admin-route .MuiGrid-item {
+        padding: 4px !important;
+    }
+}
+
 /* Basic notification z-index - keep it simple */
 .SnackbarContainer-root,
 [data-testid="notistack-snackbar"],
@@ -86,78 +109,87 @@ body {
 .error-message {
     z-index: 1 !important;
     position: relative !important;
-    pointer-events: auto !important;
 }
 
-/* Ensure navigation elements are always clickable */
-nav,
-header,
-.nav-button {
-    position: relative !important;
-    pointer-events: auto !important;
+/* Mobile-friendly table styles */
+@media (max-width: 768px) {
+    .MuiTableContainer-root {
+        overflow-x: auto;
+    }
+
+    .MuiTableCell-root {
+        padding: 8px 4px !important;
+        font-size: 0.875rem !important;
+    }
+
+    .MuiTableHead-root .MuiTableCell-root {
+        font-size: 0.8rem !important;
+    }
 }
 
-/* More specific header navigation rules */
-.header,
-.header *,
-.nav-button {
-    position: relative !important;
-    pointer-events: auto !important;
+/* Mobile-friendly card styles */
+@media (max-width: 768px) {
+    .MuiCard-root {
+        margin-bottom: 16px !important;
+    }
+
+    .MuiCardContent-root {
+        padding: 16px !important;
+    }
 }
 
-/* Ensure profile and other navigation buttons are clickable */
-.profile-button,
-.profile-link,
-.nav-link {
-    z-index: 1400 !important;
-    position: relative !important;
-    pointer-events: auto !important;
+/* Mobile-friendly form styles */
+@media (max-width: 768px) {
+    .MuiFormControl-root {
+        margin-bottom: 16px !important;
+    }
+
+    .MuiButton-root {
+        width: 100% !important;
+        margin-bottom: 8px !important;
+    }
+
+    .MuiButton-root+.MuiButton-root {
+        margin-left: 0 !important;
+    }
 }
 
-/* Fix for any potential overlay issues */
-body {
-    overflow-x: hidden;
+/* Mobile-friendly dialog styles */
+@media (max-width: 768px) {
+    .MuiDialog-paper {
+        margin: 16px !important;
+        max-width: calc(100vw - 32px) !important;
+        width: calc(100vw - 32px) !important;
+    }
+
+    .MuiDialogContent-root {
+        padding: 16px !important;
+    }
+
+    .MuiDialogActions-root {
+        padding: 16px !important;
+        flex-direction: column !important;
+    }
+
+    .MuiDialogActions-root .MuiButton-root {
+        width: 100% !important;
+        margin: 4px 0 !important;
+    }
 }
 
-/* Ensure Material-UI dropdowns and Select menus appear above dialogs */
-.MuiPopover-root,
-.MuiMenu-root,
-.MuiAutocomplete-popper,
-.MuiSelect-selectMenu {
-    z-index: 1500 !important;
+/* Mobile-friendly grid adjustments */
+@media (max-width: 768px) {
+    .MuiGrid-container {
+        margin: 0 !important;
+    }
+
+    .MuiGrid-item {
+        padding: 8px !important;
+    }
 }
 
-/* Ensure Select dropdown options appear above everything */
-.MuiPaper-root.MuiPopover-paper,
-.MuiPaper-root.MuiMenu-paper,
-.MuiPaper-root.MuiAutocomplete-paper {
-    z-index: 1500 !important;
-}
-
-/* Ensure Select dropdowns within Dialogs appear above Dialog content */
-.MuiDialog-root .MuiPopover-root,
-.MuiDialog-root .MuiMenu-root,
-.MuiDialog-root .MuiAutocomplete-popper {
-    z-index: 1500 !important;
-}
-
-/* Override Material-UI's default z-index for Select dropdowns */
-.MuiSelect-selectMenu+.MuiPopover-root,
-.MuiSelect-selectMenu+.MuiMenu-root {
-    z-index: 1500 !important;
-}
-
-/* Force all Material-UI popover content to appear above dialogs */
-.MuiPopover-root[style*="z-index"],
-.MuiMenu-root[style*="z-index"] {
-    z-index: 1500 !important;
-}
-
-/* Ensure Select components within FormControl work properly */
-.MuiFormControl-root .MuiSelect-root {
-    z-index: 1;
-}
-
-.MuiFormControl-root .MuiSelect-root+.MuiPopover-root {
-    z-index: 1500 !important;
+@media (max-width: 480px) {
+    .MuiGrid-item {
+        padding: 4px !important;
+    }
 }
