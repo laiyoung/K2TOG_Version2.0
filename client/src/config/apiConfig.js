@@ -37,5 +37,6 @@ console.log('Is Development:', import.meta.env.DEV);
 // Additional debugging for production
 if (!import.meta.env.DEV) {
     console.log('Production mode detected - API calls will use relative paths');
-    console.log('Make sure Vercel rewrites are configured to proxy /api/* to your backend');
+    console.log('Vercel will proxy /api/* requests to the API proxy function');
+    console.log('Make sure VITE_APP_URL or RAILWAY_BACKEND_URL is set in Vercel environment variables');
 }
