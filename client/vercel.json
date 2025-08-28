@@ -6,13 +6,18 @@
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "https://your-railway-backend-url.railway.app/api/$1"
+      "destination": "/api-proxy/$1"
     },
     {
       "source": "/(.*)",
       "destination": "/index.html"
     }
   ],
+  "functions": {
+    "api-proxy/**": {
+      "runtime": "nodejs18.x"
+    }
+  },
   "headers": [
     {
       "source": "/api/(.*)",
