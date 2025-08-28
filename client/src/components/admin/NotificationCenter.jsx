@@ -345,7 +345,7 @@ const NotificationCenter = () => {
       await fetchNotifications();
       enqueueSnackbar("Notification deleted successfully", {
         variant: "success",
-        style: { zIndex: 1200 }
+        style: { zIndex: 1450 }
       });
     } catch (error) {
       handleError(error, "Failed to delete notification");
@@ -373,7 +373,7 @@ const NotificationCenter = () => {
           await Promise.all(deletePromises);
           enqueueSnackbar("Broadcast notification deleted successfully", {
             variant: "success",
-            style: { zIndex: 1200 }
+            style: { zIndex: 1450 }
           });
         } else {
           // Fallback: delete the current notification
@@ -381,7 +381,7 @@ const NotificationCenter = () => {
           await adminService.deleteNotification(notificationId);
           enqueueSnackbar("Notification deleted successfully", {
             variant: "success",
-            style: { zIndex: 1200 }
+            style: { zIndex: 1450 }
           });
         }
       } else {
@@ -389,7 +389,7 @@ const NotificationCenter = () => {
         await adminService.deleteNotification(notificationId);
         enqueueSnackbar("Notification deleted successfully", {
           variant: "success",
-          style: { zIndex: 1200 }
+          style: { zIndex: 1450 }
         });
       }
 
@@ -406,17 +406,17 @@ const NotificationCenter = () => {
       setLoading(true);
 
       if (!notificationTitle.trim() || !notificationMessage.trim()) {
-        enqueueSnackbar("Please provide both a title and message", { variant: "error", style: { zIndex: 1200 } });
+        enqueueSnackbar("Please provide both a title and message", { variant: "error", style: { zIndex: 1450 } });
         return;
       }
 
       if (selectedRecipientType === "user" && !selectedRecipient?.id) {
-        enqueueSnackbar("Please select a recipient", { variant: "error", style: { zIndex: 1200 } });
+        enqueueSnackbar("Please select a recipient", { variant: "error", style: { zIndex: 1450 } });
         return;
       }
 
       if (selectedRecipientType === "class" && !selectedClass) {
-        enqueueSnackbar("Please select a class", { variant: "error", style: { zIndex: 1200 } });
+        enqueueSnackbar("Please select a class", { variant: "error", style: { zIndex: 1450 } });
         return;
       }
 
@@ -429,7 +429,7 @@ const NotificationCenter = () => {
           selectedClass,
           availableClasses: classes.map(c => ({ id: c.id, title: c.title }))
         });
-        enqueueSnackbar("Selected class not found", { variant: "error", style: { zIndex: 1200 } });
+        enqueueSnackbar("Selected class not found", { variant: "error", style: { zIndex: 1450 } });
         return;
       }
 
@@ -455,10 +455,10 @@ const NotificationCenter = () => {
             console.log('No unique students found in class');
             enqueueSnackbar(`No students are currently enrolled in ${selectedClassDetails.title}`, {
               variant: "warning",
-              style: { zIndex: 1200 },
+              style: { zIndex: 1450 },
               action: (key) => (
                 <Button color="inherit" size="small" onClick={() => {
-                  enqueueSnackbar("Please enroll students in the class first", { variant: "info", style: { zIndex: 1200 } });
+                  enqueueSnackbar("Please enroll students in the class first", { variant: "info", style: { zIndex: 1450 } });
                 }}>
                   View Class
                 </Button>
@@ -478,7 +478,7 @@ const NotificationCenter = () => {
           });
         } catch (error) {
           console.error('Error checking class students:', error);
-          enqueueSnackbar("Failed to check class enrollment. Please try again.", { variant: "error", style: { zIndex: 1200 } });
+          enqueueSnackbar("Failed to check class enrollment. Please try again.", { variant: "error", style: { zIndex: 1450 } });
           return;
         }
       }
@@ -506,7 +506,7 @@ const NotificationCenter = () => {
         selectedRecipientType === "class"
           ? `Notification sent to all students in ${selectedClassDetails?.title}`
           : "Notification sent successfully",
-        { variant: "success", style: { zIndex: 1200 } }
+        { variant: "success", style: { zIndex: 1450 } }
       );
       setShowSendDialog(false);
       // Reset form
@@ -567,11 +567,11 @@ const NotificationCenter = () => {
       if (editingTemplate) {
         // Update existing template
         await adminService.updateTemplate(editingTemplate.id, templateData);
-        enqueueSnackbar("Template updated successfully", { variant: "success", style: { zIndex: 1200 } });
+        enqueueSnackbar("Template updated successfully", { variant: "success", style: { zIndex: 1450 } });
       } else {
         // Create new template
         await adminService.createTemplate(templateData);
-        enqueueSnackbar("Template created successfully", { variant: "success", style: { zIndex: 1200 } });
+        enqueueSnackbar("Template created successfully", { variant: "success", style: { zIndex: 1450 } });
       }
 
       await fetchTemplates();
@@ -594,7 +594,7 @@ const NotificationCenter = () => {
     try {
       setLoading(true);
       if (!broadcastTitle.trim() || !broadcastMessage.trim()) {
-        enqueueSnackbar("Please provide both a title and message for the broadcast", { variant: "error", style: { zIndex: 1200 } });
+        enqueueSnackbar("Please provide both a title and message for the broadcast", { variant: "error", style: { zIndex: 1450 } });
         return;
       }
       const response = await adminService.sendBroadcast({
@@ -606,7 +606,7 @@ const NotificationCenter = () => {
       // Refresh sent notifications to get the updated list from server
       await fetchSentNotifications();
 
-      enqueueSnackbar(`Broadcast sent successfully to ${response.sent_count || 0} recipients`, { variant: "success", style: { zIndex: 1200 } });
+      enqueueSnackbar(`Broadcast sent successfully to ${response.sent_count || 0} recipients`, { variant: "success", style: { zIndex: 1450 } });
       setShowBroadcastDialog(false);
       setBroadcastMessage("");
       setBroadcastTitle("");
@@ -623,7 +623,7 @@ const NotificationCenter = () => {
       setLoading(true);
       await adminService.deleteTemplate(templateId);
       await fetchTemplates(); // Refresh templates after deletion
-      enqueueSnackbar("Template deleted successfully", { variant: "success", style: { zIndex: 1200 } });
+      enqueueSnackbar("Template deleted successfully", { variant: "success", style: { zIndex: 1450 } });
     } catch (error) {
       handleError(error, "Failed to delete template");
     } finally {
@@ -644,7 +644,7 @@ const NotificationCenter = () => {
   const handleError = (error, customMessage = "An error occurred") => {
     console.error(error);
     setError(error.message || customMessage);
-    enqueueSnackbar(error.message || customMessage, { variant: "error", style: { zIndex: 1200 } });
+    enqueueSnackbar(error.message || customMessage, { variant: "error", style: { zIndex: 1450 } });
 
     // Clear any existing timeout before setting a new one
     if (errorTimeoutRef.current) {
@@ -1015,7 +1015,7 @@ const NotificationCenter = () => {
         onClose={() => setNotificationDialogOpen(false)}
         aria-labelledby="notification-dialog-title"
         keepMounted={false}
-        sx={{ zIndex: 1200 }}
+        sx={{ zIndex: 1450 }}
       >
         <DialogTitle id="notification-dialog-title">
           {selectedNotification?.title}
@@ -1055,7 +1055,7 @@ const NotificationCenter = () => {
         keepMounted={false}
         maxWidth="sm"
         fullWidth
-        sx={{ zIndex: 1200 }}
+        sx={{ zIndex: 1450 }}
       >
         <DialogTitle>Send Notification</DialogTitle>
         <DialogContent>
@@ -1247,7 +1247,7 @@ const NotificationCenter = () => {
                         setNotificationMessage('');
                         enqueueSnackbar(`This template is for ${mappedType} notifications, not ${selectedRecipientType} notifications`, {
                           variant: "warning",
-                          style: { zIndex: 1200 }
+                          style: { zIndex: 1450 }
                         });
                       }
                     }
@@ -1386,7 +1386,7 @@ const NotificationCenter = () => {
         }}
         aria-labelledby="template-dialog-title"
         keepMounted={false}
-        sx={{ zIndex: 1200 }}
+        sx={{ zIndex: 1450 }}
       >
         <DialogTitle>
           {editingTemplate ? `Edit Template: ${formatTemplateName(editingTemplate.name)}` : 'New Template'}
@@ -1522,7 +1522,7 @@ const NotificationCenter = () => {
         }}
         aria-labelledby="broadcast-dialog-title"
         keepMounted={false}
-        sx={{ zIndex: 1200 }}
+        sx={{ zIndex: 1450 }}
       >
         <DialogTitle>Broadcast Message</DialogTitle>
         <DialogContent>

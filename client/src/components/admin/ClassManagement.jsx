@@ -618,7 +618,7 @@ function ClassManagement() {
           maxWidth="md"
           fullWidth
           sx={{
-            zIndex: 1200,
+            zIndex: 1450,
             '& .MuiDialog-paper': {
               maxHeight: '90vh',
               margin: '20px',
@@ -654,6 +654,9 @@ function ClassManagement() {
                   value={form.instructor_id}
                   onChange={handleChange}
                   label="Instructor"
+                  MenuProps={{
+                    sx: { zIndex: 1500 }
+                  }}
                 >
                   {Array.isArray(instructors) && instructors.map((instructor) => (
                     <MenuItem key={instructor.id} value={instructor.id}>
@@ -836,7 +839,7 @@ function ClassManagement() {
           maxWidth="sm"
           fullWidth
           sx={{
-            zIndex: 1200,
+            zIndex: 1450,
             '& .MuiDialog-paper': {
               maxHeight: '90vh',
               margin: '20px',
@@ -1095,7 +1098,7 @@ function ClassManagement() {
           maxWidth="lg"
           fullWidth
           sx={{
-            zIndex: 1200,
+            zIndex: 1450,
             '& .MuiDialog-paper': {
               maxHeight: '90vh',
               margin: '20px',

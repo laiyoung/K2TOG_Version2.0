@@ -85,13 +85,11 @@ function AppContent() {
                 <div className="admin-route">
                     <SnackbarProvider
                         maxSnack={3}
-                        anchorOrigin={{
-                            vertical: 'top',
-                            horizontal: 'right',
-                        }}
                         dense
                         preventDuplicate
-                        style={{ marginTop: '80px' }}
+                        style={{
+                            zIndex: 1450
+                        }}
                         autoHideDuration={5000}
                         disableWindowBlurListener={false}
                         resumePause={false}
@@ -100,23 +98,39 @@ function AppContent() {
                     </SnackbarProvider>
                 </div>
             ) : (
-                <main className="container mx-auto px-4 py-8">
-                    <SnackbarProvider
-                        maxSnack={3}
-                        anchorOrigin={{
-                            vertical: 'top',
-                            horizontal: 'right',
-                        }}
-                        dense
-                        preventDuplicate
-                        style={{ marginTop: '80px' }}
-                        autoHideDuration={5000}
-                        disableWindowBlurListener={false}
-                        resumePause={false}
-                    >
-                        <Outlet />
-                    </SnackbarProvider>
-                </main>
+                <>
+                    {location.pathname === '/' ? (
+                        <SnackbarProvider
+                            maxSnack={3}
+                            dense
+                            preventDuplicate
+                            style={{
+                                zIndex: 1450
+                            }}
+                            autoHideDuration={5000}
+                            disableWindowBlurListener={false}
+                            resumePause={false}
+                        >
+                            <Outlet />
+                        </SnackbarProvider>
+                    ) : (
+                        <main className="container mx-auto px-4 pt-8">
+                            <SnackbarProvider
+                                maxSnack={3}
+                                dense
+                                preventDuplicate
+                                style={{
+                                    zIndex: 1450
+                                }}
+                                autoHideDuration={5000}
+                                disableWindowBlurListener={false}
+                                resumePause={false}
+                            >
+                                <Outlet />
+                            </SnackbarProvider>
+                        </main>
+                    )}
+                </>
             )}
         </div>
     );

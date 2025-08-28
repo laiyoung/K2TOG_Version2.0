@@ -74,15 +74,17 @@ function ClassDetails() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [isEnrolled, setIsEnrolled] = useState(false);
-    const [enrollLoading, setEnrollLoading] = useState(false);
     const [enrollError, setEnrollError] = useState('');
+    const [roleEnrollError, setRoleEnrollError] = useState('');
+    const [enrollSuccess, setEnrollSuccess] = useState('');
+    const [enrollLoading, setEnrollLoading] = useState(false);
+    const [sessionMessages, setSessionMessages] = useState({}); // Track messages per session
     const [selectedDateIndex, setSelectedDateIndex] = useState(null);
     const [waitlistStatus, setWaitlistStatus] = useState({});
     const [waitlistLoading, setWaitlistLoading] = useState(false);
     const [userEnrollments, setUserEnrollments] = useState([]);
     const [userWaitlist, setUserWaitlist] = useState({});
     const isAdminOrInstructor = user && (user.role === 'admin' || user.role === 'instructor');
-    const [roleEnrollError, setRoleEnrollError] = useState('');
 
     // Memoize the class data fetching effect
     useEffect(() => {
@@ -155,18 +157,20 @@ function ClassDetails() {
             return;
         }
         setEnrollLoading(true);
-        setEnrollError('');
+        // Clear any previous messages for this session
+        setSessionMessages(prev => ({ ...prev, [sessionId]: { success: '', error: '' } }));
         try {
             console.log('Starting enrollment process...'); // Add debugging
             await enrollmentService.enrollInClass(id, { sessionId });
             console.log('Enrollment successful, updating state...'); // Add debugging
             setIsEnrolled(true);
-            console.log('Showing success message...'); // Add debugging
-            showSuccess('Successfully enrolled in class');
-            console.log('Success message called'); // Add debugging
+            console.log('Setting success message...'); // Add debugging
+            setSessionMessages(prev => ({ ...prev, [sessionId]: { success: 'Successfully enrolled in class', error: '' } }));
+            console.log('Success message set'); // Add debugging
         } catch (err) {
-            setEnrollError(err.message || 'Enrollment operation failed');
-            showError(err.message || 'Enrollment operation failed');
+            setSessionMessages(prev => ({ ...prev, [sessionId]: { success: '', error: err.message || 'Enrollment operation failed' } }));
+            // Don't call showError() to prevent notification blocking navigation
+            console.error('Enrollment error:', err);
         } finally {
             setEnrollLoading(false);
         }
@@ -344,6 +348,47 @@ function ClassDetails() {
                                                 {notLoggedIn && <div className="text-xs text-red-500 mt-1">Log in to enroll</div>}
                                                 {isAdminOrInstructor && <div className="text-xs text-red-500 mt-1">Admins/Instructors cannot enroll</div>}
 
+                                                {/* Session-specific success/error messages */}
+                                                {sessionMessages[session.id]?.success && (
+                                                    <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded">
+                                                        <div className="flex items-center justify-between">
+                                                            <div className="flex items-center">
+                                                                <svg className="w-4 h-4 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                                                                </svg>
+                                                                <p className="text-sm text-green-800 font-medium">{sessionMessages[session.id].success}</p>
+                                                            </div>
+                                                            <button
+                                                                onClick={() => setSessionMessages(prev => ({ ...prev, [session.id]: { ...prev[session.id], success: '' } }))}
+                                                                className="ml-2 text-green-600 hover:text-green-800 font-bold text-lg focus:outline-none"
+                                                                aria-label="Close success message"
+                                                            >
+                                                                ×
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                {sessionMessages[session.id]?.error && (
+                                                    <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded">
+                                                        <div className="flex items-center justify-between">
+                                                            <div className="flex items-center">
+                                                                <svg className="w-4 h-4 text-red-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                                </svg>
+                                                                <p className="text-sm text-red-800 font-medium">{sessionMessages[session.id].error}</p>
+                                                            </div>
+                                                            <button
+                                                                onClick={() => setSessionMessages(prev => ({ ...prev, [session.id]: { ...prev[session.id], error: '' } }))}
+                                                                className="ml-2 text-red-600 hover:text-red-800 font-bold text-lg focus:outline-none"
+                                                                aria-label="Close error message"
+                                                            >
+                                                                ×
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                )}
+
                                                 {/* Waitlist section */}
                                                 {session.available_spots === 0 && canEnroll && (
                                                     <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded">
@@ -378,6 +423,8 @@ function ClassDetails() {
                         )}
 
                     </div>
+
+                    {/* Session-specific messages are now displayed inline with each session */}
 
                     {/* Right Column - Enrollment Card - Desktop Only */}
                     <div className="hidden md:block bg-gray-50 p-8 rounded-lg shadow-sm">

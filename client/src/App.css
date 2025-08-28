@@ -25,30 +25,139 @@ body {
 /* Admin route styles */
 .admin-route {
     width: 100%;
-    min-height: calc(100vh - 64px); /* Subtract header height if needed */
+    min-height: calc(100vh - 64px);
+    /* Mobile header height (h-16 = 64px) */
     background-color: #f9fafb;
 }
 
-/* Override notistack z-index to appear below header */
-.SnackbarContainer-root {
-    z-index: 1200 !important;
+/* Basic notification z-index - keep it simple */
+.SnackbarContainer-root,
+[data-testid="notistack-snackbar"],
+.MuiSnackbar-root,
+.notistack-SnackbarContainer {
+    z-index: 1450 !important;
+    position: absolute !important;
 }
 
-/* Additional specificity for notistack */
-[data-testid="notistack-snackbar"] {
-    z-index: 1200 !important;
-}
-
-/* Target the actual snackbar elements */
+/* Ensure snackbars don't affect layout - make them overlap content */
 .MuiSnackbar-root {
-    z-index: 1200 !important;
+    position: fixed !important;
+    top: 20px !important;
+    right: 20px !important;
+    left: auto !important;
+    bottom: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
 }
 
-/* Snackbar positioning to avoid header overlap */
-.MuiSnackbar-root {
-  z-index: 1000 !important;
+/* Ensure snackbar content doesn't affect layout */
+.MuiSnackbar-root .MuiAlert-root {
+    margin: 0 !important;
+    padding: 0 !important;
 }
 
-.MuiSnackbar-anchorOriginTopRight {
-  top: 80px !important;
-} 
+/* Override any default positioning that might affect layout */
+.notistack-SnackbarContainer {
+    position: fixed !important;
+    top: 20px !important;
+    right: 20px !important;
+    left: auto !important;
+    bottom: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+/* Ensure notifications don't block navigation */
+.MuiSnackbar-root .MuiAlert-root {
+    pointer-events: auto;
+    position: relative;
+}
+
+/* Fix for notification overlay issues */
+.notistack-SnackbarContainer {
+    pointer-events: none !important;
+}
+
+.notistack-SnackbarContainer>div {
+    pointer-events: auto !important;
+}
+
+/* Ensure error messages don't block navigation */
+.error-message {
+    z-index: 1 !important;
+    position: relative !important;
+    pointer-events: auto !important;
+}
+
+/* Ensure navigation elements are always clickable */
+nav,
+header,
+.nav-button {
+    position: relative !important;
+    pointer-events: auto !important;
+}
+
+/* More specific header navigation rules */
+.header,
+.header *,
+.nav-button {
+    position: relative !important;
+    pointer-events: auto !important;
+}
+
+/* Ensure profile and other navigation buttons are clickable */
+.profile-button,
+.profile-link,
+.nav-link {
+    z-index: 1400 !important;
+    position: relative !important;
+    pointer-events: auto !important;
+}
+
+/* Fix for any potential overlay issues */
+body {
+    overflow-x: hidden;
+}
+
+/* Ensure Material-UI dropdowns and Select menus appear above dialogs */
+.MuiPopover-root,
+.MuiMenu-root,
+.MuiAutocomplete-popper,
+.MuiSelect-selectMenu {
+    z-index: 1500 !important;
+}
+
+/* Ensure Select dropdown options appear above everything */
+.MuiPaper-root.MuiPopover-paper,
+.MuiPaper-root.MuiMenu-paper,
+.MuiPaper-root.MuiAutocomplete-paper {
+    z-index: 1500 !important;
+}
+
+/* Ensure Select dropdowns within Dialogs appear above Dialog content */
+.MuiDialog-root .MuiPopover-root,
+.MuiDialog-root .MuiMenu-root,
+.MuiDialog-root .MuiAutocomplete-popper {
+    z-index: 1500 !important;
+}
+
+/* Override Material-UI's default z-index for Select dropdowns */
+.MuiSelect-selectMenu+.MuiPopover-root,
+.MuiSelect-selectMenu+.MuiMenu-root {
+    z-index: 1500 !important;
+}
+
+/* Force all Material-UI popover content to appear above dialogs */
+.MuiPopover-root[style*="z-index"],
+.MuiMenu-root[style*="z-index"] {
+    z-index: 1500 !important;
+}
+
+/* Ensure Select components within FormControl work properly */
+.MuiFormControl-root .MuiSelect-root {
+    z-index: 1;
+}
+
+.MuiFormControl-root .MuiSelect-root+.MuiPopover-root {
+    z-index: 1500 !important;
+}
