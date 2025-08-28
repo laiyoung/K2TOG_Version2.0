@@ -21,7 +21,8 @@ const getApiBaseUrl = () => {
         return '/api';
     }
 
-    // Fallback to relative paths
+    // For production, use relative paths (will be handled by Vercel rewrites)
+    // This ensures API calls go through Vercel's rewrite rules
     return '/api';
 };
 
@@ -32,3 +33,9 @@ console.log('API Base URL:', API_BASE_URL);
 console.log('Environment:', import.meta.env.MODE);
 console.log('App URL from env:', import.meta.env.VITE_APP_URL);
 console.log('Is Development:', import.meta.env.DEV);
+
+// Additional debugging for production
+if (!import.meta.env.DEV) {
+    console.log('Production mode detected - API calls will use relative paths');
+    console.log('Make sure Vercel rewrites are configured to proxy /api/* to your backend');
+}
