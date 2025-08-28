@@ -3,3 +3,4 @@
 [33mcae096f[m Fix Vercel build: use npm ci --production=false to ensure Vite is installed
 [33mc37ceeb[m Fix server/index.js: add missing path import and fix CORS configuration
 [33mc519a27[m Fix Vercel installCommand: remove complex shell command that was causing build failures
+[33m65caf59[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m revert
