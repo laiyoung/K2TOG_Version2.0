@@ -1,41 +1,49 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const { 
-  createUser, 
-  getUserByEmail, 
-  generatePasswordResetToken, 
-  verifyPasswordResetToken, 
+const {
+  createUser,
+  getUserByEmail,
+  generatePasswordResetToken,
+  verifyPasswordResetToken,
   resetPasswordWithToken,
-  clearPasswordResetToken 
+  clearPasswordResetToken
 } = require('../models/userModel');
 const pool = require('../config/db');
 const emailService = require('../utils/emailService');
 
 // Input validation middleware
 const validateRegistration = (req, res, next) => {
-  const { name, email, password } = req.body;
-  
+  const { name, email, password, phone_number } = req.body;
+
   if (!name || !email || !password) {
     return res.status(400).json({ error: 'All fields are required' });
   }
-  
+
   if (password.length < 8) {
     return res.status(400).json({ error: 'Password must be at least 8 characters long' });
   }
-  
+
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(email)) {
     return res.status(400).json({ error: 'Invalid email format' });
   }
-  
+
+  // Validate phone number if provided
+  if (phone_number && phone_number.trim()) {
+    const phoneRegex = /^\+?1?\d{10}$/;
+    if (!phoneRegex.test(phone_number.replace(/[^0-9+]/g, ''))) {
+      return res.status(400).json({ error: 'Invalid phone number format. Please enter a 10-digit phone number.' });
+    }
+  }
+
   next();
 };
 
 const registerUser = async (req, res) => {
-  const { 
-    name, 
-    email, 
-    password, 
+  const {
+    name,
+    email,
+    password,
     role = 'student',
     status = 'active',
     first_name,
@@ -76,18 +84,18 @@ const registerUser = async (req, res) => {
       // Don't fail the registration if email fails
     }
 
-    res.status(201).json({ 
+    res.status(201).json({
       user: {
         id: user.id,
         name: user.name,
         email: user.email,
         role: user.role
-      }, 
-      token 
+      },
+      token
     });
   } catch (err) {
     console.error('Register error:', err);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Failed to register user',
       details: process.env.NODE_ENV === 'development' ? err.message : undefined
     });
@@ -137,11 +145,11 @@ const loginUser = async (req, res) => {
     console.log('Generated token:', token.substring(0, 20) + '...'); // Debug log (only show part of token)
 
     const { password: _, ...userData } = user;
-    console.log('Sending response with user data:', { 
-      id: userData.id, 
-      email: userData.email, 
+    console.log('Sending response with user data:', {
+      id: userData.id,
+      email: userData.email,
       role: userData.role,
-      hasToken: !!token 
+      hasToken: !!token
     }); // Debug log
 
     res.status(200).json({ user: userData, token });
@@ -149,7 +157,7 @@ const loginUser = async (req, res) => {
     if (process.env.NODE_ENV !== 'test') {
       console.error('Login error:', err);
     }
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Login failed',
       details: process.env.NODE_ENV === 'development' ? err.message : undefined
     });
@@ -180,14 +188,14 @@ const requestPasswordReset = async (req, res) => {
     const user = await getUserByEmail(email);
     if (!user) {
       // Don't reveal if user exists or not for security
-      return res.status(200).json({ 
-        message: 'If an account with that email exists, a password reset link has been sent.' 
+      return res.status(200).json({
+        message: 'If an account with that email exists, a password reset link has been sent.'
       });
     }
 
     // Generate reset token and send email
     const { resetToken } = await generatePasswordResetToken(email);
-    
+
     // Send password reset email
     try {
       await emailService.sendPasswordResetEmail(email, resetToken);
@@ -199,12 +207,12 @@ const requestPasswordReset = async (req, res) => {
       return res.status(500).json({ error: 'Failed to send password reset email' });
     }
 
-    res.status(200).json({ 
-      message: 'If an account with that email exists, a password reset link has been sent.' 
+    res.status(200).json({
+      message: 'If an account with that email exists, a password reset link has been sent.'
     });
   } catch (err) {
     console.error('Password reset request error:', err);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Failed to process password reset request',
       details: process.env.NODE_ENV === 'development' ? err.message : undefined
     });
@@ -221,8 +229,8 @@ const verifyResetToken = async (req, res) => {
     }
 
     const user = await verifyPasswordResetToken(token);
-    
-    res.status(200).json({ 
+
+    res.status(200).json({
       message: 'Reset token is valid',
       user: {
         id: user.id,
@@ -250,7 +258,7 @@ const resetPassword = async (req, res) => {
     }
 
     const user = await resetPasswordWithToken(token, newPassword);
-    
+
     // Log the password reset activity
     try {
       await require('../models/userModel').logUserActivity(user.id, 'password_reset', {
@@ -261,7 +269,7 @@ const resetPassword = async (req, res) => {
       console.error('Failed to log password reset activity:', activityError);
     }
 
-    res.status(200).json({ 
+    res.status(200).json({
       message: 'Password has been reset successfully',
       user: {
         id: user.id,
@@ -275,8 +283,8 @@ const resetPassword = async (req, res) => {
   }
 };
 
-module.exports = { 
-  registerUser, 
+module.exports = {
+  registerUser,
   loginUser,
   logoutUser,
   validateRegistration,

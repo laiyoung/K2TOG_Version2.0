@@ -10,6 +10,7 @@ const Signup = () => {
         firstName: '',
         lastName: '',
         email: '',
+        phoneNumber: '',
         password: '',
         confirmPassword: '',
     });
@@ -35,6 +36,10 @@ const Signup = () => {
         }
         if (formData.lastName.trim().length < 2) {
             errors.lastName = 'Last name must be at least 2 characters';
+        }
+        // Phone number validation (optional but if provided, must be valid)
+        if (formData.phoneNumber.trim() && !/^\+?1?\d{10}$/.test(formData.phoneNumber.replace(/[^0-9+]/g, ''))) {
+            errors.phoneNumber = 'Please enter a valid phone number (10 digits)';
         }
         return errors;
     };
@@ -83,7 +88,7 @@ const Signup = () => {
                 status: 'active',
                 first_name: formFields.firstName,
                 last_name: formFields.lastName,
-                phone_number: null,
+                phone_number: formFields.phoneNumber.trim() || null,
                 email_notifications: true,
 
             };
@@ -185,6 +190,27 @@ const Signup = () => {
                         />
                         {validationErrors.email && (
                             <p className="mt-1 text-sm text-red-600">{validationErrors.email}</p>
+                        )}
+                    </div>
+
+                    <div>
+                        <label htmlFor="phoneNumber" className="block text-sm uppercase tracking-widest mb-2" style={{ color: '#979797', fontSize: '13px', fontFamily: 'Montserrat, sans-serif' }}>
+                            Phone number (optional)
+                        </label>
+                        <input
+                            id="phoneNumber"
+                            name="phoneNumber"
+                            type="tel"
+                            autoComplete="tel"
+                            value={formData.phoneNumber}
+                            onChange={handleChange}
+                            disabled={loading}
+                            className={getInputClassName('phoneNumber')}
+                            placeholder="Enter your phone number"
+                            style={{ fontFamily: 'Montserrat, sans-serif' }}
+                        />
+                        {validationErrors.phoneNumber && (
+                            <p className="mt-1 text-sm text-red-600">{validationErrors.phoneNumber}</p>
                         )}
                     </div>
 
