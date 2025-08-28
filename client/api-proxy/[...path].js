@@ -1,11 +1,20 @@
+// Vercel serverless function to proxy API requests to backend
 export default async function handler(req, res) {
+    // Enable CORS for all requests
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+    // Handle preflight requests
+    if (req.method === 'OPTIONS') {
+        return res.status(200).end();
+    }
+
     const { path } = req.query;
 
     // Get the backend URL from environment variables
-    // Priority: VITE_APP_URL > RAILWAY_BACKEND_URL > fallback to your actual backend URL
     const backendUrl = process.env.VITE_APP_URL ||
-        process.env.RAILWAY_BACKEND_URL ||
-        'https://your-backend-url.railway.app'; // Replace with your actual backend URL
+        process.env.RAILWAY_BACKEND_URL;
 
     if (!backendUrl) {
         console.error('Backend URL not configured. Environment variables:', {
@@ -14,8 +23,9 @@ export default async function handler(req, res) {
         });
 
         return res.status(500).json({
-            error: 'Backend URL not configured. Please set VITE_APP_URL or RAILWAY_BACKEND_URL environment variable in Vercel dashboard.',
-            details: 'Check your Vercel environment variables and ensure the backend URL is correctly set.'
+            error: 'Backend URL not configured',
+            details: 'Please set VITE_APP_URL or RAILWAY_BACKEND_URL in Vercel environment variables',
+            timestamp: new Date().toISOString()
         });
     }
 
@@ -24,9 +34,7 @@ export default async function handler(req, res) {
         ? `${backendUrl}/api/${path.join('/')}`
         : `https://${backendUrl}/api/${path.join('/')}`;
 
-    console.log(`Proxying ${req.method} request from /api/${path.join('/')} to ${fullBackendUrl}`);
-    console.log('Request body:', req.body);
-    console.log('Request headers:', req.headers);
+    console.log(`[${new Date().toISOString()}] Proxying ${req.method} /api/${path.join('/')} to ${fullBackendUrl}`);
 
     try {
         // Prepare headers for the backend request
@@ -46,16 +54,10 @@ export default async function handler(req, res) {
         // Prepare the request body
         let body;
         if (req.method !== 'GET' && req.method !== 'HEAD' && req.body) {
-            // If the body is already a string, use it as is
-            if (typeof req.body === 'string') {
-                body = req.body;
-            } else {
-                // Otherwise, stringify it
-                body = JSON.stringify(req.body);
-            }
+            body = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
         }
 
-        console.log('Sending request with body:', body);
+        console.log(`[${new Date().toISOString()}] Request body:`, body);
 
         // Forward the request to the backend
         const response = await fetch(fullBackendUrl, {
@@ -64,22 +66,10 @@ export default async function handler(req, res) {
             body
         });
 
-        console.log('Backend response status:', response.status);
-        console.log('Backend response headers:', Object.fromEntries(response.headers.entries()));
+        console.log(`[${new Date().toISOString()}] Backend response status:`, response.status);
 
         // Get the response data
         const data = await response.text();
-        console.log('Backend response data:', data);
-
-        // Set CORS headers
-        res.setHeader('Access-Control-Allow-Origin', '*');
-        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-
-        // Handle preflight requests
-        if (req.method === 'OPTIONS') {
-            return res.status(200).end();
-        }
 
         // Forward the response status
         res.status(response.status);
@@ -95,19 +85,14 @@ export default async function handler(req, res) {
         }
 
     } catch (error) {
-        console.error('Proxy error:', error);
-        console.error('Request details:', {
-            method: req.method,
-            path: path.join('/'),
-            backendUrl: fullBackendUrl,
-            error: error.message
-        });
+        console.error(`[${new Date().toISOString()}] Proxy error:`, error);
 
         res.status(500).json({
             error: 'Failed to proxy request to backend',
             details: error.message,
             path: path.join('/'),
-            backendUrl: fullBackendUrl
+            backendUrl: fullBackendUrl,
+            timestamp: new Date().toISOString()
         });
     }
 }
