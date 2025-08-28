@@ -46,6 +46,8 @@ import adminService from "../../services/adminService";
 import { useSnackbar } from "notistack";
 
 const NotificationCenter = () => {
+  console.log('NotificationCenter: Component rendering...');
+
   const { enqueueSnackbar } = useSnackbar();
   const errorTimeoutRef = React.useRef();
 
@@ -55,6 +57,22 @@ const NotificationCenter = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [templates, setTemplates] = useState([]);
+  const [broadcastMessage, setBroadcastMessage] = useState("");
+  const [broadcastTitle, setBroadcastTitle] = useState("");
+  const [broadcastProgress, setBroadcastProgress] = useState({ isProcessing: false, message: "" });
+  const [broadcastStats, setBroadcastStats] = useState(null);
+  const [newTemplate, setNewTemplate] = useState({
+    name: "",
+    content: "",
+    recipientType: "user",
+    variables: [],
+  });
+  const [editingTemplate, setEditingTemplate] = useState(null);
+  const [selectedTemplateId, setSelectedTemplateId] = useState("");
+  const [classes, setClasses] = useState([]);
+  const [classesLoaded, setClassesLoaded] = useState(false);
+  const [selectedNotification, setSelectedNotification] = useState(null);
+  const [notificationDialogOpen, setNotificationDialogOpen] = useState(false);
   const [showSendDialog, setShowSendDialog] = useState(false);
   const [showTemplateDialog, setShowTemplateDialog] = useState(false);
   const [showBroadcastDialog, setShowBroadcastDialog] = useState(false);
@@ -65,33 +83,132 @@ const NotificationCenter = () => {
   const [notificationTitle, setNotificationTitle] = useState("");
   const [studentSearchTerm, setStudentSearchTerm] = useState("");
   const [filteredStudents, setFilteredStudents] = useState([]);
-  const [broadcastMessage, setBroadcastMessage] = useState("");
-  const [broadcastTitle, setBroadcastTitle] = useState("");
-  const [newTemplate, setNewTemplate] = useState({
-    name: "",
-    content: "",
-    recipientType: "user",
-    variables: [],
-  });
-  const [selectedNotification, setSelectedNotification] = useState(null);
-  const [notificationDialogOpen, setNotificationDialogOpen] = useState(false);
   const [users, setUsers] = useState([]);
-  const [classes, setClasses] = useState([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
-  const [editingTemplate, setEditingTemplate] = useState(null);
-  const [selectedTemplateId, setSelectedTemplateId] = useState("");
-  const [classesLoaded, setClassesLoaded] = useState(false);
+
+  // Add refs to prevent duplicate API calls
+  const hasInitialized = React.useRef(false);
+  const hasFetchedUsers = React.useRef(false);
+  const hasFetchedClasses = React.useRef(false);
+  const hasFetchedTemplates = React.useRef(false);
+  const hasFetchedNotifications = React.useRef(false);
+  const isMounted = React.useRef(false);
+
+  // Add state flags as backup for duplicate prevention
+  const [dataFetched, setDataFetched] = useState({
+    users: false,
+    classes: false,
+    templates: false,
+    notifications: false,
+  });
+
+  // Check session storage for already fetched data
+  const checkSessionStorage = () => {
+    const storageKey = 'NotificationCenter_DataFetched';
+    try {
+      const stored = localStorage.getItem(storageKey);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        // Don't call setDataFetched here to avoid re-renders during initial check
+        return parsed;
+      }
+    } catch (error) {
+      console.warn('Failed to parse localStorage:', error);
+    }
+    return null;
+  };
+
+  // Save to localStorage
+  const saveToLocalStorage = (key, value) => {
+    const storageKey = 'NotificationCenter_DataFetched';
+    try {
+      const current = { ...dataFetched, [key]: value };
+      setDataFetched(current);
+      localStorage.setItem(storageKey, JSON.stringify(current));
+      console.log(`NotificationCenter: Saved ${key} to localStorage:`, current);
+    } catch (error) {
+      console.warn('Failed to save to localStorage:', error);
+    }
+  };
+
+  // Global flag to prevent multiple instances from running simultaneously
+  const globalInitKey = 'NotificationCenter_GlobalInit';
+  const isGlobalInitializing = () => {
+    try {
+      return localStorage.getItem(globalInitKey) === 'true';
+    } catch (error) {
+      return false;
+    }
+  };
+
+  const setGlobalInitializing = (value) => {
+    try {
+      localStorage.setItem(globalInitKey, value.toString());
+    } catch (error) {
+      console.warn('Failed to set global init flag:', error);
+    }
+  };
 
   // Fetch users and classes when component mounts
   useEffect(() => {
-    fetchUsers();
-    fetchClasses();
+    // Prevent multiple executions
+    if (isMounted.current) {
+      console.log('NotificationCenter: Component already mounted, skipping...');
+      return;
+    }
+
+    isMounted.current = true;
+
+    // Check if another instance is already initializing
+    if (isGlobalInitializing()) {
+      console.log('NotificationCenter: Another instance is initializing, skipping...');
+      return;
+    }
+
+    // Set global initialization flag
+    setGlobalInitializing(true);
+
+    // Check localStorage first
+    const storedData = checkSessionStorage();
+    console.log('NotificationCenter: Users/Classes useEffect - localStorage data:', storedData);
+
+    // Set dataFetched state once based on localStorage data
+    if (storedData) {
+      setDataFetched(storedData);
+    }
+
+    // Only fetch if not already fetched
+    if (!storedData?.users) {
+      fetchUsers();
+    } else {
+      console.log('NotificationCenter: Users already in localStorage, skipping fetchUsers');
+    }
+
+    if (!storedData?.classes) {
+      fetchClasses();
+    } else {
+      console.log('NotificationCenter: Classes already in localStorage, skipping fetchClasses');
+    }
+
+    // Clear global initialization flag after a short delay
+    setTimeout(() => {
+      setGlobalInitializing(false);
+    }, 1000);
   }, []);
 
-  const fetchUsers = async () => {
+  const fetchUsers = React.useCallback(async () => {
     try {
+      // Prevent duplicate API calls using both refs and state
+      if (hasFetchedUsers.current || dataFetched.users) {
+        console.log('NotificationCenter: Users already fetched, skipping...');
+        return;
+      }
+
       setLoadingUsers(true);
       console.log('Fetching users in NotificationCenter...');
+      hasFetchedUsers.current = true;
+      saveToLocalStorage('users', true);
+
       const response = await adminService.getAllUsers();
       console.log('Users fetched in NotificationCenter:', response);
 
@@ -102,18 +219,16 @@ const NotificationCenter = () => {
         return;
       }
 
-      const validUsers = response
-        .filter(user => {
-          const isValid = user &&
-            user.role === 'student' &&
-            user.id &&
-            (user.first_name || user.last_name || user.email);
+      const validUsers = response.filter(user => {
+        const isValid = user &&
+          user.id &&
+          (user.first_name || user.last_name || user.email);
 
-          if (!isValid) {
-            console.warn('Invalid user data:', user);
-          }
-          return isValid;
-        })
+        if (!isValid) {
+          console.warn('Invalid user data:', user);
+        }
+        return isValid;
+      })
         .map(user => ({
           ...user,
           displayName: user.first_name && user.last_name
@@ -130,12 +245,21 @@ const NotificationCenter = () => {
     } finally {
       setLoadingUsers(false);
     }
-  };
+  }, [dataFetched.users]);
 
-  const fetchClasses = async () => {
+  const fetchClasses = React.useCallback(async () => {
     try {
+      // Prevent duplicate API calls using both refs and state
+      if (hasFetchedClasses.current || dataFetched.classes) {
+        console.log('NotificationCenter: Classes already fetched, skipping...');
+        return;
+      }
+
       setLoading(true);
       setError(false);
+      hasFetchedClasses.current = true;
+      saveToLocalStorage('classes', true);
+
       const response = await adminService.getAllClasses();
       console.log('Fetched classes:', response);
       setClasses(response);
@@ -147,21 +271,55 @@ const NotificationCenter = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [dataFetched.classes]);
 
   useEffect(() => {
-    fetchNotifications();
-    fetchTemplates();
-    if (activeTab === 1) { // If on sent notifications tab
-      fetchSentNotifications();
+    // Only fetch notifications and templates once when component mounts
+    if (!hasInitialized.current && isMounted.current) {
+      console.log('NotificationCenter: Initializing notifications and templates...');
+      hasInitialized.current = true;
+
+      // Check if we already have data from localStorage
+      const storedData = checkSessionStorage();
+      if (storedData?.notifications && storedData?.templates) {
+        console.log('NotificationCenter: Notifications and templates already fetched, skipping...');
+        return;
+      }
+
+      fetchNotifications();
+      fetchTemplates();
     }
+
     return () => {
       // Clear any pending error timeout when component unmounts
       if (errorTimeoutRef.current) {
         clearTimeout(errorTimeoutRef.current);
       }
+
+      // Reset refs when component unmounts
+      hasInitialized.current = false;
+      hasFetchedUsers.current = false;
+      hasFetchedClasses.current = false;
+      hasFetchedTemplates.current = false;
+      hasFetchedNotifications.current = false;
+      isMounted.current = false;
+
+      // Clear localStorage on unmount
+      try {
+        localStorage.removeItem('NotificationCenter_DataFetched');
+        localStorage.removeItem(globalInitKey);
+      } catch (error) {
+        console.warn('Failed to clear localStorage:', error);
+      }
     };
-  }, [activeTab]); // Add activeTab as dependency
+  }, []); // Empty dependency array - only run once on mount
+
+  // Separate effect for sent notifications when tab changes
+  useEffect(() => {
+    if (activeTab === 1) { // If on sent notifications tab
+      fetchSentNotifications();
+    }
+  }, [activeTab]); // Only depend on activeTab
 
   // Filter students based on search term
   useEffect(() => {
@@ -174,19 +332,31 @@ const NotificationCenter = () => {
       const searchTerm = studentSearchTerm.toLowerCase().trim();
       const filtered = users.filter(user => {
         if (!user) return false;
-        const name = (user.name || '').toLowerCase();
+        const firstName = (user.first_name || '').toLowerCase();
+        const lastName = (user.last_name || '').toLowerCase();
+        const fullName = `${firstName} ${lastName}`.trim();
         const email = (user.email || '').toLowerCase();
-        return name.includes(searchTerm) || email.includes(searchTerm);
+        return fullName.includes(searchTerm) || email.includes(searchTerm);
       });
       setFilteredStudents(filtered);
     } else {
-      setFilteredStudents(users.filter(user => user && user.name)); // Only include valid users
+      setFilteredStudents(users.filter(user => user && (user.first_name || user.last_name || user.email))); // Only include valid users
     }
   }, [studentSearchTerm, users]);
 
-  const fetchNotifications = async () => {
+  const fetchNotifications = React.useCallback(async () => {
     try {
+      // Prevent duplicate API calls using both refs and state
+      if (hasFetchedNotifications.current || dataFetched.notifications) {
+        console.log('NotificationCenter: Notifications already fetched, skipping...');
+        return;
+      }
+
+      console.log('NotificationCenter: Fetching notifications...');
       setLoading(true);
+      hasFetchedNotifications.current = true;
+      saveToLocalStorage('notifications', true);
+
       const response = await adminService.getNotifications();
       setNotifications(Array.isArray(response) ? response : []);
     } catch (error) {
@@ -196,7 +366,7 @@ const NotificationCenter = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [dataFetched.notifications]);
 
   const fetchSentNotifications = async () => {
     try {
@@ -278,10 +448,19 @@ const NotificationCenter = () => {
     }
   };
 
-  const fetchTemplates = async () => {
+  const fetchTemplates = React.useCallback(async () => {
     try {
+      // Prevent duplicate API calls using both refs and state
+      if (hasFetchedTemplates.current || dataFetched.templates) {
+        console.log('NotificationCenter: Templates already fetched, skipping...');
+        return;
+      }
+
       setLoading(true);
       console.log('Fetching templates...');
+      hasFetchedTemplates.current = true;
+      saveToLocalStorage('templates', true);
+
       const response = await adminService.getTemplates();
       console.log('Templates fetched:', response);
 
@@ -309,7 +488,7 @@ const NotificationCenter = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [dataFetched.templates]);
 
   const handleTabChange = (_, newValue) => {
     setActiveTab(newValue);
@@ -593,25 +772,51 @@ const NotificationCenter = () => {
   const handleBroadcast = async () => {
     try {
       setLoading(true);
+      setBroadcastProgress({ isProcessing: true, message: "Preparing broadcast..." });
+
       if (!broadcastTitle.trim() || !broadcastMessage.trim()) {
         enqueueSnackbar("Please provide both a title and message for the broadcast", { variant: "error", style: { zIndex: 1450 } });
+        setBroadcastProgress({ isProcessing: false, message: "" });
         return;
       }
+
+      setBroadcastProgress({ isProcessing: true, message: "Sending broadcast to all users..." });
+
       const response = await adminService.sendBroadcast({
         title: broadcastTitle,
         message: broadcastMessage,
         is_broadcast: true
       });
 
+      // Show immediate success feedback
+      setBroadcastProgress({ isProcessing: false, message: "Broadcast sent successfully! Processing emails in background..." });
+      setBroadcastStats({
+        sent_count: response.data?.sent_count || 0,
+        total_users: response.data?.total_users || 0,
+        failed_count: response.data?.failed_count || 0
+      });
+
+      // Show success message
+      enqueueSnackbar(
+        `Broadcast sent successfully to ${response.data?.sent_count || 0} recipients! Emails are being processed in the background.`,
+        { variant: "success", style: { zIndex: 1450 } }
+      );
+
+      // Close dialog after a short delay to show the success state
+      setTimeout(() => {
+        setShowBroadcastDialog(false);
+        setBroadcastMessage("");
+        setBroadcastTitle("");
+        setBroadcastProgress({ isProcessing: false, message: "" });
+        setBroadcastStats(null);
+      }, 3000);
+
       // Refresh sent notifications to get the updated list from server
       await fetchSentNotifications();
 
-      enqueueSnackbar(`Broadcast sent successfully to ${response.sent_count || 0} recipients`, { variant: "success", style: { zIndex: 1450 } });
-      setShowBroadcastDialog(false);
-      setBroadcastMessage("");
-      setBroadcastTitle("");
     } catch (error) {
       console.error('Broadcast error:', error);
+      setBroadcastProgress({ isProcessing: false, message: "" });
       handleError(error, "Failed to send broadcast");
     } finally {
       setLoading(false);
@@ -1516,9 +1721,13 @@ const NotificationCenter = () => {
       <Dialog
         open={showBroadcastDialog}
         onClose={() => {
-          setShowBroadcastDialog(false);
-          setBroadcastMessage("");
-          setBroadcastTitle("");
+          if (!broadcastProgress.isProcessing) {
+            setShowBroadcastDialog(false);
+            setBroadcastMessage("");
+            setBroadcastTitle("");
+            setBroadcastProgress({ isProcessing: false, message: "" });
+            setBroadcastStats(null);
+          }
         }}
         aria-labelledby="broadcast-dialog-title"
         keepMounted={false}
@@ -1527,6 +1736,34 @@ const NotificationCenter = () => {
         <DialogTitle>Broadcast Message</DialogTitle>
         <DialogContent>
           <Box sx={{ mt: 2 }}>
+            {broadcastProgress.isProcessing && (
+              <Box sx={{ mb: 2, textAlign: 'center' }}>
+                <CircularProgress size={24} sx={{ mr: 1 }} />
+                <Typography variant="body2" color="text.secondary">
+                  {broadcastProgress.message}
+                </Typography>
+              </Box>
+            )}
+
+            {broadcastStats && (
+              <Box sx={{ mb: 2, p: 2, bgcolor: 'success.light', borderRadius: 1 }}>
+                <Typography variant="h6" color="success.dark" gutterBottom>
+                  ✅ Broadcast Completed Successfully!
+                </Typography>
+                <Typography variant="body2" color="success.dark">
+                  Sent to: {broadcastStats.sent_count} recipients
+                </Typography>
+                {broadcastStats.failed_count > 0 && (
+                  <Typography variant="body2" color="warning.dark">
+                    Failed: {broadcastStats.failed_count} recipients
+                  </Typography>
+                )}
+                <Typography variant="caption" color="success.dark" display="block" sx={{ mt: 1 }}>
+                  Emails are being processed in the background. This dialog will close automatically.
+                </Typography>
+              </Box>
+            )}
+
             <TextField
               fullWidth
               label="Broadcast Title"
@@ -1534,6 +1771,7 @@ const NotificationCenter = () => {
               onChange={(e) => setBroadcastTitle(e.target.value)}
               sx={{ mb: 2 }}
               helperText="Enter a title for your broadcast message"
+              disabled={broadcastProgress.isProcessing}
             />
             <TextField
               fullWidth
@@ -1543,24 +1781,33 @@ const NotificationCenter = () => {
               value={broadcastMessage}
               onChange={(e) => setBroadcastMessage(e.target.value)}
               helperText="This message will be sent to all users"
+              disabled={broadcastProgress.isProcessing}
             />
           </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => {
-            setShowBroadcastDialog(false);
-            setBroadcastMessage("");
-            setBroadcastTitle("");
-          }}>
+          <Button
+            onClick={() => {
+              if (!broadcastProgress.isProcessing) {
+                setShowBroadcastDialog(false);
+                setBroadcastMessage("");
+                setBroadcastTitle("");
+                setBroadcastProgress({ isProcessing: false, message: "" });
+                setBroadcastStats(null);
+              }
+            }}
+            disabled={broadcastProgress.isProcessing}
+          >
             Cancel
           </Button>
           <Button
             onClick={handleBroadcast}
             variant="contained"
             color="primary"
-            disabled={!broadcastTitle.trim() || !broadcastMessage.trim()}
+            disabled={!broadcastTitle.trim() || !broadcastMessage.trim() || broadcastProgress.isProcessing}
+            startIcon={broadcastProgress.isProcessing ? <CircularProgress size={16} /> : <BroadcastIcon />}
           >
-            Broadcast
+            {broadcastProgress.isProcessing ? 'Broadcasting...' : 'Broadcast'}
           </Button>
         </DialogActions>
       </Dialog>
