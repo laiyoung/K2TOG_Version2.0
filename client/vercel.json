@@ -3,19 +3,10 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "installCommand": "npm install --production=false",
-  "functions": {
-    "api-proxy/**/*.js": {
-      "runtime": "nodejs18.x"
-    }
-  },
   "rewrites": [
     {
       "source": "/api/(.*)",
       "destination": "/api-proxy/$1"
-    },
-    {
-      "source": "/api-proxy/test",
-      "destination": "/api-proxy/test.js"
     },
     {
       "source": "/(.*)",
