@@ -13,11 +13,6 @@
       "destination": "/index.html"
     }
   ],
-  "functions": {
-    "api-proxy/**": {
-      "runtime": "nodejs18.x"
-    }
-  },
   "headers": [
     {
       "source": "/api/(.*)",
