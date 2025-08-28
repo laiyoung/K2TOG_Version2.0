@@ -1,12 +1,13 @@
 export default async function handler(req, res) {
     const { path } = req.query;
 
-    // Get the backend URL from environment variable
+    // Get the backend URL from environment variables
+    // Try VITE_APP_URL first, then fallback to RAILWAY_BACKEND_URL
     const backendUrl = process.env.VITE_APP_URL || process.env.RAILWAY_BACKEND_URL;
 
     if (!backendUrl) {
         return res.status(500).json({
-            error: 'Backend URL not configured. Please set VITE_APP_URL or RAILWAY_BACKEND_URL environment variable.'
+            error: 'Backend URL not configured. Please set VITE_APP_URL or RAILWAY_BACKEND_URL environment variable in Vercel dashboard.'
         });
     }
 
