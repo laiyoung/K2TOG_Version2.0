@@ -7,13 +7,12 @@ const ProfileOverview = ({ profile, onSectionChange }) => {
 
     const getActiveClassesCount = (enrollments) => {
         if (!enrollments) return 0;
-        // If sessions exist, count total sessions in approved enrollments
-        const approved = enrollments.filter(e => e.enrollment_status === 'approved');
-        if (approved.length > 0 && approved[0].sessions) {
-            return approved.reduce((acc, e) => acc + (e.sessions?.length || 0), 0);
-        }
-        // Fallback: count approved enrollments
-        return approved.length;
+        // Filter for approved enrollments that are still active (not historical)
+        const activeEnrollments = enrollments.filter(e =>
+            e.enrollment_status === 'approved' &&
+            e.enrollment_type === 'active'
+        );
+        return activeEnrollments.length;
     };
 
     const stats = [
