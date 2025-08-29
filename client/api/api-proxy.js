@@ -1,4 +1,4 @@
-// Vercel serverless function to proxy API requests to backend
+// API proxy function for Vercel serverless deployment
 export default async function handler(req, res) {
     // Enable CORS for all requests
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -10,7 +10,9 @@ export default async function handler(req, res) {
         return res.status(200).end();
     }
 
-    const { path } = req.query;
+    // Extract the path from the URL
+    const url = new URL(req.url, `https://${req.headers.host}`);
+    const pathSegments = url.pathname.replace('/api/', '').split('/').filter(Boolean);
 
     // Get the backend URL from environment variables
     const backendUrl = process.env.VITE_APP_URL ||
@@ -31,10 +33,10 @@ export default async function handler(req, res) {
 
     // Construct the full backend URL
     const fullBackendUrl = backendUrl.startsWith('http')
-        ? `${backendUrl}/api/${path.join('/')}`
-        : `https://${backendUrl}/api/${path.join('/')}`;
+        ? `${backendUrl}/api/${pathSegments.join('/')}`
+        : `https://${backendUrl}/api/${pathSegments.join('/')}`;
 
-    console.log(`[${new Date().toISOString()}] Proxying ${req.method} /api/${path.join('/')} to ${fullBackendUrl}`);
+    console.log(`[${new Date().toISOString()}] Proxying ${req.method} /api/${pathSegments.join('/')} to ${fullBackendUrl}`);
 
     try {
         // Prepare headers for the backend request
@@ -56,8 +58,6 @@ export default async function handler(req, res) {
         if (req.method !== 'GET' && req.method !== 'HEAD' && req.body) {
             body = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
         }
-
-        console.log(`[${new Date().toISOString()}] Request body:`, body);
 
         // Forward the request to the backend
         const response = await fetch(fullBackendUrl, {
@@ -90,7 +90,7 @@ export default async function handler(req, res) {
         res.status(500).json({
             error: 'Failed to proxy request to backend',
             details: error.message,
-            path: path.join('/'),
+            path: pathSegments.join('/'),
             backendUrl: fullBackendUrl,
             timestamp: new Date().toISOString()
         });
