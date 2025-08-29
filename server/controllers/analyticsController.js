@@ -14,9 +14,29 @@ const {
 const getDashboardSummary = async (req, res) => {
     try {
         const { startDate, endDate } = req.query;
-        
+
+        console.log('Dashboard summary request - Query params:', req.query);
+        console.log('Dashboard summary request - startDate:', startDate, 'endDate:', endDate);
+
         if (!startDate || !endDate) {
             return res.status(400).json({ error: 'Start date and end date are required' });
+        }
+
+        // Validate date format (YYYY-MM-DD)
+        const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+        if (!dateRegex.test(startDate) || !dateRegex.test(endDate)) {
+            return res.status(400).json({
+                error: 'Invalid date format. Dates must be in YYYY-MM-DD format',
+                received: { startDate, endDate }
+            });
+        }
+
+        // Validate that startDate is before or equal to endDate
+        if (new Date(startDate) > new Date(endDate)) {
+            return res.status(400).json({
+                error: 'Start date must be before or equal to end date',
+                received: { startDate, endDate }
+            });
         }
 
         const summary = await getDashboardSummaryModel({ startDate, endDate });
@@ -33,9 +53,40 @@ const getDashboardSummary = async (req, res) => {
 const getRevenueAnalytics = async (req, res) => {
     try {
         const { startDate, endDate, groupBy } = req.query;
-        
+
+        console.log('Revenue analytics request - Query params:', req.query);
+        console.log('Revenue analytics request - startDate:', startDate, 'endDate:', endDate);
+
         if (!startDate || !endDate) {
             return res.status(400).json({ error: 'Start date and end date are required' });
+        }
+
+        // Validate date format (YYYY-MM-DD)
+        const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+        if (!dateRegex.test(startDate) || !dateRegex.test(endDate)) {
+            return res.status(400).json({
+                error: 'Invalid date format. Dates must be in YYYY-MM-DD format',
+                received: { startDate, endDate }
+            });
+        }
+
+        // Validate that startDate is before or equal to endDate
+        if (new Date(startDate) > new Date(endDate)) {
+            return res.status(400).json({
+                error: 'Start date must be before or equal to end date',
+                received: { startDate, endDate }
+            });
+        }
+
+        // Validate that dates are not in the future
+        const today = new Date();
+        today.setHours(23, 59, 59, 999); // End of today
+        if (new Date(endDate) > today) {
+            return res.status(400).json({
+                error: 'End date cannot be in the future',
+                received: { startDate, endDate },
+                today: today.toISOString().slice(0, 10)
+            });
         }
 
         const analytics = await getRevenueAnalyticsModel({
@@ -43,7 +94,7 @@ const getRevenueAnalytics = async (req, res) => {
             endDate,
             groupBy: groupBy || 'month'
         });
-        
+
         res.json(analytics);
     } catch (error) {
         console.error('Get revenue analytics error:', error);
@@ -57,16 +108,47 @@ const getRevenueAnalytics = async (req, res) => {
 const getRevenueByClass = async (req, res) => {
     try {
         const { startDate, endDate } = req.query;
-        
+
+        console.log('Revenue by class request - Query params:', req.query);
+        console.log('Revenue by class request - startDate:', startDate, 'endDate:', endDate);
+
         if (!startDate || !endDate) {
             return res.status(400).json({ error: 'Start date and end date are required' });
+        }
+
+        // Validate date format (YYYY-MM-DD)
+        const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+        if (!dateRegex.test(startDate) || !dateRegex.test(endDate)) {
+            return res.status(400).json({
+                error: 'Invalid date format. Dates must be in YYYY-MM-DD format',
+                received: { startDate, endDate }
+            });
+        }
+
+        // Validate that startDate is before or equal to endDate
+        if (new Date(startDate) > new Date(endDate)) {
+            return res.status(400).json({
+                error: 'Start date must be before or equal to end date',
+                received: { startDate, endDate }
+            });
+        }
+
+        // Validate that dates are not in the future
+        const today = new Date();
+        today.setHours(23, 59, 59, 999); // End of today
+        if (new Date(endDate) > today) {
+            return res.status(400).json({
+                error: 'End date cannot be in the future',
+                received: { startDate, endDate },
+                today: today.toISOString().slice(0, 10)
+            });
         }
 
         const analytics = await getRevenueByClassModel({
             startDate,
             endDate
         });
-        
+
         res.json(analytics);
     } catch (error) {
         console.error('Get revenue by class error:', error);
@@ -80,9 +162,40 @@ const getRevenueByClass = async (req, res) => {
 const getEnrollmentTrends = async (req, res) => {
     try {
         const { startDate, endDate, groupBy } = req.query;
-        
+
+        console.log('Enrollment trends request - Query params:', req.query);
+        console.log('Enrollment trends request - startDate:', startDate, 'endDate:', endDate);
+
         if (!startDate || !endDate) {
             return res.status(400).json({ error: 'Start date and end date are required' });
+        }
+
+        // Validate date format (YYYY-MM-DD)
+        const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+        if (!dateRegex.test(startDate) || !dateRegex.test(endDate)) {
+            return res.status(400).json({
+                error: 'Invalid date format. Dates must be in YYYY-MM-DD format',
+                received: { startDate, endDate }
+            });
+        }
+
+        // Validate that startDate is before or equal to endDate
+        if (new Date(startDate) > new Date(endDate)) {
+            return res.status(400).json({
+                error: 'Start date must be before or equal to end date',
+                received: { startDate, endDate }
+            });
+        }
+
+        // Validate that dates are not in the future
+        const today = new Date();
+        today.setHours(23, 59, 59, 999); // End of today
+        if (new Date(endDate) > today) {
+            return res.status(400).json({
+                error: 'End date cannot be in the future',
+                received: { startDate, endDate },
+                today: today.toISOString().slice(0, 10)
+            });
         }
 
         const trends = await getEnrollmentTrendsModel({
@@ -90,7 +203,7 @@ const getEnrollmentTrends = async (req, res) => {
             endDate,
             groupBy: groupBy || 'month'
         });
-        
+
         res.json(trends);
     } catch (error) {
         console.error('Get enrollment trends error:', error);
@@ -104,16 +217,47 @@ const getEnrollmentTrends = async (req, res) => {
 const getClassEnrollmentStats = async (req, res) => {
     try {
         const { startDate, endDate } = req.query;
-        
+
+        console.log('Class enrollment stats request - Query params:', req.query);
+        console.log('Class enrollment stats request - startDate:', startDate, 'endDate:', endDate);
+
         if (!startDate || !endDate) {
             return res.status(400).json({ error: 'Start date and end date are required' });
+        }
+
+        // Validate date format (YYYY-MM-DD)
+        const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+        if (!dateRegex.test(startDate) || !dateRegex.test(endDate)) {
+            return res.status(400).json({
+                error: 'Invalid date format. Dates must be in YYYY-MM-DD format',
+                received: { startDate, endDate }
+            });
+        }
+
+        // Validate that startDate is before or equal to endDate
+        if (new Date(startDate) > new Date(endDate)) {
+            return res.status(400).json({
+                error: 'Start date must be before or equal to end date',
+                received: { startDate, endDate }
+            });
+        }
+
+        // Validate that dates are not in the future
+        const today = new Date();
+        today.setHours(23, 59, 59, 999); // End of today
+        if (new Date(endDate) > today) {
+            return res.status(400).json({
+                error: 'End date cannot be in the future',
+                received: { startDate, endDate },
+                today: today.toISOString().slice(0, 10)
+            });
         }
 
         const stats = await getClassEnrollmentStatsModel({
             startDate,
             endDate
         });
-        
+
         res.json(stats);
     } catch (error) {
         console.error('Get class enrollment stats error:', error);
@@ -127,16 +271,47 @@ const getClassEnrollmentStats = async (req, res) => {
 const getUserEngagementMetrics = async (req, res) => {
     try {
         const { startDate, endDate } = req.query;
-        
+
+        console.log('User engagement metrics request - Query params:', req.query);
+        console.log('User engagement metrics request - startDate:', startDate, 'endDate:', endDate);
+
         if (!startDate || !endDate) {
             return res.status(400).json({ error: 'Start date and end date are required' });
+        }
+
+        // Validate date format (YYYY-MM-DD)
+        const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+        if (!dateRegex.test(startDate) || !dateRegex.test(endDate)) {
+            return res.status(400).json({
+                error: 'Invalid date format. Dates must be in YYYY-MM-DD format',
+                received: { startDate, endDate }
+            });
+        }
+
+        // Validate that startDate is before or equal to endDate
+        if (new Date(startDate) > new Date(endDate)) {
+            return res.status(400).json({
+                error: 'Start date must be before or equal to end date',
+                received: { startDate, endDate }
+            });
+        }
+
+        // Validate that dates are not in the future
+        const today = new Date();
+        today.setHours(23, 59, 59, 999); // End of today
+        if (new Date(endDate) > today) {
+            return res.status(400).json({
+                error: 'End date cannot be in the future',
+                received: { startDate, endDate },
+                today: today.toISOString().slice(0, 10)
+            });
         }
 
         const metrics = await getUserEngagementMetricsModel({
             startDate,
             endDate
         });
-        
+
         res.json(metrics);
     } catch (error) {
         console.error('Get user engagement metrics error:', error);
@@ -150,9 +325,40 @@ const getUserEngagementMetrics = async (req, res) => {
 const getUserActivityTrends = async (req, res) => {
     try {
         const { startDate, endDate, groupBy } = req.query;
-        
+
+        console.log('User activity trends request - Query params:', req.query);
+        console.log('User activity trends request - startDate:', startDate, 'endDate:', endDate);
+
         if (!startDate || !endDate) {
             return res.status(400).json({ error: 'Start date and end date are required' });
+        }
+
+        // Validate date format (YYYY-MM-DD)
+        const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+        if (!dateRegex.test(startDate) || !dateRegex.test(endDate)) {
+            return res.status(400).json({
+                error: 'Invalid date format. Dates must be in YYYY-MM-DD format',
+                received: { startDate, endDate }
+            });
+        }
+
+        // Validate that startDate is before or equal to endDate
+        if (new Date(startDate) > new Date(endDate)) {
+            return res.status(400).json({
+                error: 'Start date must be before or equal to end date',
+                received: { startDate, endDate }
+            });
+        }
+
+        // Validate that dates are not in the future
+        const today = new Date();
+        today.setHours(23, 59, 59, 999); // End of today
+        if (new Date(endDate) > today) {
+            return res.status(400).json({
+                error: 'End date cannot be in the future',
+                received: { startDate, endDate },
+                today: today.toISOString().slice(0, 10)
+            });
         }
 
         const trends = await getUserActivityTrendsModel({
@@ -160,7 +366,7 @@ const getUserActivityTrends = async (req, res) => {
             endDate,
             groupBy: groupBy || 'month'
         });
-        
+
         res.json(trends);
     } catch (error) {
         console.error('Get user activity trends error:', error);

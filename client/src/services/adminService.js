@@ -68,8 +68,27 @@ const adminService = {
         const now = new Date();
         const defaultStart = new Date(now.getFullYear(), 0, 1);
         const defaultEnd = now;
-        const startDate = filters.startDate || defaultStart.toISOString().slice(0, 10);
-        const endDate = filters.endDate || defaultEnd.toISOString().slice(0, 10);
+
+        // Use local date formatting to avoid timezone issues
+        const formatLocalDate = (date) => {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        };
+
+        const startDate = filters.startDate || formatLocalDate(defaultStart);
+        const endDate = filters.endDate || formatLocalDate(defaultEnd);
+
+        console.log(`getAnalytics(${type}) - Date calculations:`, {
+            now: now.toISOString(),
+            defaultStart: defaultStart.toISOString(),
+            defaultEnd: defaultEnd.toISOString(),
+            startDate,
+            endDate,
+            filters
+        });
+
         const queryParams = new URLSearchParams({ ...filters, startDate, endDate }).toString();
         const endpoint = type === 'summary' ? 'summary' :
             type === 'revenue' ? 'revenue' :
@@ -99,9 +118,33 @@ const adminService = {
         const now = new Date();
         const defaultStart = new Date(now.getFullYear(), 0, 1);
         const defaultEnd = now;
-        const startDate = filters.startDate || defaultStart.toISOString().slice(0, 10);
-        const endDate = filters.endDate || defaultEnd.toISOString().slice(0, 10);
-        const dateFilters = { ...filters, startDate, endDate };
+
+        // Use local date formatting to avoid timezone issues
+        const formatLocalDate = (date) => {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        };
+
+        const startDate = filters.startDate || formatLocalDate(defaultStart);
+        const endDate = filters.endDate || formatLocalDate(defaultEnd);
+
+        // Ensure we don't send future dates
+        const today = formatLocalDate(new Date());
+        const finalEndDate = endDate > today ? today : endDate;
+
+        console.log('fetchAllAnalytics - Date calculations:', {
+            now: now.toISOString(),
+            defaultStart: defaultStart.toISOString(),
+            defaultEnd: defaultEnd.toISOString(),
+            startDate,
+            endDate: finalEndDate,
+            today,
+            filters
+        });
+
+        const dateFilters = { ...filters, startDate, endDate: finalEndDate };
         const [
             summary,
             revenue,

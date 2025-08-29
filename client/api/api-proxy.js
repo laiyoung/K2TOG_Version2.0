@@ -33,10 +33,12 @@ export default async function handler(req, res) {
 
     // Construct the full backend URL
     const fullBackendUrl = backendUrl.startsWith('http')
-        ? `${backendUrl}/api/${pathSegments.join('/')}`
-        : `https://${backendUrl}/api/${pathSegments.join('/')}`;
+        ? `${backendUrl}/api/${pathSegments.join('/')}${url.search}`
+        : `https://${backendUrl}/api/${pathSegments.join('/')}${url.search}`;
 
     console.log(`[${new Date().toISOString()}] Proxying ${req.method} /api/${pathSegments.join('/')} to ${fullBackendUrl}`);
+    console.log(`[${new Date().toISOString()}] Query parameters: ${url.search}`);
+    console.log(`[${new Date().toISOString()}] Full request URL: ${req.url}`);
 
     try {
         // Prepare headers for the backend request
