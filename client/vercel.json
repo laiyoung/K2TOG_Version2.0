@@ -19,10 +19,10 @@
   ],
   "functions": {
     "api/api-proxy.js": {
-      "maxDuration": 30
+      "maxDuration": 60
     },
     "api/test-proxy.js": {
-      "maxDuration": 10
+      "maxDuration": 30
     }
   },
   "headers": [

@@ -77,32 +77,56 @@ export default async function handler(req, res) {
             console.log(`[${new Date().toISOString()}] Request body:`, body);
         }
 
-        // Forward the request to the backend
-        const response = await fetch(fullBackendUrl, {
-            method: req.method,
-            headers,
-            body
-        });
+        // Create AbortController for timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 25000); // 25 second timeout
 
-        console.log(`[${new Date().toISOString()}] Backend response status:`, response.status);
-        console.log(`[${new Date().toISOString()}] Backend response headers:`, Object.fromEntries(response.headers.entries()));
-
-        // Get the response data
-        const data = await response.text();
-
-        // Forward the response status
-        res.status(response.status);
-
-        // Try to parse as JSON, fallback to text
         try {
-            const jsonData = JSON.parse(data);
-            console.log(`[${new Date().toISOString()}] Sending JSON response to client`);
-            res.json(jsonData);
-        } catch (parseError) {
-            // If it's not JSON, send as text
-            console.log(`[${new Date().toISOString()}] Sending text response to client (not JSON):`, data.substring(0, 200));
-            res.setHeader('Content-Type', 'text/plain');
-            res.send(data);
+            // Forward the request to the backend with timeout
+            const response = await fetch(fullBackendUrl, {
+                method: req.method,
+                headers,
+                body,
+                signal: controller.signal
+            });
+
+            clearTimeout(timeoutId);
+
+            console.log(`[${new Date().toISOString()}] Backend response status:`, response.status);
+            console.log(`[${new Date().toISOString()}] Backend response headers:`, Object.fromEntries(response.headers.entries()));
+
+            // Get the response data
+            const data = await response.text();
+
+            // Forward the response status
+            res.status(response.status);
+
+            // Try to parse as JSON, fallback to text
+            try {
+                const jsonData = JSON.parse(data);
+                console.log(`[${new Date().toISOString()}] Sending JSON response to client`);
+                res.json(jsonData);
+            } catch (parseError) {
+                // If it's not JSON, send as text
+                console.log(`[${new Date().toISOString()}] Sending text response to client (not JSON):`, data.substring(0, 200));
+                res.setHeader('Content-Type', 'text/plain');
+                res.send(data);
+            }
+        } catch (fetchError) {
+            clearTimeout(timeoutId);
+
+            if (fetchError.name === 'AbortError') {
+                console.error(`[${new Date().toISOString()}] Request timeout after 25 seconds`);
+                return res.status(504).json({
+                    error: 'Gateway Timeout',
+                    details: 'Backend request timed out after 25 seconds',
+                    path: pathSegments.join('/'),
+                    backendUrl: fullBackendUrl,
+                    timestamp: new Date().toISOString()
+                });
+            }
+
+            throw fetchError;
         }
 
     } catch (error) {
