@@ -488,7 +488,7 @@ const getAllEnrollments = async (filters = {}) => {
       u.email as student_email,
       c.title as class_name,
       c.location_details,
-      cs.session_date as class_date,
+      cs.session_date as session_date,
       cs.start_time,
       cs.end_time,
       cs.end_date,
@@ -506,8 +506,10 @@ const getAllEnrollments = async (filters = {}) => {
     LEFT JOIN class_sessions cs ON cs.id = e.session_id
     LEFT JOIN users reviewer ON reviewer.id = e.reviewed_by
     WHERE u.role NOT IN ('admin', 'instructor')
+    AND cs.id IS NOT NULL
+    AND cs.status = 'scheduled'
   `;
-  let countQuery = `SELECT COUNT(*) FROM enrollments e JOIN users u ON u.id = e.user_id WHERE u.role NOT IN ('admin', 'instructor')`;
+  let countQuery = `SELECT COUNT(*) FROM enrollments e JOIN users u ON u.id = e.user_id JOIN classes c ON c.id = e.class_id LEFT JOIN class_sessions cs ON cs.id = e.session_id WHERE u.role NOT IN ('admin', 'instructor') AND cs.id IS NOT NULL AND cs.status = 'scheduled'`;
 
   const queryParams = [];
   const countParams = [];
@@ -535,18 +537,30 @@ const getAllEnrollments = async (filters = {}) => {
     paramCount++;
   }
   if (start_date) {
-    query += ` AND e.enrolled_at >= $${paramCount}`;
-    countQuery += ` AND e.enrolled_at >= $${paramCount}`;
-    queryParams.push(start_date);
-    countParams.push(start_date);
-    paramCount++;
+    // For pending enrollments, don't apply date filtering - they should always be visible
+    if (status === 'pending' || status === 'all') {
+      // When viewing pending enrollments or all enrollments, don't filter by start date
+      // This ensures pending enrollments from future sessions are always visible
+    } else {
+      query += ` AND cs.session_date >= $${paramCount}`;
+      countQuery += ` AND cs.session_date >= $${paramCount}`;
+      queryParams.push(start_date);
+      countParams.push(start_date);
+      paramCount++;
+    }
   }
   if (end_date) {
-    query += ` AND e.enrolled_at <= $${paramCount}`;
-    countQuery += ` AND e.enrolled_at <= $${paramCount}`;
-    queryParams.push(end_date);
-    countParams.push(end_date);
-    paramCount++;
+    // For pending enrollments, don't apply date filtering - they should always be visible
+    if (status === 'pending' || status === 'all') {
+      // When viewing pending enrollments or all enrollments, don't filter by end date
+      // This ensures pending enrollments from future sessions are always visible
+    } else {
+      query += ` AND cs.session_date <= $${paramCount}`;
+      countQuery += ` AND cs.session_date <= $${paramCount}`;
+      queryParams.push(end_date);
+      countParams.push(end_date);
+      paramCount++;
+    }
   }
 
   query += ` ORDER BY e.enrolled_at DESC LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}`;

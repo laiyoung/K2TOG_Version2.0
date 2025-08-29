@@ -1,6 +1,14 @@
 const express = require('express');
 const router = express.Router();
-const { getClassSessionsWithStudents, updateSessionStatus, getSessionById, createSession, updateSession, deleteSession } = require('../controllers/sessionController');
+const {
+  getClassSessionsWithStudents,
+  updateSessionStatus,
+  getSessionById,
+  createSession,
+  updateSession,
+  deleteSession,
+  archiveCompletedSessionEnrollments
+} = require('../controllers/sessionController');
 const { requireAuth, authorizeRole } = require('../middleware/auth');
 
 // Get all sessions with students for a class
@@ -17,6 +25,14 @@ router.patch(
   requireAuth,
   authorizeRole(['admin', 'instructor']),
   updateSessionStatus
+);
+
+// Archive enrollments for completed session (admin only)
+router.post(
+  '/sessions/:sessionId/archive-enrollments',
+  requireAuth,
+  authorizeRole(['admin']),
+  archiveCompletedSessionEnrollments
 );
 
 // Get a single session (admin/instructor)

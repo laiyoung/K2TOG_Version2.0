@@ -47,9 +47,18 @@ function EnrollmentManagement() {
     const fetchAnalytics = async () => {
         try {
             console.log('Fetching analytics...');
+
+            // Format dates as YYYY-MM-DD to avoid timezone issues and future date validation errors
+            const formatLocalDate = (date) => {
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                return `${year}-${month}-${day}`;
+            };
+
             const data = await adminService.getAnalytics('enrollments', {
-                startDate: filters.dateRange.start.toISOString(),
-                endDate: filters.dateRange.end.toISOString()
+                startDate: formatLocalDate(filters.dateRange.start),
+                endDate: formatLocalDate(filters.dateRange.end)
             });
             console.log('Analytics data received:', data);
             setAnalytics(data);
@@ -62,10 +71,19 @@ function EnrollmentManagement() {
     const fetchEnrollments = async () => {
         try {
             setLoading(true);
+
+            // Format dates as YYYY-MM-DD to avoid timezone issues
+            const formatLocalDate = (date) => {
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                return `${year}-${month}-${day}`;
+            };
+
             const formattedFilters = {
                 ...filters,
-                startDate: filters.dateRange.start.toISOString(),
-                endDate: filters.dateRange.end.toISOString(),
+                startDate: formatLocalDate(filters.dateRange.start),
+                endDate: formatLocalDate(filters.dateRange.end),
                 page,
                 limit: pageSize
             };
@@ -119,13 +137,21 @@ function EnrollmentManagement() {
     const handleExportEnrollments = async () => {
         try {
             setLoading(true);
+            // Format dates for export filename
+            const formatLocalDate = (date) => {
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                return `${year}-${month}-${day}`;
+            };
+
             const data = await enrollmentService.exportEnrollments(filters);
             // Create and download CSV file
             const blob = new Blob([data], { type: 'text/csv' });
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `enrollments-${filters.dateRange.start.toISOString().split('T')[0]}-to-${filters.dateRange.end.toISOString().split('T')[0]}.csv`;
+            a.download = `enrollments-${formatLocalDate(filters.dateRange.start)}-to-${formatLocalDate(filters.dateRange.end)}.csv`;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
@@ -291,6 +317,13 @@ function EnrollmentManagement() {
                                     fontSize: { xs: '0.75rem', sm: '0.875rem' },
                                     backgroundColor: 'grey.50'
                                 }}>
+                                    Session Date
+                                </TableCell>
+                                <TableCell sx={{
+                                    fontWeight: 600,
+                                    fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                                    backgroundColor: 'grey.50'
+                                }}>
                                     Enrollment Date
                                 </TableCell>
                                 <TableCell sx={{
@@ -323,6 +356,12 @@ function EnrollmentManagement() {
                                         py: 2
                                     }}>
                                         {enrollment.class_name}
+                                    </TableCell>
+                                    <TableCell sx={{
+                                        fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                                        py: 2
+                                    }}>
+                                        {new Date(enrollment.session_date).toLocaleDateString()}
                                     </TableCell>
                                     <TableCell sx={{
                                         fontSize: { xs: '0.75rem', sm: '0.875rem' },

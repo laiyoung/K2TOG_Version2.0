@@ -21,7 +21,7 @@ import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { Download } from '@mui/icons-material';
-import { parseISO, isValid, format, subYears, startOfDay, endOfDay } from 'date-fns';
+import { parseISO, isValid, format, subYears, startOfDay, endOfDay, differenceInDays } from 'date-fns';
 
 ChartJS.register(
     CategoryScale,
@@ -65,12 +65,16 @@ const formatDateForAPI = (date) => {
     return format(date, 'yyyy-MM-dd');
 };
 
-// Helper to get default date range (last 6 months to today)
+// Helper to get default date range (end date to one year before)
 const getDefaultDateRange = () => {
-    const endDate = endOfDay(new Date());
-    const startDate = startOfDay(subYears(endDate, 0.5)); // Changed from 1 year to 6 months
+    const today = new Date();
+    // Set to start of day to avoid timezone issues
+    const endDate = startOfDay(today);
+    const startDate = startOfDay(subYears(today, 1)); // Always 1 year before end date
     return { startDate, endDate };
 };
+
+
 
 function AnalyticsDashboard() {
     const { showSuccess, showError } = useNotifications();
@@ -100,6 +104,9 @@ function AnalyticsDashboard() {
     const [error, setError] = useState(null);
     const [dateRange, setDateRange] = useState(getDefaultDateRange());
     const [selectedMetric, setSelectedMetric] = useState('revenue');
+    const [lastRefresh, setLastRefresh] = useState(null);
+    const [currentTime, setCurrentTime] = useState(new Date());
+
 
     // Memoize the date range string to prevent unnecessary re-renders
     const dateRangeString = useMemo(() => {
@@ -217,6 +224,9 @@ function AnalyticsDashboard() {
                 userEngagement: Array.isArray(userEngagement) ? userEngagement : [],
                 userActivity: []
             });
+
+            // Update last refresh time
+            setLastRefresh(new Date());
         } catch (err) {
             console.error('Error fetching analytics:', err);
             setError(err.message);
@@ -239,8 +249,18 @@ function AnalyticsDashboard() {
     const handleDateRangeChange = useCallback((newDateRange) => {
         console.log('handleDateRangeChange called with:', newDateRange);
         setDateRange(prev => {
-            const updated = { ...prev, ...newDateRange };
+            let updated = { ...prev, ...newDateRange };
             console.log('Date range updated from:', prev, 'to:', updated);
+
+            // If end date is being changed, automatically adjust start date to one year before
+            if (newDateRange.endDate && newDateRange.endDate !== prev.endDate) {
+                const oneYearBefore = startOfDay(subYears(newDateRange.endDate, 1));
+                updated = {
+                    ...updated,
+                    startDate: oneYearBefore
+                };
+                console.log('End date changed, auto-adjusting start date to:', oneYearBefore);
+            }
 
             // Validate dates
             if (updated.startDate && updated.endDate) {
@@ -248,6 +268,11 @@ function AnalyticsDashboard() {
                     showError('Start date cannot be after end date');
                     return prev;
                 }
+            }
+
+            // Log when date range was manually changed
+            if (newDateRange.startDate || newDateRange.endDate) {
+                console.log('Date range manually changed at:', new Date().toLocaleTimeString());
             }
 
             return updated;
@@ -291,21 +316,54 @@ function AnalyticsDashboard() {
 
     // Effect to fetch data when component mounts with default dates
     useEffect(() => {
+        const mountTime = new Date();
+        console.log('Component mounted at:', mountTime.toLocaleTimeString());
         console.log('Component mounted, initial date range:', dateRange);
         console.log('Default date range function result:', getDefaultDateRange());
+        console.log('Current date:', new Date());
+        console.log('Formatted dates for API:', {
+            startDate: formatDateForAPI(dateRange.startDate),
+            endDate: formatDateForAPI(dateRange.endDate)
+        });
         fetchAnalyticsData();
     }, []); // Empty dependency array means this runs once on mount
 
+    // Effect to update current time every second
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setCurrentTime(new Date());
+        }, 1000);
+
+        return () => clearInterval(interval);
+    }, []);
+
+    // Effect to automatically adjust start date when end date changes
+    useEffect(() => {
+        if (dateRange.endDate && dateRange.startDate) {
+            const oneYearBefore = startOfDay(subYears(dateRange.endDate, 1));
+
+            // Only auto-adjust if the start date is not already approximately one year before
+            // Allow for a small tolerance (within 5 days) to avoid unnecessary updates
+            const daysDifference = differenceInDays(dateRange.endDate, dateRange.startDate);
+            if (daysDifference < 360 || daysDifference > 370) { // 365 ± 5 days
+                setDateRange(prev => ({
+                    ...prev,
+                    startDate: oneYearBefore
+                }));
+            }
+        }
+    }, [dateRange.endDate]);
+
     // Memoize the summary cards to prevent unnecessary re-renders
     const summaryCards = useMemo(() => (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-            <div className="bg-white p-4 sm:p-6 rounded-lg shadow">
-                <h3 className="text-xs sm:text-sm font-medium text-gray-500">Monthly Revenue</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8">
+            <div className="bg-white p-6 sm:p-8 rounded-lg shadow">
+                <h3 className="text-sm sm:text-base font-medium text-gray-500">Monthly Revenue</h3>
                 {loadingStates.summary ? (
-                    <CircularProgress size={20} className="mt-2" />
+                    <CircularProgress size={20} className="mt-3" />
                 ) : (
                     <>
-                        <p className="mt-2 text-2xl sm:text-3xl font-semibold text-gray-900">
+                        <p className="mt-3 text-2xl sm:text-3xl font-semibold text-gray-900">
                             ${parseNumericValue(analyticsData.summary?.monthlyRevenue).toLocaleString()}
                         </p>
                         <p className="mt-2 text-xs sm:text-sm text-gray-600">
@@ -315,13 +373,13 @@ function AnalyticsDashboard() {
                 )}
             </div>
 
-            <div className="bg-white p-4 sm:p-6 rounded-lg shadow">
-                <h3 className="text-xs sm:text-sm font-medium text-gray-500">Active Enrollments</h3>
+            <div className="bg-white p-6 sm:p-8 rounded-lg shadow">
+                <h3 className="text-sm sm:text-base font-medium text-gray-500">Active Enrollments</h3>
                 {loadingStates.summary ? (
-                    <CircularProgress size={20} className="mt-2" />
+                    <CircularProgress size={20} className="mt-3" />
                 ) : (
                     <>
-                        <p className="mt-2 text-2xl sm:text-3xl font-semibold text-gray-900">
+                        <p className="mt-3 text-2xl sm:text-3xl font-semibold text-gray-900">
                             {parseNumericValue(analyticsData.summary?.activeEnrollments)}
                         </p>
                         <p className="mt-2 text-xs sm:text-sm text-gray-600">
@@ -331,13 +389,13 @@ function AnalyticsDashboard() {
                 )}
             </div>
 
-            <div className="bg-white p-4 sm:p-6 rounded-lg shadow">
-                <h3 className="text-xs sm:text-sm font-medium text-gray-500">Active Users</h3>
+            <div className="bg-white p-6 sm:p-8 rounded-lg shadow">
+                <h3 className="text-sm sm:text-base font-medium text-gray-500">Active Users</h3>
                 {loadingStates.summary ? (
-                    <CircularProgress size={20} className="mt-2" />
+                    <CircularProgress size={20} className="mt-3" />
                 ) : (
                     <>
-                        <p className="mt-2 text-2xl sm:text-3xl font-semibold text-gray-900">
+                        <p className="mt-3 text-2xl sm:text-3xl font-semibold text-gray-900">
                             {parseNumericValue(analyticsData.summary?.activeUsers)}
                         </p>
                         <p className="mt-2 text-xs sm:text-sm text-gray-600">
@@ -347,13 +405,13 @@ function AnalyticsDashboard() {
                 )}
             </div>
 
-            <div className="bg-white p-4 sm:p-6 rounded-lg shadow">
-                <h3 className="text-xs sm:text-sm font-medium text-gray-500">Active Classes</h3>
+            <div className="bg-white p-6 sm:p-8 rounded-lg shadow">
+                <h3 className="text-sm sm:text-base font-medium text-gray-500">Active Classes</h3>
                 {loadingStates.summary ? (
-                    <CircularProgress size={20} className="mt-2" />
+                    <CircularProgress size={20} className="mt-3" />
                 ) : (
                     <>
-                        <p className="mt-2 text-2xl sm:text-3xl font-semibold text-gray-900">
+                        <p className="mt-3 text-2xl sm:text-3xl font-semibold text-gray-900">
                             {parseNumericValue(analyticsData.summary?.activeClasses)}
                         </p>
                         <p className="mt-2 text-xs sm:text-sm text-gray-600">
@@ -367,10 +425,10 @@ function AnalyticsDashboard() {
 
     // Memoize the charts to prevent unnecessary re-renders
     const charts = useMemo(() => (
-        <Grid container spacing={3} sx={{ mt: 3 }}>
+        <Grid container spacing={4} sx={{ mt: 4 }}>
             <Grid item xs={12} lg={6}>
-                <Paper className="p-4 sm:p-6" sx={{ height: { xs: '350px', sm: '400px', md: '450px' } }}>
-                    <Typography variant="h6" gutterBottom sx={{ fontSize: { xs: '1rem', sm: '1.25rem' }, mb: 2 }}>
+                <Paper className="p-6 sm:p-8" sx={{ height: { xs: '350px', sm: '400px', md: '450px' } }}>
+                    <Typography variant="h6" gutterBottom sx={{ fontSize: { xs: '1rem', sm: '1.25rem' }, mb: 3 }}>
                         Enrollment Trends
                     </Typography>
                     {loadingStates.enrollmentTrends ? (
@@ -379,11 +437,6 @@ function AnalyticsDashboard() {
                         </div>
                     ) : analyticsData.enrollmentTrends && analyticsData.enrollmentTrends.length > 0 ? (
                         <div style={{ height: 'calc(100% - 60px)', position: 'relative' }}>
-                            {/* Debug info */}
-                            <div style={{ fontSize: '10px', color: '#666', marginBottom: '10px' }}>
-                                Data points: {analyticsData.enrollmentTrends.length} |
-                                Sample: {JSON.stringify(analyticsData.enrollmentTrends[0])}
-                            </div>
                             <Line
                                 data={{
                                     labels: analyticsData.enrollmentTrends.map(item => {
@@ -471,8 +524,8 @@ function AnalyticsDashboard() {
                 </Paper>
             </Grid>
             <Grid item xs={12} lg={6}>
-                <Paper className="p-4 sm:p-6" sx={{ height: { xs: '350px', sm: '400px', md: '450px' } }}>
-                    <Typography variant="h6" gutterBottom sx={{ fontSize: { xs: '1rem', sm: '1.25rem' }, mb: 2 }}>
+                <Paper className="p-6 sm:p-8" sx={{ height: { xs: '350px', sm: '400px', md: '450px' } }}>
+                    <Typography variant="h6" gutterBottom sx={{ fontSize: { xs: '1rem', sm: '1.25rem' }, mb: 3 }}>
                         Revenue Overview
                     </Typography>
                     {loadingStates.revenue ? (
@@ -481,11 +534,6 @@ function AnalyticsDashboard() {
                         </div>
                     ) : analyticsData.revenue && analyticsData.revenue.length > 0 ? (
                         <div style={{ height: 'calc(100% - 60px)', position: 'relative' }}>
-                            {/* Debug info */}
-                            <div style={{ fontSize: '10px', color: '#666', marginBottom: '10px' }}>
-                                Data points: {analyticsData.revenue.length} |
-                                Sample: {JSON.stringify(analyticsData.revenue[0])}
-                            </div>
                             <Bar
                                 data={{
                                     labels: analyticsData.revenue.map(item => {
@@ -577,17 +625,17 @@ function AnalyticsDashboard() {
                     {error}
                 </Alert>
             )}
-            <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4 mb-6">
-                <h2 className="text-xl font-semibold text-gray-900">Analytics Dashboard</h2>
-                <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center">
-                    <div className="flex flex-col sm:flex-row gap-3">
-                        <FormControl sx={{ minWidth: 140 }}>
+            <div className="mb-8">
+                <h2 className="text-2xl font-semibold text-gray-900 mb-6">Analytics Dashboard</h2>
+                <div className="flex flex-col lg:flex-row gap-6 items-stretch lg:items-center">
+                    <div className="flex flex-col lg:flex-row gap-4">
+                        <FormControl sx={{ minWidth: 160 }}>
                             <InputLabel>Metric</InputLabel>
                             <Select
                                 value={selectedMetric}
                                 label="Metric"
                                 onChange={(e) => setSelectedMetric(e.target.value)}
-                                size="small"
+                                size="medium"
                             >
                                 <MenuItem value="summary">Summary</MenuItem>
                                 <MenuItem value="revenue">Revenue</MenuItem>
@@ -608,8 +656,8 @@ function AnalyticsDashboard() {
                                     textField: {
                                         error: !dateRange.startDate,
                                         helperText: !dateRange.startDate ? 'Start date is required' : '',
-                                        size: "small",
-                                        sx: { minWidth: 140 }
+                                        size: "medium",
+                                        sx: { minWidth: 160 }
                                     }
                                 }}
                             />
@@ -621,32 +669,59 @@ function AnalyticsDashboard() {
                                 slotProps={{
                                     textField: {
                                         error: !dateRange.endDate,
-                                        helperText: !dateRange.endDate ? 'End date is required' : '',
-                                        size: "small",
-                                        sx: { minWidth: 140 }
+                                        helperText: !dateRange.endDate ? 'End date is required' : 'Changing this will auto-adjust start date to 1 year before',
+                                        size: "medium",
+                                        sx: { minWidth: 160 }
                                     }
                                 }}
                             />
                         </LocalizationProvider>
                     </div>
-                    <div className="flex flex-col sm:flex-row gap-3">
-                        <button
-                            onClick={fetchAnalyticsData}
-                            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
-                        >
+                </div>
+
+                {/* Refresh Button Section */}
+                <div className="mt-4">
+                    <button
+                        onClick={fetchAnalyticsData}
+                        className="px-8 py-3 text-sm font-medium text-white bg-blue-600 border border-blue-600 rounded-lg hover:bg-blue-700 hover:border-blue-700 transition-all duration-200 shadow-sm hover:shadow-md"
+                        title={lastRefresh ? `Last updated: ${lastRefresh.toLocaleTimeString()}` : 'Click to refresh data'}
+                    >
+                        <div className="flex items-center gap-2">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
                             Refresh Data
-                        </button>
-                        <Button
-                            variant="contained"
-                            startIcon={<Download />}
-                            onClick={handleExportReport}
-                            disabled={!ENABLE_EXPORT}
-                            title={!ENABLE_EXPORT ? "Export functionality coming soon" : "Export Report"}
-                            size="small"
-                        >
-                            Export Report
-                        </Button>
-                    </div>
+                        </div>
+                        {lastRefresh && (
+                            <div className="text-xs text-blue-100 mt-1 opacity-90">
+                                Last: {lastRefresh.toLocaleTimeString()}
+                            </div>
+                        )}
+                    </button>
+                </div>
+            </div>
+
+            {/* Export Section */}
+            <div className="border-t border-gray-200 pt-4 mb-8">
+                <div className="flex justify-end">
+                    <Button
+                        variant="outlined"
+                        startIcon={<Download />}
+                        onClick={handleExportReport}
+                        disabled={!ENABLE_EXPORT}
+                        title={!ENABLE_EXPORT ? "Export functionality coming soon" : "Export Report"}
+                        size="medium"
+                        sx={{
+                            borderColor: '#6B7280',
+                            color: '#374151',
+                            '&:hover': {
+                                borderColor: '#4B5563',
+                                backgroundColor: '#F9FAFB'
+                            }
+                        }}
+                    >
+                        Export Report
+                    </Button>
                 </div>
             </div>
 

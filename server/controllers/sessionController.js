@@ -159,21 +159,61 @@ async function updateSessionStatus(req, res) {
   }
 
   try {
-    const query = `
+    // Start a transaction
+    await pool.query('BEGIN');
+
+    // Update the session status
+    const updateQuery = `
       UPDATE class_sessions
-      SET status = $1
+      SET status = $1, updated_at = CURRENT_TIMESTAMP
       WHERE id = $2
       RETURNING id, session_date, start_time, end_time, status;
     `;
 
-    const { rows } = await pool.query(query, [status, sessionId]);
+    const { rows } = await pool.query(updateQuery, [status, sessionId]);
     
     if (rows.length === 0) {
+      await pool.query('ROLLBACK');
       return res.status(404).json({ error: 'Session not found' });
     }
 
-    res.json(rows[0]);
+    let historicalData = null;
+
+    // If status is being changed to 'completed', move enrollments to historical tables
+    if (status === 'completed') {
+      try {
+        historicalData = await moveEnrollmentsToHistorical(sessionId, {
+          removeOriginalEnrollments: false, // Keep original enrollments for reference
+          archiveReason: 'Session completed - automatically archived'
+        });
+      } catch (error) {
+        await pool.query('ROLLBACK');
+        console.error('Failed to move enrollments to historical tables:', error);
+        return res.status(500).json({ 
+          error: 'Session status updated but failed to archive enrollments',
+          details: error.message 
+        });
+      }
+    }
+
+    // Commit the transaction
+    await pool.query('COMMIT');
+
+    // Return the updated session with historical data if applicable
+    const response = {
+      ...rows[0],
+      message: `Session status updated to ${status} successfully`
+    };
+
+    if (historicalData) {
+      response.historicalData = historicalData;
+      response.message += ` - ${historicalData.enrollmentsMoved} enrollments archived to historical tables`;
+    }
+
+    res.json(response);
   } catch (error) {
+    // Rollback on any error
+    await pool.query('ROLLBACK');
     console.error('Error updating session status:', error);
     res.status(500).json({ error: 'Failed to update session status' });
   }
@@ -290,11 +330,179 @@ async function deleteSession(req, res) {
   }
 }
 
+// Utility function to manually archive enrollments for existing completed sessions
+async function archiveCompletedSessionEnrollments(req, res) {
+  const { sessionId } = req.params;
+  const { removeOriginalEnrollments = false } = req.body;
+
+  try {
+    // Check if session exists and is completed
+    const sessionResult = await pool.query(
+      `SELECT cs.*, c.title as class_title 
+       FROM class_sessions cs 
+       JOIN classes c ON cs.class_id = c.id 
+       WHERE cs.id = $1 AND cs.status = 'completed'`,
+      [sessionId]
+    );
+
+    if (sessionResult.rows.length === 0) {
+      return res.status(404).json({ 
+        error: 'Session not found or not completed',
+        message: 'Only completed sessions can have their enrollments archived'
+      });
+    }
+
+    // Archive the enrollments
+    const historicalData = await moveEnrollmentsToHistorical(sessionId, {
+      removeOriginalEnrollments,
+      archiveReason: 'Manually archived by administrator'
+    });
+
+    res.json({
+      message: `Successfully archived enrollments for completed session`,
+      sessionId,
+      historicalData
+    });
+
+  } catch (error) {
+    console.error('Error archiving completed session enrollments:', error);
+    res.status(500).json({ 
+      error: 'Failed to archive session enrollments',
+      details: error.message 
+    });
+  }
+}
+
+// Move enrollments to historical tables when session is completed
+async function moveEnrollmentsToHistorical(sessionId, options = {}) {
+  const { 
+    removeOriginalEnrollments = false, // Whether to remove original enrollments after archiving
+    archiveReason = 'Session completed - automatically archived'
+  } = options;
+
+  try {
+    // First, get the session details
+    const sessionResult = await pool.query(
+      `SELECT cs.*, c.title as class_title 
+       FROM class_sessions cs 
+       JOIN classes c ON cs.class_id = c.id 
+       WHERE cs.id = $1`,
+      [sessionId]
+    );
+
+    if (sessionResult.rows.length === 0) {
+      throw new Error('Session not found');
+    }
+
+    const session = sessionResult.rows[0];
+
+    // Check if historical session already exists (to avoid duplicates)
+    const existingHistoricalSession = await pool.query(
+      `SELECT id FROM historical_sessions WHERE original_session_id = $1`,
+      [sessionId]
+    );
+
+    let historicalSessionId;
+    if (existingHistoricalSession.rows.length > 0) {
+      historicalSessionId = existingHistoricalSession.rows[0].id;
+      console.log(`Historical session already exists for session ${sessionId}, using existing ID: ${historicalSessionId}`);
+    } else {
+      // Create historical session record
+      const historicalSessionResult = await pool.query(
+        `INSERT INTO historical_sessions (
+          original_session_id, class_id, session_date, end_date, start_time, end_time, 
+          capacity, enrolled_count, instructor_id, status, archived_reason
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        RETURNING id`,
+        [
+          session.id,
+          session.class_id,
+          session.session_date,
+          session.end_date,
+          session.start_time,
+          session.end_time,
+          session.capacity,
+          session.enrolled_count || 0,
+          session.instructor_id,
+          'completed',
+          archiveReason
+        ]
+      );
+      historicalSessionId = historicalSessionResult.rows[0].id;
+    }
+
+    // Get all enrollments for this session
+    const enrollmentsResult = await pool.query(
+      `SELECT e.*, u.first_name, u.last_name 
+       FROM enrollments e 
+       JOIN users u ON e.user_id = u.id 
+       WHERE e.session_id = $1`,
+      [sessionId]
+    );
+
+    let enrollmentsMoved = 0;
+
+    // Move each enrollment to historical table
+    for (const enrollment of enrollmentsResult.rows) {
+      // Check if enrollment already exists in historical table
+      const existingHistoricalEnrollment = await pool.query(
+        `SELECT id FROM historical_enrollments WHERE original_enrollment_id = $1`,
+        [enrollment.id]
+      );
+
+      if (existingHistoricalEnrollment.rows.length === 0) {
+        await pool.query(
+          `INSERT INTO historical_enrollments (
+            original_enrollment_id, user_id, class_id, session_id, historical_session_id,
+            payment_status, enrollment_status, admin_notes, enrolled_at, archived_reason
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+          [
+            enrollment.id,
+            enrollment.user_id,
+            enrollment.class_id,
+            enrollment.session_id,
+            historicalSessionId,
+            enrollment.payment_status || 'unknown',
+            enrollment.enrollment_status,
+            `Enrollment archived when session "${session.class_title}" was completed`,
+            enrollment.enrolled_at || enrollment.created_at,
+            archiveReason
+          ]
+        );
+        enrollmentsMoved++;
+      } else {
+        console.log(`Enrollment ${enrollment.id} already exists in historical table`);
+      }
+    }
+
+    // Optionally remove original enrollments
+    if (removeOriginalEnrollments && enrollmentsMoved > 0) {
+      await pool.query(
+        `DELETE FROM enrollments WHERE session_id = $1`,
+        [sessionId]
+      );
+      console.log(`Removed ${enrollmentsMoved} original enrollments for session ${sessionId}`);
+    }
+
+    console.log(`Successfully moved ${enrollmentsMoved} enrollments to historical tables for session ${sessionId}`);
+    return {
+      historicalSessionId,
+      enrollmentsMoved,
+      totalEnrollments: enrollmentsResult.rows.length,
+      originalEnrollmentsRemoved: removeOriginalEnrollments
+    };
+  } catch (error) {
+    console.error('Error moving enrollments to historical tables:', error);
+    throw error;
+  }
+}
+
 module.exports = {
   getClassSessionsWithStudents,
   updateSessionStatus,
   getSessionById,
   createSession,
   updateSession,
-  deleteSession
+  deleteSession,
+  archiveCompletedSessionEnrollments
 };
