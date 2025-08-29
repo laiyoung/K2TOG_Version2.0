@@ -1,5 +1,9 @@
 // API proxy function for Vercel serverless deployment
 export default async function handler(req, res) {
+    console.log(`[${new Date().toISOString()}] API Proxy called with method: ${req.method}`);
+    console.log(`[${new Date().toISOString()}] Request URL: ${req.url}`);
+    console.log(`[${new Date().toISOString()}] Request headers:`, req.headers);
+
     // Enable CORS for all requests
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
@@ -7,6 +11,7 @@ export default async function handler(req, res) {
 
     // Handle preflight requests
     if (req.method === 'OPTIONS') {
+        console.log(`[${new Date().toISOString()}] Handling OPTIONS preflight request`);
         return res.status(200).end();
     }
 
@@ -14,9 +19,17 @@ export default async function handler(req, res) {
     const url = new URL(req.url, `https://${req.headers.host}`);
     const pathSegments = url.pathname.replace('/api/', '').split('/').filter(Boolean);
 
+    console.log(`[${new Date().toISOString()}] Path segments:`, pathSegments);
+
     // Get the backend URL from environment variables
     const backendUrl = process.env.VITE_APP_URL ||
         process.env.RAILWAY_BACKEND_URL;
+
+    console.log(`[${new Date().toISOString()}] Environment variables:`, {
+        VITE_APP_URL: process.env.VITE_APP_URL,
+        RAILWAY_BACKEND_URL: process.env.RAILWAY_BACKEND_URL,
+        NODE_ENV: process.env.NODE_ENV
+    });
 
     if (!backendUrl) {
         console.error('Backend URL not configured. Environment variables:', {
@@ -55,10 +68,13 @@ export default async function handler(req, res) {
             }
         });
 
+        console.log(`[${new Date().toISOString()}] Forwarding headers to backend:`, headers);
+
         // Prepare the request body
         let body;
         if (req.method !== 'GET' && req.method !== 'HEAD' && req.body) {
             body = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
+            console.log(`[${new Date().toISOString()}] Request body:`, body);
         }
 
         // Forward the request to the backend
@@ -69,6 +85,7 @@ export default async function handler(req, res) {
         });
 
         console.log(`[${new Date().toISOString()}] Backend response status:`, response.status);
+        console.log(`[${new Date().toISOString()}] Backend response headers:`, Object.fromEntries(response.headers.entries()));
 
         // Get the response data
         const data = await response.text();
@@ -79,9 +96,11 @@ export default async function handler(req, res) {
         // Try to parse as JSON, fallback to text
         try {
             const jsonData = JSON.parse(data);
+            console.log(`[${new Date().toISOString()}] Sending JSON response to client`);
             res.json(jsonData);
         } catch (parseError) {
             // If it's not JSON, send as text
+            console.log(`[${new Date().toISOString()}] Sending text response to client (not JSON):`, data.substring(0, 200));
             res.setHeader('Content-Type', 'text/plain');
             res.send(data);
         }

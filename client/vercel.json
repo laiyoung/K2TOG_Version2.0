@@ -5,6 +5,10 @@
   "installCommand": "npm install --production=false",
   "rewrites": [
     {
+      "source": "/api/test-proxy",
+      "destination": "/api/test-proxy"
+    },
+    {
       "source": "/api/(.*)",
       "destination": "/api/api-proxy"
     },
@@ -13,6 +17,14 @@
       "destination": "/index.html"
     }
   ],
+  "functions": {
+    "api/api-proxy.js": {
+      "maxDuration": 30
+    },
+    "api/test-proxy.js": {
+      "maxDuration": 10
+    }
+  },
   "headers": [
     {
       "source": "/api/(.*)",
