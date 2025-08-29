@@ -1,8 +1,9 @@
 // API proxy function for Vercel serverless deployment
 export default async function handler(req, res) {
-    console.log(`[${new Date().toISOString()}] API Proxy called with method: ${req.method}`);
-    console.log(`[${new Date().toISOString()}] Request URL: ${req.url}`);
-    console.log(`[${new Date().toISOString()}] Request headers:`, req.headers);
+    const requestId = Math.random().toString(36).substring(7);
+    console.log(`[${new Date().toISOString()}] [${requestId}] API Proxy called with method: ${req.method}`);
+    console.log(`[${new Date().toISOString()}] [${requestId}] Request URL: ${req.url}`);
+    console.log(`[${new Date().toISOString()}] [${requestId}] Request headers:`, req.headers);
 
     // Enable CORS for all requests
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -19,13 +20,13 @@ export default async function handler(req, res) {
     const url = new URL(req.url, `https://${req.headers.host}`);
     const pathSegments = url.pathname.replace('/api/', '').split('/').filter(Boolean);
 
-    console.log(`[${new Date().toISOString()}] Path segments:`, pathSegments);
+    console.log(`[${new Date().toISOString()}] [${requestId}] Path segments:`, pathSegments);
 
     // Get the backend URL from environment variables
     const backendUrl = process.env.VITE_APP_URL ||
         process.env.RAILWAY_BACKEND_URL;
 
-    console.log(`[${new Date().toISOString()}] Environment variables:`, {
+    console.log(`[${new Date().toISOString()}] [${requestId}] Environment variables:`, {
         VITE_APP_URL: process.env.VITE_APP_URL,
         RAILWAY_BACKEND_URL: process.env.RAILWAY_BACKEND_URL,
         NODE_ENV: process.env.NODE_ENV
@@ -79,7 +80,16 @@ export default async function handler(req, res) {
 
         // Create AbortController for timeout
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 25000); // 25 second timeout
+        const timeoutId = setTimeout(() => controller.abort(), 55000); // 55 second timeout (5s buffer for Vercel)
+
+        console.log(`[${new Date().toISOString()}] Starting request with 55-second timeout...`);
+        const startTime = Date.now();
+
+        // Add a warning for slow requests
+        const slowRequestWarning = setTimeout(() => {
+            const elapsed = Date.now() - startTime;
+            console.warn(`[${new Date().toISOString()}] ⚠️  Request taking longer than expected: ${elapsed}ms elapsed`);
+        }, 10000); // Warn after 10 seconds
 
         try {
             // Forward the request to the backend with timeout
@@ -91,7 +101,9 @@ export default async function handler(req, res) {
             });
 
             clearTimeout(timeoutId);
-
+            clearTimeout(slowRequestWarning);
+            const responseTime = Date.now() - startTime;
+            console.log(`[${new Date().toISOString()}] Backend response received in ${responseTime}ms`);
             console.log(`[${new Date().toISOString()}] Backend response status:`, response.status);
             console.log(`[${new Date().toISOString()}] Backend response headers:`, Object.fromEntries(response.headers.entries()));
 
@@ -114,12 +126,13 @@ export default async function handler(req, res) {
             }
         } catch (fetchError) {
             clearTimeout(timeoutId);
+            clearTimeout(slowRequestWarning);
 
             if (fetchError.name === 'AbortError') {
-                console.error(`[${new Date().toISOString()}] Request timeout after 25 seconds`);
+                console.error(`[${new Date().toISOString()}] Request timeout after 55 seconds`);
                 return res.status(504).json({
                     error: 'Gateway Timeout',
-                    details: 'Backend request timed out after 25 seconds',
+                    details: 'Backend request timed out after 55 seconds',
                     path: pathSegments.join('/'),
                     backendUrl: fullBackendUrl,
                     timestamp: new Date().toISOString()
