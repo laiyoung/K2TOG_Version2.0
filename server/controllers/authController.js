@@ -75,14 +75,15 @@ const registerUser = async (req, res) => {
       expiresIn: '1d',
     });
 
-    // Send welcome email to new user
-    try {
-      await emailService.sendWelcomeEmail(user.email, user.name);
-      console.log(`Welcome email sent to: ${user.email}`);
-    } catch (emailError) {
-      console.error('Failed to send welcome email:', emailError);
-      // Don't fail the registration if email fails
-    }
+    // Send welcome email to new user (non-blocking)
+    emailService.sendWelcomeEmail(user.email, user.name)
+      .then(() => {
+        console.log(`Welcome email sent to: ${user.email}`);
+      })
+      .catch((emailError) => {
+        console.error('Failed to send welcome email:', emailError);
+        // Don't fail the registration if email fails
+      });
 
     res.status(201).json({
       user: {
