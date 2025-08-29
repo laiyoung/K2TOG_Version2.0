@@ -13,27 +13,39 @@ const emailService = require('../utils/emailService');
 
 // Input validation middleware
 const validateRegistration = (req, res, next) => {
-  const { name, email, password, phone_number } = req.body;
+  const { name, email, password, phone_number, first_name, last_name, role, status, email_notifications } = req.body;
 
+  // Required fields validation
   if (!name || !email || !password) {
-    return res.status(400).json({ error: 'All fields are required' });
+    return res.status(400).json({ error: 'Name, email, and password are required' });
   }
 
+  // Password validation
   if (password.length < 8) {
     return res.status(400).json({ error: 'Password must be at least 8 characters long' });
   }
 
+  // Email validation
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(email)) {
     return res.status(400).json({ error: 'Invalid email format' });
   }
 
-  // Validate phone number if provided
+  // Phone number validation (optional)
   if (phone_number && phone_number.trim()) {
     const phoneRegex = /^\+?1?\d{10}$/;
     if (!phoneRegex.test(phone_number.replace(/[^0-9+]/g, ''))) {
       return res.status(400).json({ error: 'Invalid phone number format. Please enter a 10-digit phone number.' });
     }
+  }
+
+  // Name validation (first and last name if provided)
+  if (first_name && first_name.trim().length < 2) {
+    return res.status(400).json({ error: 'First name must be at least 2 characters long' });
+  }
+
+  if (last_name && last_name.trim().length < 2) {
+    return res.status(400).json({ error: 'Last name must be at least 2 characters long' });
   }
 
   next();
