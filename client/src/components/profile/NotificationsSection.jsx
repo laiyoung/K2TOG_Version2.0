@@ -1,8 +1,11 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import userService from '../../services/userService';
 import './NotificationsSection.css';
 
 const NotificationsSection = ({ notifications, onNotificationsUpdate }) => {
+    const navigate = useNavigate();
+
     const handleMarkAsRead = async (notificationId) => {
         try {
             await userService.markNotificationAsRead(notificationId);
@@ -87,15 +90,13 @@ const NotificationsSection = ({ notifications, onNotificationsUpdate }) => {
                                     </span>
                                 </div>
                                 <p className="notification-message">{notification.message}</p>
-                                {notification.action_url && (
-                                    <a
-                                        href={notification.action_url}
-                                        className="notification-action"
-                                    >
-                                        View Details
-                                        <i className="fas fa-arrow-right"></i>
-                                    </a>
-                                )}
+                                <button
+                                    onClick={() => navigate(`/notifications/${notification.id}`)}
+                                    className="notification-action"
+                                >
+                                    View Details
+                                    <i className="fas fa-arrow-right"></i>
+                                </button>
                             </div>
                             <div className="notification-actions">
                                 {!notification.is_read && (

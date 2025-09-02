@@ -150,20 +150,25 @@ export const AuthProvider = ({ children }) => {
                 data = JSON.parse(responseText);
             } catch (e) {
                 console.error('Failed to parse login response:', e);
-                throw new Error('Invalid server response');
+                setError('Invalid server response');
+                return { success: false, error: 'Invalid server response' };
             }
 
             console.log('Parsed login response:', data);
 
             if (!response.ok) {
-                throw new Error(data.message || 'Login failed');
+                const errorMessage = data.error || data.message || 'Email or password is incorrect';
+                console.log('Setting error state to:', errorMessage); // Debug log
+                setError(errorMessage);
+                return { success: false, error: errorMessage };
             }
 
             const { token: newToken, user: userData } = data;
 
             if (!newToken || !userData) {
                 console.error('Invalid login response:', { newToken, userData });
-                throw new Error('Invalid login response');
+                setError('Invalid login response');
+                return { success: false, error: 'Invalid login response' };
             }
 
             console.log('Setting auth state with:', { newToken, userData });
@@ -177,7 +182,7 @@ export const AuthProvider = ({ children }) => {
             // Verify the user data by fetching profile
             try {
                 console.log('Fetching profile with token:', newToken);
-                const profileResponse = await fetch('/api/users/profile', {
+                const profileResponse = await fetch(`${API_BASE_URL}/users/profile`, {
                     headers: {
                         'Authorization': `Bearer ${newToken}`,
                         'Content-Type': 'application/json'
@@ -192,7 +197,7 @@ export const AuthProvider = ({ children }) => {
                     profileData = JSON.parse(profileText);
                 } catch (e) {
                     console.error('Failed to parse profile response:', e);
-                    throw new Error('Invalid profile response');
+                    // Don't fail the login if profile fetch fails
                 }
 
                 console.log('Parsed profile data:', profileData);
@@ -216,12 +221,13 @@ export const AuthProvider = ({ children }) => {
                 stateUser: user
             });
 
-            return userData;
+            return { success: true, user: userData };
         } catch (err) {
             console.error('Login error:', err);
-            const message = err.message || 'Login failed';
+            const message = err.message || 'Email or password is incorrect';
+            console.log('Setting error state to:', message); // Debug log
             setError(message);
-            throw new Error(message);
+            return { success: false, error: message };
         } finally {
             setLoading(false);
             isLoggingIn.current = false; // Reset flag after login
@@ -251,6 +257,7 @@ export const AuthProvider = ({ children }) => {
         try {
             setLoading(true);
             setError(null);
+            console.log('Starting registration process...'); // Debug log
 
             const response = await fetch(`${API_BASE_URL}/users/register`, {
                 method: 'POST',
@@ -260,16 +267,36 @@ export const AuthProvider = ({ children }) => {
                 body: JSON.stringify(userData)
             });
 
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.message || 'Registration failed');
+            const responseText = await response.text();
+            console.log('Raw registration response:', responseText);
+
+            let data;
+            try {
+                data = JSON.parse(responseText);
+            } catch (e) {
+                console.error('Failed to parse registration response:', e);
+                setError('Invalid server response');
+                return { success: false, error: 'Invalid server response' };
             }
 
-            const { token: newToken, user: newUser } = await response.json();
+            console.log('Parsed registration response:', data);
+
+            if (!response.ok) {
+                const errorMessage = data.error || data.message || 'Failed to create account. Please try again.';
+                console.log('Setting error state to:', errorMessage); // Debug log
+                setError(errorMessage);
+                return { success: false, error: errorMessage };
+            }
+
+            const { token: newToken, user: newUser } = data;
 
             if (!newToken || !newUser) {
-                throw new Error('Invalid registration response');
+                console.error('Invalid registration response:', { newToken, newUser });
+                setError('Invalid registration response');
+                return { success: false, error: 'Invalid registration response' };
             }
+
+            console.log('Setting auth state with:', { newToken, newUser });
 
             // Set token and user data
             setToken(newToken);
@@ -279,26 +306,47 @@ export const AuthProvider = ({ children }) => {
 
             // Verify the user data by fetching profile
             try {
-                const profileData = await fetchWithAuth('/users/profile', {
+                console.log('Fetching profile with token:', newToken);
+                const profileResponse = await fetch(`${API_BASE_URL}/users/profile`, {
                     headers: {
-                        'Authorization': `Bearer ${newToken}`
+                        'Authorization': `Bearer ${newToken}`,
+                        'Content-Type': 'application/json'
                     }
                 });
 
-                if (profileData?.user) {
-                    const updatedUserData = profileData.user;
+                const profileText = await profileResponse.text();
+                console.log('Raw profile response:', profileText);
+
+                let profileData;
+                try {
+                    profileData = JSON.parse(profileText);
+                } catch (e) {
+                    console.error('Failed to parse profile response:', e);
+                    // Don't fail the registration if profile fetch fails
+                }
+
+                console.log('Parsed profile data:', profileData);
+
+                if (profileData) {
+                    const updatedUserData = profileData;
+                    console.log('Setting updated user data:', updatedUserData);
                     setUser(updatedUserData);
                     sessionStorage.setItem('user', JSON.stringify(updatedUserData));
                 }
             } catch (profileErr) {
-                console.warn('Profile fetch after registration failed:', profileErr);
+                console.error('Profile fetch after registration failed:', profileErr);
+                // If profile fetch fails, we still want to keep the user logged in
+                // with the initial user data from registration
             }
 
-            return newUser;
+            console.log('Registration successful');
+            return { success: true, user: newUser };
         } catch (err) {
-            const message = err.message || 'Registration failed';
+            console.error('Registration error:', err);
+            const message = err.message || 'Failed to create account. Please try again.';
+            console.log('Setting error state to:', message); // Debug log
             setError(message);
-            throw new Error(message);
+            return { success: false, error: message };
         } finally {
             setLoading(false);
         }

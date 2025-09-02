@@ -455,6 +455,9 @@ const UserManagement = () => {
                                 value={selectedRole}
                                 label="Role"
                                 onChange={(e) => setSelectedRole(e.target.value)}
+                                MenuProps={{
+                                    sx: { zIndex: 1500 }
+                                }}
                                 sx={{
                                     '& .MuiInputBase-root': {
                                         height: { xs: '48px', sm: '40px' }
@@ -729,6 +732,9 @@ const UserManagement = () => {
                             onChange={(e) => {
                                 setSelectedUser((prev) => ({ ...prev, role: e.target.value }));
                             }}
+                            MenuProps={{
+                                sx: { zIndex: 1500 }
+                            }}
                         >
                             <MenuItem value="user">User</MenuItem>
                             <MenuItem value="student">Student</MenuItem>
@@ -770,6 +776,9 @@ const UserManagement = () => {
                                     ...prev,
                                     status: e.target.value,
                                 }));
+                            }}
+                            MenuProps={{
+                                sx: { zIndex: 1500 }
                             }}
                         >
                             <MenuItem value="active">Active</MenuItem>

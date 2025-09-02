@@ -44,6 +44,8 @@ const pool = require('../config/db'); // for direct deletes
 
 const { getDashboardStats } = require('../models/dashboardModel');
 
+const { getAllWaitlistEntries } = require('../models/adminModel');
+
 // @desc    Get all users (with optional search, pagination, and role filter)
 const adminGetUsers = async (req, res) => {
   try {
@@ -651,6 +653,19 @@ const adminGetHistoricalEnrollments = async (req, res) => {
   }
 };
 
+// @desc    Get all waitlist entries across all classes
+// @route   GET /api/admin/waitlist
+// @access  Admin
+const adminGetAllWaitlistEntries = async (req, res) => {
+  try {
+    const waitlistEntries = await getAllWaitlistEntries();
+    res.json(waitlistEntries);
+  } catch (err) {
+    console.error('Get all waitlist entries error:', err);
+    res.status(500).json({ error: 'Failed to fetch waitlist entries' });
+  }
+};
+
 module.exports = {
   adminGetUsers,
   adminDeleteUser,
@@ -675,6 +690,7 @@ module.exports = {
   adminGetClassWaitlist,
   adminUpdateWaitlistStatus,
   adminAddToWaitlist,
+  adminGetAllWaitlistEntries,
   adminGetOutstandingPayments,
   getStats,
   adminGetClassStudents,

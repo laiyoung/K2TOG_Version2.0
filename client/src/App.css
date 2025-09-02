@@ -111,6 +111,89 @@ body {
     position: relative !important;
 }
 
+/* Fix for Material-UI Select dropdown z-index issues in admin dashboard */
+/* Ensure all Material-UI dropdowns appear above the admin sidebar (z-50) */
+.admin-route .MuiMenu-root,
+.admin-route .MuiPopover-root,
+.admin-route .MuiPaper-root[role="presentation"],
+.admin-route .MuiAutocomplete-popper,
+.admin-route .MuiPickersPopper-root,
+.admin-route .MuiTooltip-popper {
+    z-index: 1500 !important;
+}
+
+/* Specific fix for Select dropdown menus */
+.admin-route .MuiSelect-root .MuiMenu-root,
+.admin-route .MuiSelect-root .MuiPopover-root {
+    z-index: 1500 !important;
+}
+
+/* Ensure dropdown menu items are visible */
+.admin-route .MuiMenuItem-root {
+    z-index: 1501 !important;
+}
+
+/* Fix for nested dropdowns */
+.admin-route .MuiMenu-root .MuiMenu-root {
+    z-index: 1502 !important;
+}
+
+/* Ensure form controls don't interfere with dropdowns */
+.admin-route .MuiFormControl-root {
+    position: relative;
+    z-index: 1;
+}
+
+/* Fix for Autocomplete dropdowns */
+.admin-route .MuiAutocomplete-popper {
+    z-index: 1500 !important;
+}
+
+/* Additional Autocomplete specific fixes */
+.admin-route .MuiAutocomplete-root .MuiPopper-root {
+    z-index: 1500 !important;
+}
+
+.admin-route .MuiAutocomplete-root .MuiPaper-root {
+    z-index: 1500 !important;
+}
+
+.admin-route .MuiAutocomplete-root .MuiList-root {
+    z-index: 1501 !important;
+}
+
+/* Ensure Autocomplete options are visible */
+.admin-route .MuiAutocomplete-root .MuiAutocomplete-listbox {
+    z-index: 1501 !important;
+}
+
+/* Fix for Autocomplete popper container */
+.admin-route .MuiAutocomplete-popper .MuiPaper-root {
+    z-index: 1500 !important;
+    position: relative !important;
+}
+
+/* Fix for Select input elements */
+.admin-route .MuiSelect-select,
+.admin-route .MuiInputBase-root {
+    z-index: 1;
+}
+
+/* Ensure all Material-UI overlays appear above admin sidebar */
+.admin-route .MuiBackdrop-root {
+    z-index: 1499 !important;
+}
+
+/* Fix for Dialog components */
+.admin-route .MuiDialog-root {
+    z-index: 1500 !important;
+}
+
+/* Fix for Snackbar components */
+.admin-route .MuiSnackbar-root {
+    z-index: 1500 !important;
+}
+
 /* Mobile-friendly table styles */
 @media (max-width: 768px) {
     .MuiTableContainer-root {

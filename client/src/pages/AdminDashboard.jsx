@@ -8,8 +8,10 @@ import CertificateManagement from '../components/admin/CertificateManagement';
 import EnrollmentManagement from '../components/admin/EnrollmentManagement';
 import FinancialManagement from '../components/admin/FinancialManagement';
 import NotificationCenter from '../components/admin/NotificationCenter';
+import WaitlistManagement from '../components/admin/WaitlistManagement';
 // import SystemSettings from '../components/admin/SystemSettings';
 import adminService from '../services/adminService';
+import './AdminDashboard.css';
 
 function AdminDashboard({ defaultSection = 'analytics' }) {
     const { user, loading: authLoading } = useAuth();
@@ -26,6 +28,7 @@ function AdminDashboard({ defaultSection = 'analytics' }) {
         { id: 'analytics', label: 'Analytics', icon: '📊' },
         { id: 'users', label: 'User Management', icon: '👥' },
         { id: 'classes', label: 'Class Management', icon: '🏫' },
+        { id: 'waitlist', label: 'Waitlist Management', icon: '⏳' },
         { id: 'enrollments', label: 'Enrollment Management', icon: '📝' },
         { id: 'financial', label: 'Financial Management', icon: '💵' },
         { id: 'certificates', label: 'Certificate Management', icon: '🎓' },
@@ -81,6 +84,8 @@ function AdminDashboard({ defaultSection = 'analytics' }) {
                 return <UserManagement />;
             case 'classes':
                 return <ClassManagement />;
+            case 'waitlist':
+                return <WaitlistManagement />;
             case 'enrollments':
                 return <EnrollmentManagement />;
             case 'financial':
@@ -202,10 +207,13 @@ function AdminDashboard({ defaultSection = 'analytics' }) {
                         transform transition-transform duration-300 ease-in-out lg:transform-none
                         ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
                         lg:flex-shrink-0
+                        lg:h-auto
+                        h-screen
+                        admin-dashboard-sidebar
                     `}>
-                        <div className="flex flex-col h-full">
+                        <div className="flex flex-col h-full max-h-screen">
                             {/* Mobile Sidebar Header */}
-                            <div className="lg:hidden flex items-center justify-between p-4 border-b border-gray-200">
+                            <div className="lg:hidden flex items-center justify-between p-4 border-b border-gray-200 flex-shrink-0">
                                 <h2 className="text-lg font-semibold text-gray-900">Menu</h2>
                                 <button
                                     onClick={() => setIsSidebarOpen(false)}
@@ -219,7 +227,7 @@ function AdminDashboard({ defaultSection = 'analytics' }) {
                             </div>
 
                             {/* Navigation Items */}
-                            <nav className="flex-1 p-4 lg:p-0 space-y-1">
+                            <nav className="flex-1 p-4 lg:p-0 space-y-1 overflow-y-auto">
                                 {navigationItems.map((item) => (
                                     <button
                                         key={item.id}

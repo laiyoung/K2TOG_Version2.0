@@ -1,4 +1,5 @@
 import { useSnackbar } from 'notistack';
+import { useCallback } from 'react';
 
 /**
  * Shows a success notification using notistack
@@ -47,8 +48,16 @@ export const showErrorNotification = (enqueueSnackbar, message, options = {}) =>
 export const useNotifications = () => {
     const { enqueueSnackbar } = useSnackbar();
 
+    const showSuccess = useCallback((message, options) => {
+        showSuccessNotification(enqueueSnackbar, message, options);
+    }, [enqueueSnackbar]);
+
+    const showError = useCallback((message, options) => {
+        showErrorNotification(enqueueSnackbar, message, options);
+    }, [enqueueSnackbar]);
+
     return {
-        showSuccess: (message, options) => showSuccessNotification(enqueueSnackbar, message, options),
-        showError: (message, options) => showErrorNotification(enqueueSnackbar, message, options)
+        showSuccess,
+        showError
     };
 }; 

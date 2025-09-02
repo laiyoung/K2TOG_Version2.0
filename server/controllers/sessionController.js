@@ -3,9 +3,9 @@ const pool = require('../config/db');
 // Get all sessions with their students for a specific class (including deleted sessions)
 async function getClassSessionsWithStudents(req, res) {
   const { classId } = req.params;
-  
+
   console.log(`=== getClassSessionsWithStudents called for class ${classId} ===`);
-  
+
   try {
     const query = `
       WITH active_sessions AS (
@@ -77,7 +77,7 @@ async function getClassSessionsWithStudents(req, res) {
 
     const { rows } = await pool.query(query, [classId]);
     console.log(`Sessions with students data for class ${classId}:`, JSON.stringify(rows, null, 2));
-    
+
     // Debug: Check enrollments directly
     const enrollmentCheck = await pool.query(
       `SELECT e.*, u.first_name, u.last_name, u.email, cs.session_date, cs.id as session_id
@@ -89,7 +89,7 @@ async function getClassSessionsWithStudents(req, res) {
       [classId]
     );
     console.log(`Direct enrollment check for class ${classId}:`, enrollmentCheck.rows);
-    
+
     // Debug: Check waitlist entries
     const waitlistCheck = await pool.query(
       `SELECT w.*, u.first_name, u.last_name, u.email
@@ -100,7 +100,7 @@ async function getClassSessionsWithStudents(req, res) {
       [classId]
     );
     console.log(`Waitlist entries for class ${classId}:`, waitlistCheck.rows);
-    
+
     // Debug: Try to manually enroll John Smith if he's not enrolled
     const johnSmithUserId = '24522e83-fe39-486a-8ebf-46e743b930f2';
     const johnEnrollmentCheck = await pool.query(
@@ -108,7 +108,7 @@ async function getClassSessionsWithStudents(req, res) {
       [johnSmithUserId, classId]
     );
     console.log(`John Smith enrollment check:`, johnEnrollmentCheck.rows);
-    
+
     if (johnEnrollmentCheck.rows.length === 0) {
       console.log(`John Smith is not enrolled. Attempting to enroll him in the first session...`);
       try {
@@ -141,7 +141,7 @@ async function getClassSessionsWithStudents(req, res) {
         }
       }
     }
-    
+
     res.json(rows);
   } catch (error) {
     console.error('Error fetching sessions with students:', error);
@@ -171,7 +171,7 @@ async function updateSessionStatus(req, res) {
     `;
 
     const { rows } = await pool.query(updateQuery, [status, sessionId]);
-    
+
     if (rows.length === 0) {
       await pool.query('ROLLBACK');
       return res.status(404).json({ error: 'Session not found' });
@@ -189,9 +189,9 @@ async function updateSessionStatus(req, res) {
       } catch (error) {
         await pool.query('ROLLBACK');
         console.error('Failed to move enrollments to historical tables:', error);
-        return res.status(500).json({ 
+        return res.status(500).json({
           error: 'Session status updated but failed to archive enrollments',
-          details: error.message 
+          details: error.message
         });
       }
     }
@@ -313,20 +313,86 @@ async function updateSession(req, res) {
 // Delete a session
 async function deleteSession(req, res) {
   const { sessionId } = req.params;
+  const client = await pool.connect();
+
   try {
-    // Optionally, delete enrollments for this session first
-    await pool.query('DELETE FROM enrollments WHERE session_id = $1', [sessionId]);
-    const result = await pool.query(
-      'DELETE FROM class_sessions WHERE id = $1 RETURNING *',
+    await client.query('BEGIN');
+
+    // Check if session exists and get its details
+    const sessionResult = await client.query(
+      'SELECT * FROM class_sessions WHERE id = $1 AND deleted_at IS NULL',
       [sessionId]
     );
-    if (result.rows.length === 0) {
+
+    if (sessionResult.rows.length === 0) {
       return res.status(404).json({ error: 'Session not found' });
     }
-    res.json({ message: 'Session deleted successfully' });
+
+    const session = sessionResult.rows[0];
+
+    // Check if session has enrollments
+    const enrollmentsResult = await client.query(
+      'SELECT COUNT(*) as count FROM enrollments WHERE session_id = $1',
+      [sessionId]
+    );
+
+    const hasEnrollments = parseInt(enrollmentsResult.rows[0].count) > 0;
+
+    if (hasEnrollments) {
+      // Archive the session to historical_sessions
+      const historicalSessionResult = await client.query(
+        `INSERT INTO historical_sessions (
+          original_session_id, class_id, session_date, end_date, start_time, end_time,
+          capacity, enrolled_count, instructor_id, status, archived_reason
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        RETURNING id`,
+        [
+          session.id,
+          session.class_id,
+          session.session_date,
+          session.end_date,
+          session.start_time,
+          session.end_time,
+          session.capacity,
+          session.enrolled_count,
+          session.instructor_id,
+          session.status,
+          'Session deleted by admin'
+        ]
+      );
+
+      const historicalSessionId = historicalSessionResult.rows[0].id;
+
+      // Archive enrollments for this session
+      await client.query(
+        `INSERT INTO historical_enrollments (
+          original_enrollment_id, user_id, class_id, session_id, historical_session_id,
+          payment_status, enrollment_status, admin_notes, reviewed_at, reviewed_by, enrolled_at, archived_reason
+        )
+        SELECT id, user_id, class_id, session_id, $1, payment_status, enrollment_status,
+               admin_notes, reviewed_at, reviewed_by, enrolled_at, 'Session deleted by admin'
+        FROM enrollments WHERE session_id = $2`,
+        [historicalSessionId, sessionId]
+      );
+
+      // Remove enrollments from active table
+      await client.query('DELETE FROM enrollments WHERE session_id = $1', [sessionId]);
+    }
+
+    // Soft delete the session (mark as deleted instead of actually deleting)
+    await client.query(
+      'UPDATE class_sessions SET deleted_at = CURRENT_TIMESTAMP WHERE id = $1',
+      [sessionId]
+    );
+
+    await client.query('COMMIT');
+    res.json({ message: 'Session deleted successfully and archived to historical tables' });
   } catch (error) {
+    await client.query('ROLLBACK');
     console.error('Error deleting session:', error);
     res.status(500).json({ error: 'Failed to delete session' });
+  } finally {
+    client.release();
   }
 }
 
@@ -346,7 +412,7 @@ async function archiveCompletedSessionEnrollments(req, res) {
     );
 
     if (sessionResult.rows.length === 0) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         error: 'Session not found or not completed',
         message: 'Only completed sessions can have their enrollments archived'
       });
@@ -366,16 +432,16 @@ async function archiveCompletedSessionEnrollments(req, res) {
 
   } catch (error) {
     console.error('Error archiving completed session enrollments:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Failed to archive session enrollments',
-      details: error.message 
+      details: error.message
     });
   }
 }
 
 // Move enrollments to historical tables when session is completed
 async function moveEnrollmentsToHistorical(sessionId, options = {}) {
-  const { 
+  const {
     removeOriginalEnrollments = false, // Whether to remove original enrollments after archiving
     archiveReason = 'Session completed - automatically archived'
   } = options;

@@ -27,32 +27,64 @@ const Login = () => {
             ...prev,
             [name]: value
         }));
-        // Clear any previous errors when user starts typing
-        if (error) {
-            clearError();
-        }
-    }, [error, clearError]);
+        // Don't clear error automatically - let user see the error until they fix it
+    }, []);
 
     const handleSubmit = useCallback(async (e) => {
-        e.preventDefault();
-        console.log('Login form submitted with data:', formData); // Debug log
+        console.log('handleSubmit called'); // Debug log
+        console.log('Form data:', formData); // Debug log
+        console.log('Current error state:', error); // Debug log
+
+        // Client-side validation
+        if (!formData.email || !formData.password) {
+            console.log('Form validation failed - missing fields'); // Debug log
+            return;
+        }
 
         try {
             console.log('Calling login function...'); // Debug log
-            const userData = await login(formData.email, formData.password);
-            console.log('Login successful, user data:', userData); // Debug log
-            console.log('Navigating to:', from); // Debug log
-            navigate(from, { replace: true });
+            const result = await login(formData.email, formData.password);
+            console.log('Login result:', result); // Debug log
+
+            if (result.success) {
+                console.log('Login successful, user data:', result.user); // Debug log
+                console.log('Navigating to:', from); // Debug log
+                clearError(); // Clear any previous errors on successful login
+                navigate(from, { replace: true });
+            } else {
+                console.log('Login failed:', result.error); // Debug log
+                // Error is already handled by AuthContext
+            }
         } catch (err) {
             console.error('Login error in component:', err); // Debug log
-            showError(err.message || 'Login failed. Please try again.');
+            console.log('Error state after catch:', error); // Debug log
+            // Error is already handled by AuthContext, no need to call showError here
         }
-    }, [formData, login, navigate, showError, from]);
+    }, [formData, login, navigate, from, clearError]);
 
     // Add effect to monitor auth state
     useEffect(() => {
         console.log('Login component auth state changed:', { error, loading }); // Debug log
     }, [error, loading]);
+
+    // Add effect to specifically monitor error changes
+    useEffect(() => {
+        if (error) {
+            console.log('Error state changed to:', error);
+        } else {
+            console.log('Error state cleared');
+        }
+    }, [error]);
+
+    // Add effect to monitor page refresh
+    useEffect(() => {
+        const handleBeforeUnload = (e) => {
+            console.log('Page is about to unload/refresh!'); // Debug log
+        };
+
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    }, []);
 
     return (
         <div className="bg-white min-h-screen font-montserrat">
@@ -77,7 +109,17 @@ const Login = () => {
                     </div>
                 )}
 
-                <form className="space-y-4 sm:space-y-6" onSubmit={handleSubmit}>
+                <form
+                    className="space-y-4 sm:space-y-6"
+                    onSubmit={(e) => {
+                        console.log('Form onSubmit triggered'); // Debug log
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleSubmit(e);
+                        return false; // Explicitly return false to prevent submission
+                    }}
+                    noValidate // Add this to prevent browser validation
+                >
                     <div>
                         <label htmlFor="email" className="block text-sm uppercase tracking-widest mb-2" style={{ color: '#979797', fontSize: '13px', fontFamily: 'Montserrat, sans-serif' }}>
                             Email address
@@ -87,12 +129,15 @@ const Login = () => {
                             name="email"
                             type="email"
                             autoComplete="email"
-                            required
                             value={formData.email}
                             onChange={handleChange}
                             disabled={loading}
                             className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-200 focus:outline-none focus:border-black transition-colors disabled:bg-gray-50 disabled:cursor-not-allowed text-sm sm:text-base"
                             style={{ fontFamily: 'Montserrat, sans-serif' }}
+                            onInvalid={(e) => {
+                                console.log('Email validation failed'); // Debug log
+                                e.preventDefault();
+                            }}
                         />
                     </div>
 
@@ -106,12 +151,15 @@ const Login = () => {
                                 name="password"
                                 type={showPassword ? "text" : "password"}
                                 autoComplete="current-password"
-                                required
                                 value={formData.password}
                                 onChange={handleChange}
                                 disabled={loading}
                                 className="w-full px-3 sm:px-4 py-2 sm:py-3 pr-12 border border-gray-200 focus:outline-none focus:border-black transition-colors disabled:bg-gray-50 disabled:cursor-not-allowed text-sm sm:text-base"
                                 style={{ fontFamily: 'Montserrat, sans-serif' }}
+                                onInvalid={(e) => {
+                                    console.log('Password validation failed'); // Debug log
+                                    e.preventDefault();
+                                }}
                             />
                             <button
                                 type="button"
@@ -139,7 +187,10 @@ const Login = () => {
                             disabled={loading}
                             className="w-full bg-black text-white px-6 sm:px-8 py-3 sm:py-4 font-normal border-0 hover:bg-gray-900 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed relative text-sm sm:text-base"
                             style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 400 }}
-                            onClick={() => console.log('Login button clicked')} // Debug log
+                            onClick={(e) => {
+                                console.log('Submit button clicked'); // Debug log
+                                // Don't prevent default here, let the form onSubmit handle it
+                            }}
                         >
                             {loading ? (
                                 <>

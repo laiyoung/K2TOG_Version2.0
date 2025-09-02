@@ -253,6 +253,33 @@ async function createDirectBroadcast(title, message, userIds, senderId) {
   }
 }
 
+// Get notification by ID (with user authorization)
+async function getNotificationById(notificationId, userId) {
+  const result = await pool.query(
+    'SELECT * FROM user_notifications WHERE id = $1 AND (user_id = $2 OR sender_id = $2) ORDER BY created_at DESC',
+    [notificationId, userId]
+  );
+  return result.rows[0];
+}
+
+// Mark all notifications as read for a user
+async function markAllAsRead(userId) {
+  const result = await pool.query(
+    'UPDATE user_notifications SET is_read = true WHERE user_id = $1 AND is_read = false RETURNING *',
+    [userId]
+  );
+  return result.rows;
+}
+
+// Get unread count for a user
+async function getUnreadCount(userId) {
+  const result = await pool.query(
+    'SELECT COUNT(*) as count FROM user_notifications WHERE user_id = $1 AND is_read = false',
+    [userId]
+  );
+  return parseInt(result.rows[0].count);
+}
+
 module.exports = {
   getUserNotifications,
   markNotificationRead,
@@ -264,5 +291,8 @@ module.exports = {
   getAllTemplates,
   createTemplate,
   deleteTemplate,
-  createDirectBroadcast
+  createDirectBroadcast,
+  getNotificationById,
+  markAllAsRead,
+  getUnreadCount
 }; 

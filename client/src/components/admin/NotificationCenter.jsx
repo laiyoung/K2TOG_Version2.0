@@ -85,6 +85,7 @@ const NotificationCenter = () => {
   const [filteredStudents, setFilteredStudents] = useState([]);
   const [users, setUsers] = useState([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
+  const [showSimpleSelect, setShowSimpleSelect] = useState(false);
 
   // Add refs to prevent duplicate API calls
   const hasInitialized = React.useRef(false);
@@ -101,6 +102,42 @@ const NotificationCenter = () => {
     templates: false,
     notifications: false,
   });
+
+  // Force refresh function to clear cache and reload data
+  const forceRefreshUsers = React.useCallback(async () => {
+    console.log('Force refreshing users...');
+    hasFetchedUsers.current = false;
+    setDataFetched(prev => ({ ...prev, users: false }));
+    setUsers([]);
+    setLoadingUsers(true);
+
+    try {
+      const response = await adminService.getAllUsers();
+      console.log('Force refreshed users:', response);
+
+      if (Array.isArray(response)) {
+        const validUsers = response.filter(user => {
+          const isValid = user &&
+            user.id &&
+            (user.first_name || user.last_name || user.email);
+          return isValid;
+        }).map(user => ({
+          ...user,
+          displayName: user.first_name && user.last_name
+            ? `${user.first_name} ${user.last_name}`
+            : user.email || 'Unnamed User'
+        }));
+
+        setUsers(validUsers);
+        saveToLocalStorage('users', true);
+      }
+    } catch (error) {
+      console.error('Force refresh failed:', error);
+      setError('Failed to refresh users');
+    } finally {
+      setLoadingUsers(false);
+    }
+  }, []);
 
   // Check session storage for already fetched data
   const checkSessionStorage = () => {
@@ -1292,6 +1329,9 @@ const NotificationCenter = () => {
                   setNotificationTitle('');
                   setNotificationMessage('');
                 }}
+                MenuProps={{
+                  sx: { zIndex: 1500 }
+                }}
               >
                 <MenuItem value="user">Send to Student</MenuItem>
                 <MenuItem value="class">Send to Class</MenuItem>
@@ -1300,72 +1340,186 @@ const NotificationCenter = () => {
 
             {selectedRecipientType === "user" ? (
               <Box sx={{ mb: 2 }}>
-                <Autocomplete
-                  value={selectedRecipient}
-                  onChange={(event, newValue) => {
-                    console.log('Selected recipient:', newValue);
-                    setSelectedRecipient(newValue);
-                  }}
-                  options={users}
-                  getOptionLabel={(option) => {
-                    if (!option) return '';
-                    console.log('Getting label for option:', option);
-                    return option.displayName || `${option.first_name} ${option.last_name}`.trim() || option.email || 'Unnamed User';
-                  }}
-                  isOptionEqualToValue={(option, value) => {
-                    const isEqual = option?.id === value?.id;
-                    console.log('Comparing options:', { option, value, isEqual });
-                    return isEqual;
-                  }}
-                  renderInput={(params) => (
-                    <TextField
-                      {...params}
-                      label="Search and Select Student"
-                      placeholder="Type to search..."
-                      error={!!error}
-                      helperText={error || "Type to search for a student"}
-                      InputProps={{
-                        ...params.InputProps,
-                        endAdornment: (
-                          <>
-                            {loadingUsers ? <CircularProgress color="inherit" size={20} /> : null}
-                            {params.InputProps.endAdornment}
-                          </>
-                        ),
+                {console.log('Rendering Autocomplete with users:', users, 'loadingUsers:', loadingUsers)}
+                {/* Debug info */}
+                {process.env.NODE_ENV === 'development' && (
+                  <Box sx={{ mb: 1, p: 1, bgcolor: 'grey.100', borderRadius: 1 }}>
+                    <Typography variant="caption">
+                      Debug: Users loaded: {users?.length || 0}, Loading: {loadingUsers ? 'Yes' : 'No'}
+                    </Typography>
+                    <Button
+                      size="small"
+                      onClick={forceRefreshUsers}
+                      sx={{ ml: 1 }}
+                    >
+                      Refresh Users
+                    </Button>
+                    {/* Test with simple Select if Autocomplete fails */}
+                    <Button
+                      size="small"
+                      onClick={() => setShowSimpleSelect(!showSimpleSelect)}
+                      sx={{ ml: 1 }}
+                    >
+                      {showSimpleSelect ? 'Hide' : 'Show'} Simple Select
+                    </Button>
+                  </Box>
+                )}
+
+                {/* Simple Select Test */}
+                {showSimpleSelect && (
+                  <FormControl fullWidth sx={{ mb: 2 }}>
+                    <InputLabel>Test Simple Select</InputLabel>
+                    <Select
+                      value={selectedRecipient?.id || ''}
+                      label="Test Simple Select"
+                      onChange={(e) => {
+                        const selectedId = e.target.value;
+                        const selectedUser = users.find(u => u.id === selectedId);
+                        setSelectedRecipient(selectedUser);
                       }}
-                    />
-                  )}
-                  renderOption={(props, option) => {
-                    console.log('Rendering option:', option);
-                    const { key, ...otherProps } = props;
-                    return (
-                      <li key={key} {...otherProps}>
-                        <Box>
-                          <Typography variant="body1">
-                            {option.displayName || `${option.first_name} ${option.last_name}`.trim() || option.email || 'Unnamed User'}
-                          </Typography>
-                          {option.email && (
-                            <Typography variant="body2" color="text.secondary">
-                              {option.email}
+                      MenuProps={{
+                        sx: { zIndex: 1500 }
+                      }}
+                    >
+                      {users.map((user) => (
+                        <MenuItem key={user.id} value={user.id}>
+                          {user.displayName || `${user.first_name} ${user.last_name}`.trim() || user.email}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                )}
+                {/* Alternative Autocomplete with custom styling */}
+                <Box sx={{ position: 'relative' }}>
+                  <Autocomplete
+                    value={selectedRecipient}
+                    onChange={(event, newValue) => {
+                      console.log('Selected recipient:', newValue);
+                      setSelectedRecipient(newValue);
+                    }}
+                    options={users || []}
+                    filterOptions={(options, { inputValue }) => {
+                      console.log('Filtering options:', { options, inputValue });
+                      if (!inputValue) return options;
+                      return options.filter(option => {
+                        const searchTerm = inputValue.toLowerCase();
+                        const name = option.displayName?.toLowerCase() || '';
+                        const email = option.email?.toLowerCase() || '';
+                        const firstName = option.first_name?.toLowerCase() || '';
+                        const lastName = option.last_name?.toLowerCase() || '';
+
+                        return name.includes(searchTerm) ||
+                          email.includes(searchTerm) ||
+                          firstName.includes(searchTerm) ||
+                          lastName.includes(searchTerm);
+                      });
+                    }}
+                    getOptionLabel={(option) => {
+                      if (!option) return '';
+                      console.log('Getting label for option:', option);
+                      return option.displayName || `${option.first_name} ${option.last_name}`.trim() || option.email || 'Unnamed User';
+                    }}
+                    isOptionEqualToValue={(option, value) => {
+                      const isEqual = option?.id === value?.id;
+                      console.log('Comparing options:', { option, value, isEqual });
+                      return isEqual;
+                    }}
+                    PopperProps={{
+                      sx: {
+                        zIndex: 1500,
+                        '& .MuiPaper-root': {
+                          zIndex: 1500,
+                          position: 'relative'
+                        }
+                      },
+                      placement: 'bottom-start',
+                      modifiers: [
+                        {
+                          name: 'preventOverflow',
+                          enabled: true,
+                          options: {
+                            altAxis: true,
+                            tether: false,
+                            rootBoundary: 'viewport'
+                          }
+                        }
+                      ]
+                    }}
+                    ListboxProps={{
+                      sx: {
+                        zIndex: 1500,
+                        maxHeight: '200px'
+                      }
+                    }}
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        label="Search and Select Student"
+                        placeholder="Type to search..."
+                        error={!!error}
+                        helperText={error || "Type to search for a student"}
+                        InputProps={{
+                          ...params.InputProps,
+                          endAdornment: (
+                            <>
+                              {loadingUsers ? <CircularProgress color="inherit" size={20} /> : null}
+                              {params.InputProps.endAdornment}
+                            </>
+                          ),
+                        }}
+                      />
+                    )}
+                    renderOption={(props, option) => {
+                      console.log('Rendering option:', option);
+                      const { key, ...otherProps } = props;
+                      return (
+                        <li key={option.id || key} {...otherProps}>
+                          <Box>
+                            <Typography variant="body1">
+                              {option.displayName || `${option.first_name} ${option.last_name}`.trim() || option.email || 'Unnamed User'}
                             </Typography>
-                          )}
-                          {option.role && (
-                            <Typography variant="caption" color="text.secondary">
-                              Student
-                            </Typography>
-                          )}
-                        </Box>
-                      </li>
-                    );
-                  }}
-                  noOptionsText={loadingUsers ? "Loading..." : "No students found"}
-                  loadingText="Loading students..."
-                  clearText="Clear"
-                  openText="Open"
-                  closeText="Close"
-                  loading={loadingUsers}
-                  fullWidth
-                />
+                            {option.email && (
+                              <Typography variant="body2" color="text.secondary">
+                                {option.email}
+                              </Typography>
+                            )}
+                            {option.role && (
+                              <Typography variant="caption" color="text.secondary">
+                                Student
+                              </Typography>
+                            )}
+                          </Box>
+                        </li>
+                      );
+                    }}
+                    noOptionsText={loadingUsers ? "Loading..." : "No students found"}
+                    loadingText="Loading students..."
+                    clearText="Clear"
+                    openText="Open"
+                    closeText="Close"
+                    loading={loadingUsers}
+                    fullWidth
+                    onOpen={() => console.log('Autocomplete opened, users:', users)}
+                    onClose={() => console.log('Autocomplete closed')}
+                    onInputChange={(event, value) => console.log('Input changed:', value)}
+                    disablePortal={false}
+                    disableScrollLock={false}
+                    slotProps={{
+                      popper: {
+                        sx: {
+                          zIndex: 1500,
+                          '& .MuiPaper-root': {
+                            zIndex: 1500,
+                            position: 'relative',
+                            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)',
+                            border: '1px solid #e0e0e0',
+                            borderRadius: '4px'
+                          }
+                        }
+                      }
+                    }}
+                  />
+                </Box>
                 {error && (
                   <Typography color="error" variant="caption" sx={{ mt: 1 }}>
                     {error}
@@ -1385,6 +1539,9 @@ const NotificationCenter = () => {
                   }}
                   error={!selectedClass && error}
                   disabled={loading || !classesLoaded}
+                  MenuProps={{
+                    sx: { zIndex: 1500 }
+                  }}
                 >
                   {loading ? (
                     <MenuItem disabled>
@@ -1474,6 +1631,9 @@ const NotificationCenter = () => {
                     setNotificationTitle('');
                     setNotificationMessage('');
                   }
+                }}
+                MenuProps={{
+                  sx: { zIndex: 1500 }
                 }}
               >
                 {loading ? (
@@ -1627,6 +1787,9 @@ const NotificationCenter = () => {
                         : ["class_name", "student_count", "teacher_name"],
                   })
                 }
+                MenuProps={{
+                  sx: { zIndex: 1500 }
+                }}
               >
                 <MenuItem value="user">Specific Student</MenuItem>
                 <MenuItem value="class">Specific Class</MenuItem>

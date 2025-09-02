@@ -15,23 +15,23 @@ const seed = async () => {
     await pool.query('DELETE FROM classes');
 
     // Get existing user IDs from database
-    
+
     // Get existing user IDs from database
     const { rows: existingUsers } = await pool.query(`
       SELECT id, email, role FROM users 
       WHERE email IN ('jane@example.com', 'john@example.com', 'admin@example.com', 'instructor1@example.com', 'instructor2@example.com')
     `);
-    
+
     const janeId = existingUsers.find(u => u.email === 'jane@example.com')?.id;
     const johnId = existingUsers.find(u => u.email === 'john@example.com')?.id;
     const adminId = existingUsers.find(u => u.email === 'admin@example.com')?.id;
     const instructorOneId = existingUsers.find(u => u.email === 'instructor1@example.com')?.id;
     const instructorTwoId = existingUsers.find(u => u.email === 'instructor2@example.com')?.id;
-    
+
     if (!janeId || !johnId || !adminId || !instructorOneId || !instructorTwoId) {
       throw new Error('Some required users not found in database');
     }
-    
+
     console.log('Using existing users from database');
 
     // Seed classes
@@ -42,9 +42,9 @@ const seed = async () => {
         location_type: 'zoom',
         location_details: 'Online via Zoom',
         price: 299.99,
-        recurrence_pattern: { 
-          frequency: 'weekly', 
-          interval: 1, 
+        recurrence_pattern: {
+          frequency: 'weekly',
+          interval: 1,
           days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
           endDate: '2025-10-31'
         },
@@ -58,9 +58,9 @@ const seed = async () => {
         location_type: 'in-person',
         location_details: 'Main Training Center, Room 101',
         price: 349.99,
-        recurrence_pattern: { 
-          frequency: 'weekly', 
-          interval: 1, 
+        recurrence_pattern: {
+          frequency: 'weekly',
+          interval: 1,
           days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
           endDate: '2025-09-14'
         },
@@ -114,7 +114,7 @@ const seed = async () => {
     const refundedAtTz = new Date('2025-07-25T00:00:00.000Z').toISOString(); // for payments refunded_at (timestamptz)
     const paymentCreatedAtTs = '2025-07-15 00:38:08'; // for payments created_at (timestamp)
 
-    // Seed class sessions with instructors
+    // Seed class sessions with instructors - Updated with more recent future dates
     await pool.query(`
       INSERT INTO class_sessions (
         class_id, 
@@ -133,42 +133,42 @@ const seed = async () => {
       VALUES
         -- Child Development Associate (CDA) sessions with Instructor One (multi-day sessions)
         -- Past sessions (completed)
-        ($1, '2025-06-02', '2025-06-06', '19:00', '22:00', 20, 18, 5, true, 10, $2, 'completed'),
-        ($1, '2025-06-09', '2025-06-13', '19:00', '22:00', 20, 15, 5, true, 10, $2, 'completed'),
+        ($1, '2025-08-01', '2025-08-05', '19:00', '22:00', 20, 18, 5, true, 10, $2, 'completed'),
+        ($1, '2025-08-08', '2025-08-12', '19:00', '22:00', 20, 15, 5, true, 10, $2, 'completed'),
         
         -- Current sessions (this week and next week)
-        ($1, '2025-08-05', '2025-08-09', '19:00', '22:00', 20, 12, 5, true, 10, $2, 'scheduled'),
-        ($1, '2025-08-12', '2025-08-16', '19:00', '22:00', 20, 8, 5, true, 10, $2, 'scheduled'),
+        ($1, '2025-09-02', '2025-09-06', '19:00', '22:00', 20, 12, 5, true, 10, $2, 'scheduled'),
+        ($1, '2025-09-09', '2025-09-13', '19:00', '22:00', 20, 8, 5, true, 10, $2, 'scheduled'),
         
         -- Future sessions (next month)
-        ($1, '2025-09-02', '2025-09-06', '19:00', '22:00', 20, 5, 5, true, 10, $2, 'scheduled'),
-        ($1, '2025-09-09', '2025-09-13', '19:00', '22:00', 20, 3, 5, true, 10, $2, 'scheduled'),
+        ($1, '2025-10-07', '2025-10-11', '19:00', '22:00', 20, 5, 5, true, 10, $2, 'scheduled'),
+        ($1, '2025-10-14', '2025-10-18', '19:00', '22:00', 20, 3, 5, true, 10, $2, 'scheduled'),
         
         -- Development and Operations sessions with Instructor Two (multi-day sessions)
         -- Past sessions (completed)
-        ($3, '2025-06-03', '2025-06-07', '19:00', '22:00', 15, 12, 5, true, 5, $4, 'completed'),
-        ($3, '2025-06-10', '2025-06-14', '19:00', '22:00', 15, 10, 5, true, 5, $4, 'completed'),
+        ($3, '2025-08-02', '2025-08-06', '19:00', '22:00', 15, 12, 5, true, 5, $4, 'completed'),
+        ($3, '2025-08-09', '2025-08-13', '19:00', '22:00', 15, 10, 5, true, 5, $4, 'completed'),
         
         -- Current sessions
-        ($3, '2025-08-06', '2025-08-10', '19:00', '22:00', 15, 8, 5, true, 5, $4, 'scheduled'),
-        ($3, '2025-08-13', '2025-08-17', '19:00', '22:00', 15, 6, 5, true, 5, $4, 'scheduled'),
+        ($3, '2025-09-03', '2025-09-07', '19:00', '22:00', 15, 8, 5, true, 5, $4, 'scheduled'),
+        ($3, '2025-09-10', '2025-09-14', '19:00', '22:00', 15, 6, 5, true, 5, $4, 'scheduled'),
         
         -- Future sessions
-        ($3, '2025-09-03', '2025-09-07', '19:00', '22:00', 15, 4, 5, true, 5, $4, 'scheduled'),
-        ($3, '2025-09-10', '2025-09-14', '19:00', '22:00', 15, 2, 5, true, 5, $4, 'scheduled'),
+        ($3, '2025-10-08', '2025-10-12', '19:00', '22:00', 15, 4, 5, true, 5, $4, 'scheduled'),
+        ($3, '2025-10-15', '2025-10-19', '19:00', '22:00', 15, 2, 5, true, 5, $4, 'scheduled'),
         
         -- CPR and First Aid Certification sessions with Instructor One (single-day sessions)
         -- Past sessions (completed)
-        ($5, '2025-06-07', NULL, '09:00', '14:00', 12, 10, 4, true, 8, $2, 'completed'),
-        ($5, '2025-06-14', NULL, '09:00', '14:00', 12, 8, 4, true, 8, $2, 'completed'),
+        ($5, '2025-08-03', NULL, '09:00', '14:00', 12, 10, 4, true, 8, $2, 'completed'),
+        ($5, '2025-08-10', NULL, '09:00', '14:00', 12, 8, 4, true, 8, $2, 'completed'),
         
         -- Current sessions
-        ($5, '2025-08-07', NULL, '09:00', '14:00', 12, 6, 4, true, 8, $2, 'scheduled'),
-        ($5, '2025-08-14', NULL, '09:00', '14:00', 12, 4, 4, true, 8, $2, 'scheduled'),
+        ($5, '2025-09-04', NULL, '09:00', '14:00', 12, 6, 4, true, 8, $2, 'scheduled'),
+        ($5, '2025-09-11', NULL, '09:00', '14:00', 12, 4, 4, true, 8, $2, 'scheduled'),
         
         -- Future sessions
-        ($5, '2025-09-04', NULL, '09:00', '14:00', 12, 3, 4, true, 8, $2, 'scheduled'),
-        ($5, '2025-09-11', NULL, '09:00', '14:00', 12, 1, 4, true, 8, $2, 'scheduled')
+        ($5, '2025-10-05', NULL, '09:00', '14:00', 12, 3, 4, true, 8, $2, 'scheduled'),
+        ($5, '2025-10-12', NULL, '09:00', '14:00', 12, 1, 4, true, 8, $2, 'scheduled')
       ON CONFLICT DO NOTHING;
     `, [
       classMap.get('Child Development Associate (CDA)'),
@@ -343,32 +343,41 @@ const seed = async () => {
       dueDateTz // $13
     ]);
 
-    // Seed waitlist entries
+    // Seed waitlist entries with future dates for testing - Only regular users (no admins/instructors)
+    const futureWaitlistDate1 = new Date('2025-09-15T10:00:00.000Z').toISOString(); // Mid-September
+    const futureWaitlistDate2 = new Date('2025-09-20T14:30:00.000Z').toISOString(); // Late September
+    const futureWaitlistDate3 = new Date('2025-10-01T09:15:00.000Z').toISOString(); // Early October
+    const futureWaitlistDate4 = new Date('2025-10-10T16:45:00.000Z').toISOString(); // Mid-October
+
     await pool.query(`
       INSERT INTO class_waitlist (class_id, user_id, position, status, created_at)
       VALUES
-        -- Past session waitlist entries (completed)
-        ($1, $2::uuid, 1, 'approved', $5),
-        ($3, $6::uuid, 1, 'approved', $5),
-        ($4, $2::uuid, 1, 'approved', $5),
+        -- Future session waitlist entries with realistic future dates - Only regular users
+        ($1, $2::uuid, 1, 'pending', $5),  -- CDA - John Smith (position 1)
+        ($1, $6::uuid, 2, 'pending', $7),  -- CDA - Jane Doe (position 2)
         
-        -- Current session waitlist entries
-        ($1, $6::uuid, 1, 'pending', $5),
-        ($3, $2::uuid, 1, 'pending', $5),
-        ($4, $6::uuid, 1, 'rejected', $5),
+        ($3, $6::uuid, 1, 'pending', $8), -- DevOps - Jane Doe (position 1)
+        ($3, $2::uuid, 2, 'pending', $9), -- DevOps - John Smith (position 2)
         
-        -- Future session waitlist entries
-        ($1, $2::uuid, 1, 'pending', $5),
-        ($4, $6::uuid, 1, 'pending', $5),
-        ($4, $2::uuid, 2, 'approved', $5)
+        ($4, $2::uuid, 1, 'pending', $10), -- CPR - John Smith (position 1)
+        ($4, $6::uuid, 2, 'pending', $11), -- CPR - Jane Doe (position 2)
+        ($4, $2::uuid, 3, 'approved', $12), -- CPR - John Smith (position 3, approved)
+        ($4, $6::uuid, 4, 'rejected', $13) -- CPR - Jane Doe (position 4, rejected)
       ON CONFLICT (class_id, user_id) DO NOTHING;
     `, [
       classMap.get('Child Development Associate (CDA)'), // $1
       johnId, // $2
       classMap.get('Development and Operations'), // $3
       classMap.get('CPR and First Aid Certification'), // $4
-      reviewedAtTz, // $5
-      janeId // $6
+      futureWaitlistDate1, // $5
+      janeId, // $6
+      futureWaitlistDate2, // $7
+      futureWaitlistDate3, // $8
+      futureWaitlistDate4, // $9
+      futureWaitlistDate1, // $10
+      futureWaitlistDate2, // $11
+      futureWaitlistDate3, // $12
+      futureWaitlistDate4 // $13
     ]);
 
     // Seed notification templates

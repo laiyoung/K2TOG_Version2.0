@@ -14,6 +14,43 @@ const adminModel = {
     return result.rows;
   },
 
+  async getAllWaitlistEntries() {
+    const query = `
+      SELECT 
+        w.id,
+        w.class_id,
+        w.user_id,
+        w.position,
+        w.status,
+        w.created_at,
+        w.updated_at,
+        c.title as class_name,
+        c.location_details,
+        u.first_name,
+        u.last_name,
+        u.email as user_email,
+        CONCAT(u.first_name, ' ', u.last_name) as user_name,
+        cs.session_date as next_session_date,
+        cs.start_time,
+        cs.end_time
+      FROM class_waitlist w
+      JOIN classes c ON w.class_id = c.id
+      JOIN users u ON w.user_id = u.id
+      LEFT JOIN class_sessions cs ON cs.class_id = c.id 
+        AND cs.status = 'scheduled' 
+        AND cs.deleted_at IS NULL
+        AND (
+          (cs.end_date IS NOT NULL AND cs.end_date > CURRENT_DATE) OR
+          (cs.end_date IS NULL AND cs.session_date > CURRENT_DATE)
+        )
+      WHERE c.deleted_at IS NULL
+      AND w.status IN ('pending', 'waiting')
+      ORDER BY w.created_at DESC
+    `;
+    const result = await pool.query(query);
+    return result.rows;
+  },
+
   async updateWaitlistStatus(waitlistId, status) {
     const validStatuses = ['waiting', 'pending', 'approved', 'rejected', 'cancelled'];
     if (!validStatuses.includes(status)) {

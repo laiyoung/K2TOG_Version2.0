@@ -447,6 +447,16 @@ const adminService = {
         return api.get(`/admin/classes/${classId}/waitlist`);
     },
 
+    // Get all waitlist entries across all classes
+    async getAllWaitlistEntries() {
+        return api.get('/admin/waitlist');
+    },
+
+    // Get all classes
+    async getAllClasses() {
+        return api.get('/admin/classes');
+    },
+
     // Update waitlist entry status (admin only)
     async updateWaitlistStatus(classId, waitlistId, status) {
         return api.put(`/admin/classes/${classId}/waitlist/${waitlistId}`, { status });
@@ -601,6 +611,28 @@ const adminService = {
             throw new Error('Failed to update session status');
         }
         return response.json();
+    },
+
+    // Get single notification (admin can view any notification)
+    getNotification: async (notificationId) => {
+        try {
+            const response = await api.get(`/admin/notifications/${notificationId}`);
+            return response.data;
+        } catch (error) {
+            console.error('Error fetching notification:', error);
+            throw error;
+        }
+    },
+
+    // Send detailed notification with links
+    sendDetailedNotification: async (detailedMessage) => {
+        try {
+            const response = await api.post('/admin/notifications/detailed', detailedMessage);
+            return response.data;
+        } catch (error) {
+            console.error('Error sending detailed notification:', error);
+            throw error;
+        }
     }
 };
 

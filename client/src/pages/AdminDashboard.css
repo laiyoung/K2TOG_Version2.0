@@ -1,0 +1,232 @@
+/* AdminDashboard Mobile Sidebar Scrolling Styles */
+
+/* Custom scrollbar for mobile sidebar navigation */
+.admin-dashboard-sidebar nav::-webkit-scrollbar {
+    width: 6px;
+}
+
+.admin-dashboard-sidebar nav::-webkit-scrollbar-track {
+    background: #f7fafc;
+    border-radius: 3px;
+}
+
+.admin-dashboard-sidebar nav::-webkit-scrollbar-thumb {
+    background: #cbd5e0;
+    border-radius: 3px;
+}
+
+.admin-dashboard-sidebar nav::-webkit-scrollbar-thumb:hover {
+    background: #a0aec0;
+}
+
+/* Firefox scrollbar styling */
+.admin-dashboard-sidebar nav {
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e0 #f7fafc;
+}
+
+/* Ensure smooth scrolling behavior */
+.admin-dashboard-sidebar nav {
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Mobile-specific height constraints */
+@media (max-width: 1023px) {
+    .admin-dashboard-sidebar {
+        max-height: calc(100vh - 80px);
+        /* Account for mobile header */
+    }
+
+    .admin-dashboard-sidebar nav {
+        max-height: calc(100vh - 140px);
+        /* Account for header and close button */
+    }
+}
+
+/* Ensure navigation items are properly spaced and visible */
+.admin-dashboard-sidebar nav button {
+    margin-bottom: 2px;
+}
+
+.admin-dashboard-sidebar nav button:last-child {
+    margin-bottom: 0;
+}
+
+/* Add some padding at the bottom for better scrolling experience */
+.admin-dashboard-sidebar nav {
+    padding-bottom: 1rem;
+}
+
+/* Fix for dropdown z-index issues in admin dashboard */
+/* Ensure Material-UI Select dropdowns appear above the admin sidebar */
+.admin-route .MuiSelect-select,
+.admin-route .MuiInputBase-root {
+    z-index: 1;
+}
+
+/* Material-UI Menu (dropdown) z-index fix */
+.admin-route .MuiMenu-root,
+.admin-route .MuiPopover-root,
+.admin-route .MuiPaper-root[role="presentation"] {
+    z-index: 1500 !important;
+}
+
+/* Specific fix for Select dropdowns */
+.admin-route .MuiSelect-root .MuiMenu-root,
+.admin-route .MuiSelect-root .MuiPopover-root {
+    z-index: 1500 !important;
+}
+
+/* Ensure dropdown options are visible */
+.admin-route .MuiMenuItem-root {
+    z-index: 1501 !important;
+}
+
+/* Fix for any nested dropdowns */
+.admin-route .MuiMenu-root .MuiMenu-root {
+    z-index: 1502 !important;
+}
+
+/* Ensure form controls don't interfere with dropdowns */
+.admin-route .MuiFormControl-root {
+    position: relative;
+    z-index: 1;
+}
+
+/* Fix for Autocomplete dropdowns */
+.admin-route .MuiAutocomplete-popper {
+    z-index: 1500 !important;
+}
+
+/* Additional Autocomplete specific fixes */
+.admin-route .MuiAutocomplete-root .MuiPopper-root {
+    z-index: 1500 !important;
+}
+
+.admin-route .MuiAutocomplete-root .MuiPaper-root {
+    z-index: 1500 !important;
+}
+
+.admin-route .MuiAutocomplete-root .MuiList-root {
+    z-index: 1501 !important;
+}
+
+/* Ensure Autocomplete options are visible */
+.admin-route .MuiAutocomplete-root .MuiAutocomplete-listbox {
+    z-index: 1501 !important;
+}
+
+/* Fix for Autocomplete popper container */
+.admin-route .MuiAutocomplete-popper .MuiPaper-root {
+    z-index: 1500 !important;
+    position: relative !important;
+}
+
+/* More aggressive Autocomplete fixes */
+.admin-route .MuiAutocomplete-popper {
+    z-index: 1500 !important;
+    position: fixed !important;
+}
+
+.admin-route .MuiAutocomplete-popper .MuiPaper-root {
+    z-index: 1500 !important;
+    position: relative !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15) !important;
+}
+
+.admin-route .MuiAutocomplete-listbox {
+    z-index: 1501 !important;
+    background-color: white !important;
+    border: 1px solid #e0e0e0 !important;
+    border-radius: 4px !important;
+}
+
+/* Ensure Autocomplete dropdown is always visible */
+.admin-route .MuiAutocomplete-root .MuiAutocomplete-popper {
+    z-index: 1500 !important;
+}
+
+.admin-route .MuiAutocomplete-root .MuiAutocomplete-listbox {
+    z-index: 1501 !important;
+    max-height: 200px !important;
+    overflow-y: auto !important;
+}
+
+/* Additional fixes for Material-UI v5 Autocomplete */
+.admin-route [data-popper-placement] {
+    z-index: 1500 !important;
+}
+
+.admin-route .MuiAutocomplete-popper[data-popper-placement] {
+    z-index: 1500 !important;
+}
+
+/* Fix for Autocomplete options container */
+.admin-route .MuiAutocomplete-popper .MuiAutocomplete-listbox {
+    z-index: 1501 !important;
+    background: white !important;
+    border: 1px solid #e0e0e0 !important;
+    border-radius: 4px !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15) !important;
+}
+
+/* Ensure Autocomplete options are clickable */
+.admin-route .MuiAutocomplete-popper .MuiAutocomplete-option {
+    z-index: 1502 !important;
+    background: white !important;
+}
+
+/* Fix for any portal elements */
+.admin-route .MuiPortal-root {
+    z-index: 1500 !important;
+}
+
+/* Override any conflicting z-index values */
+.admin-route *[style*="z-index"] {
+    z-index: 1500 !important;
+}
+
+/* Fix for DatePicker dropdowns */
+.admin-route .MuiPickersPopper-root {
+    z-index: 1500 !important;
+}
+
+/* Ensure all Material-UI overlays appear above admin sidebar */
+.admin-route .MuiBackdrop-root {
+    z-index: 1499 !important;
+}
+
+/* Fix for Tooltip components */
+.admin-route .MuiTooltip-popper {
+    z-index: 1500 !important;
+}
+
+/* Fix for Dialog components */
+.admin-route .MuiDialog-root {
+    z-index: 1500 !important;
+}
+
+/* Fix for Snackbar components */
+.admin-route .MuiSnackbar-root {
+    z-index: 1500 !important;
+}
+
+/* Additional aggressive fix for Material-UI menus */
+.admin-route [role="menu"],
+.admin-route [role="listbox"],
+.admin-route [role="presentation"] {
+    z-index: 1500 !important;
+}
+
+/* Fix for any Material-UI portal elements */
+.admin-route .MuiPortal-root {
+    z-index: 1500 !important;
+}
+
+/* More specific fixes for Material-UI menu containers */
+.admin-route .MuiMenu-root .MuiPaper-root,
+.admin-route .MuiPopover-root .MuiPaper-root {
+    z-index: 1500 !important;
+    position: relative !important;
+}

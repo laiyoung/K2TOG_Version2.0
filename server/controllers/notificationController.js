@@ -8,7 +8,7 @@ const emailConfig = require('../config/emailConfig');
 // @access  Private
 const getUserNotifications = async (req, res) => {
     try {
-        const result = await Notification.getUserNotifications(req.user.id, { page: 1, limit: 10 });
+        const result = await Notification.getUserNotifications(req.user.id);
         res.json(result);
     } catch (error) {
         console.error('Get notifications error:', error);
@@ -375,6 +375,81 @@ const getSentNotifications = async (req, res) => {
     }
 };
 
+// @desc    Get single notification by ID
+// @route   GET /api/notifications/:id
+// @access  Private
+const getNotification = async (req, res) => {
+    try {
+        const notification = await Notification.getNotificationById(req.params.id, req.user.id);
+        if (!notification) {
+            return res.status(404).json({ error: 'Notification not found or unauthorized' });
+        }
+        res.json(notification);
+    } catch (error) {
+        console.error('Get notification error:', error);
+        res.status(500).json({ error: 'Failed to get notification' });
+    }
+};
+
+// @desc    Send detailed notification with links
+// @route   POST /api/notifications/admin/detailed
+// @access  Private/Admin
+const sendDetailedNotification = async (req, res) => {
+    try {
+        const { originalNotificationId, message, links = [] } = req.body;
+
+        if (!originalNotificationId || !message) {
+            return res.status(400).json({ error: 'Missing required fields: originalNotificationId, message' });
+        }
+
+        // Get the original notification to find the recipient
+        const originalNotification = await Notification.getNotificationById(originalNotificationId, req.user.id);
+        if (!originalNotification) {
+            return res.status(404).json({ error: 'Original notification not found' });
+        }
+
+        // Create a new detailed notification
+        const detailedNotification = await Notification.createNotification({
+            user_id: originalNotification.user_id,
+            sender_id: req.user.id,
+            type: 'detailed_notification',
+            title: 'Detailed Message',
+            message: message,
+            metadata: {
+                original_notification_id: originalNotificationId,
+                links: links,
+                sent_by: req.user.id,
+                sent_at: new Date().toISOString()
+            }
+        });
+
+        // Send email notification if user has email notifications enabled
+        try {
+            const { getUserById } = require('../models/userModel');
+            const user = await getUserById(originalNotification.user_id);
+            if (user && user.email_notifications) {
+                await emailService.sendNotificationAlertEmail(
+                    user.email,
+                    `${user.first_name} ${user.last_name}`,
+                    'detailed_notification',
+                    'Detailed Message'
+                );
+            }
+        } catch (emailError) {
+            console.error('Failed to send email notification:', emailError);
+            // Don't fail the entire request if email fails
+        }
+
+        res.status(201).json({
+            message: 'Detailed notification sent successfully',
+            notification: detailedNotification
+        });
+    } catch (error) {
+        console.error('Send detailed notification error:', error);
+        res.status(500).json({ error: 'Failed to send detailed notification' });
+    }
+};
+
 module.exports = {
     getUserNotifications,
     getUnreadCount,
@@ -387,5 +462,7 @@ module.exports = {
     sendBulkNotification,
     broadcastNotification,
     getSentNotifications,
-    sendNotification
+    sendNotification,
+    getNotification,
+    sendDetailedNotification
 }; 

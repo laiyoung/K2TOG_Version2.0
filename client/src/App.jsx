@@ -19,6 +19,7 @@ import ClassDetails from './pages/ClassDetails';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import ProfilePage from './components/profile/ProfilePage';
+import NotificationDetail from './pages/NotificationDetail';
 import './App.css';
 
 // Protected Route component
@@ -154,6 +155,11 @@ const router = createBrowserRouter(
                     <ProfilePage />
                 </ProtectedRoute>
             } />
+            <Route path="/notifications/:id" element={
+                <ProtectedRoute>
+                    <NotificationDetail />
+                </ProtectedRoute>
+            } />
 
             {/* Admin Routes */}
             <Route path="/admin" element={
@@ -174,6 +180,11 @@ const router = createBrowserRouter(
             <Route path="/admin/classes" element={
                 <AdminRoute>
                     <AdminDashboard defaultSection="classes" />
+                </AdminRoute>
+            } />
+            <Route path="/admin/waitlist" element={
+                <AdminRoute>
+                    <AdminDashboard defaultSection="waitlist" />
                 </AdminRoute>
             } />
             <Route path="/admin/enrollments" element={

@@ -17,6 +17,11 @@ const userService = {
         return api.get('/notifications');
     },
 
+    // Get single notification
+    getNotification: async (notificationId) => {
+        return api.get(`/notifications/${notificationId}`);
+    },
+
     // Mark notification as read
     markNotificationAsRead: async (notificationId) => {
         return api.put(`/notifications/${notificationId}/read`);

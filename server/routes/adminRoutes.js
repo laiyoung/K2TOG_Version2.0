@@ -5,36 +5,37 @@ const { getInstructors } = require('../controllers/adminController');
 const { requireAuth, requireAdmin } = require('../middleware/auth');
 
 const {
-  adminGetUsers,
-  adminDeleteUser,
-  adminGetClasses,
-  adminEditClass,
-  adminDeleteClass,
-  adminEnrollmentStats,
-  adminRemoveUserFromClass,
-  adminGetPendingEnrollments,
-  adminApproveEnrollment,
-  adminRejectEnrollment,
-  adminGetEnrollmentDetails,
-  // New financial management functions
-  adminGetFinancialSummary,
-  adminGetRevenueByClass,
-  adminGetAllPayments,
-  adminGetPaymentDetails,
-  adminProcessRefund,
-  // New class management functions
-  adminCreateClass,
-  adminGetClassDetails,
-  adminGetClassSessions,
-  adminUpdateClassStatus,
-  adminGetClassWaitlist,
-  adminUpdateWaitlistStatus,
-  adminAddToWaitlist,
-  adminGetOutstandingPayments,
-  getStats,
-  adminGetClassStudents,
-  adminGetAllEnrollments,
-  adminGetHistoricalEnrollments,
+    adminGetUsers,
+    adminDeleteUser,
+    adminGetClasses,
+    adminEditClass,
+    adminDeleteClass,
+    adminEnrollmentStats,
+    adminRemoveUserFromClass,
+    adminGetPendingEnrollments,
+    adminApproveEnrollment,
+    adminRejectEnrollment,
+    adminGetEnrollmentDetails,
+    // New financial management functions
+    adminGetFinancialSummary,
+    adminGetRevenueByClass,
+    adminGetAllPayments,
+    adminGetPaymentDetails,
+    adminProcessRefund,
+    // New class management functions
+    adminCreateClass,
+    adminGetClassDetails,
+    adminGetClassSessions,
+    adminUpdateClassStatus,
+    adminGetClassWaitlist,
+    adminUpdateWaitlistStatus,
+    adminAddToWaitlist,
+    adminGetAllWaitlistEntries,
+    adminGetOutstandingPayments,
+    getStats,
+    adminGetClassStudents,
+    adminGetAllEnrollments,
+    adminGetHistoricalEnrollments,
 } = require('../controllers/dashboardController');
 
 const {
@@ -81,12 +82,17 @@ router.post('/classes', adminCreateClass);
 router.get('/classes/:classId', adminGetClassDetails);
 router.get('/classes/:classId/sessions', adminGetClassSessions);
 router.put('/classes/:classId/status', adminUpdateClassStatus);
-router.get('/classes/:classId/waitlist', adminGetClassWaitlist);
 router.post('/classes/:classId/waitlist', adminAddToWaitlist);
 router.put('/classes/:classId/waitlist/:waitlistId', adminUpdateWaitlistStatus);
 router.get('/classes/:classId/students', adminGetClassStudents);
 router.get('/classes/:classId/enrollments', adminGetAllEnrollments);
 router.get('/classes/:classId/enrollments/historical', adminGetHistoricalEnrollments);
+
+// Waitlist Management
+router.get('/waitlist', adminGetAllWaitlistEntries);
+
+// Class-specific waitlist (must come after general waitlist route)
+router.get('/classes/:classId/waitlist', adminGetClassWaitlist);
 
 // User Management Routes
 router.get('/users/search', searchUsers);

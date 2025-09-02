@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Footer from '../components/layout/Footer';
@@ -19,6 +19,25 @@ const Signup = () => {
     const [validationErrors, setValidationErrors] = useState({});
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+    // Add effect to monitor error changes
+    useEffect(() => {
+        if (error || authError) {
+            console.log('Error state changed to:', error || authError);
+        } else {
+            console.log('Error state cleared');
+        }
+    }, [error, authError]);
+
+    // Add effect to monitor page refresh
+    useEffect(() => {
+        const handleBeforeUnload = (e) => {
+            console.log('Page is about to unload/refresh!'); // Debug log
+        };
+
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    }, []);
 
     const validateForm = () => {
         const errors = {};
@@ -57,15 +76,13 @@ const Signup = () => {
                 [name]: ''
             }));
         }
-        // Clear auth errors
-        if (error || authError) {
-            setError('');
-            clearError();
-        }
+        // Don't clear auth errors automatically - let user see the error until they fix it
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        e.stopPropagation();
+        console.log('Signup form submitted'); // Debug log
         setLoading(true);
         setError('');
         setValidationErrors({});
@@ -90,11 +107,22 @@ const Signup = () => {
                 last_name: formFields.lastName,
                 phone_number: formFields.phoneNumber.trim() || null,
                 email_notifications: true,
-
             };
-            await register(signupData);
-            navigate('/');
+
+            console.log('Calling register function...'); // Debug log
+            const result = await register(signupData);
+            console.log('Registration result:', result); // Debug log
+
+            if (result.success) {
+                console.log('Registration successful, navigating to home'); // Debug log
+                clearError(); // Clear any previous errors on successful registration
+                navigate('/');
+            } else {
+                console.log('Registration failed:', result.error); // Debug log
+                // Error is already handled by AuthContext
+            }
         } catch (err) {
+            console.error('Registration error in component:', err); // Debug log
             setError(err.message || 'Failed to create account. Please try again.');
         } finally {
             setLoading(false);
@@ -129,7 +157,17 @@ const Signup = () => {
                     </div>
                 )}
 
-                <form className="space-y-4 sm:space-y-6" onSubmit={handleSubmit}>
+                <form
+                    className="space-y-4 sm:space-y-6"
+                    onSubmit={(e) => {
+                        console.log('Form onSubmit triggered'); // Debug log
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleSubmit(e);
+                        return false; // Explicitly return false to prevent submission
+                    }}
+                    noValidate // Add this to prevent browser validation
+                >
                     <div className="grid grid-cols-1 gap-4 sm:gap-6">
                         <div>
                             <label htmlFor="firstName" className="block text-sm uppercase tracking-widest mb-2" style={{ color: '#979797', fontSize: '13px', fontFamily: 'Montserrat, sans-serif' }}>
@@ -139,7 +177,6 @@ const Signup = () => {
                                 id="firstName"
                                 name="firstName"
                                 type="text"
-                                required
                                 value={formData.firstName}
                                 onChange={handleChange}
                                 disabled={loading}
@@ -159,7 +196,6 @@ const Signup = () => {
                                 id="lastName"
                                 name="lastName"
                                 type="text"
-                                required
                                 value={formData.lastName}
                                 onChange={handleChange}
                                 disabled={loading}
@@ -181,7 +217,6 @@ const Signup = () => {
                             name="email"
                             type="email"
                             autoComplete="email"
-                            required
                             value={formData.email}
                             onChange={handleChange}
                             disabled={loading}
@@ -223,7 +258,6 @@ const Signup = () => {
                                 id="password"
                                 name="password"
                                 type={showPassword ? "text" : "password"}
-                                required
                                 value={formData.password}
                                 onChange={handleChange}
                                 disabled={loading}
@@ -262,7 +296,6 @@ const Signup = () => {
                                 id="confirmPassword"
                                 name="confirmPassword"
                                 type={showConfirmPassword ? "text" : "password"}
-                                required
                                 value={formData.confirmPassword}
                                 onChange={handleChange}
                                 disabled={loading}

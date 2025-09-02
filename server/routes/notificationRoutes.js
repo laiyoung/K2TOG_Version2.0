@@ -13,13 +13,16 @@ const {
     broadcastNotification,
     getSentNotifications,
     deleteTemplate,
-    sendNotification
+    sendNotification,
+    getNotification,
+    sendDetailedNotification
 } = require('../controllers/notificationController');
 
 // User routes
 router.use(requireAuth); // All notification routes require authentication
 router.get('/', getUserNotifications);
 router.get('/unread-count', getUnreadCount);
+router.get('/:id', getNotification);
 router.put('/:id/read', markAsRead);
 router.put('/read-all', markAllAsRead);
 router.delete('/:id', deleteNotification);
@@ -29,11 +32,13 @@ router.use('/admin', [requireAuth, requireAdmin]);
 
 // Admin notification routes
 router.get('/admin/sent', getSentNotifications);
-router.post('/admin/send', sendNotification);
-router.post('/admin/templates', createTemplate);
 router.get('/admin/templates', getTemplates);
+router.post('/admin/send', sendNotification);
+router.post('/admin/detailed', sendDetailedNotification);
+router.post('/admin/templates', createTemplate);
 router.delete('/admin/templates/:id', deleteTemplate);
 router.post('/admin/bulk', sendBulkNotification);
 router.post('/admin/broadcast', broadcastNotification);
+router.get('/admin/:id', getNotification);
 
 module.exports = router; 
