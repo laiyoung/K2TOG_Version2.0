@@ -1,5 +1,0 @@
-[33m9ca638a[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m Simplified the Vercel configuration
-[33m24bbda9[m updated vercel.json
-[33mb138f16[m fix: resolve Vercel API proxy routing and add deployment verification tools
-[33m07732c3[m properly proxied to your backend
-[33m1dd3fbc[m added a fall back API proxy
