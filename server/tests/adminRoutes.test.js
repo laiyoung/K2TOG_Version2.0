@@ -114,6 +114,53 @@ describe('Admin Routes', () => {
     });
   });
 
+  describe('GET /api/admin/users/search', () => {
+    it('should get paginated users when admin', async () => {
+      const res = await request(app)
+        .get('/api/admin/users/search?page=1&limit=10')
+        .set('Authorization', `Bearer ${adminToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body).toHaveProperty('users');
+      expect(res.body).toHaveProperty('pagination');
+      expect(Array.isArray(res.body.users)).toBe(true);
+      expect(res.body.pagination).toHaveProperty('total');
+      expect(res.body.pagination).toHaveProperty('page');
+      expect(res.body.pagination).toHaveProperty('limit');
+      expect(res.body.pagination).toHaveProperty('totalPages');
+    });
+
+    it('should filter users by role', async () => {
+      const res = await request(app)
+        .get('/api/admin/users/search?role=user&page=1&limit=10')
+        .set('Authorization', `Bearer ${adminToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body).toHaveProperty('users');
+      expect(res.body).toHaveProperty('pagination');
+      expect(Array.isArray(res.body.users)).toBe(true);
+    });
+
+    it('should search users by term', async () => {
+      const res = await request(app)
+        .get('/api/admin/users/search?searchTerm=test&page=1&limit=10')
+        .set('Authorization', `Bearer ${adminToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body).toHaveProperty('users');
+      expect(res.body).toHaveProperty('pagination');
+      expect(Array.isArray(res.body.users)).toBe(true);
+    });
+
+    it('should fail when non-admin tries to search users', async () => {
+      const res = await request(app)
+        .get('/api/admin/users/search?page=1&limit=10')
+        .set('Authorization', `Bearer ${userToken}`);
+
+      expect(res.status).toBe(403);
+    });
+  });
+
   describe('DELETE /api/admin/users/:userId', () => {
     it('should delete user when admin', async () => {
       const res = await request(app)

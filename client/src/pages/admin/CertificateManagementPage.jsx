@@ -76,7 +76,18 @@ const CertificateManagementPage = () => {
         try {
             console.log('Fetching students...');
             // Get all users and filter for students (users with role 'user' or 'student')
-            const allUsers = await adminService.getAllUsers({ role: 'all' });
+            const allUsersResponse = await adminService.getAllUsers({ role: 'all' });
+            
+            // Handle paginated response from search endpoint
+            let allUsers;
+            if (allUsersResponse && allUsersResponse.users && allUsersResponse.pagination) {
+                allUsers = allUsersResponse.users;
+            } else {
+                console.error('Invalid response format:', allUsersResponse);
+                setStudents([]);
+                return;
+            }
+            
             const students = allUsers.filter(user => user.role === 'user' || user.role === 'student');
             console.log('Students data received:', students);
             setStudents(students);

@@ -109,6 +109,11 @@ const UserManagement = () => {
         fetchUsers();
     }, [pagination.page, pagination.limit, searchTerm, selectedRole]);
 
+    // Debug pagination changes
+    useEffect(() => {
+        console.log('Pagination state changed:', pagination);
+    }, [pagination]);
+
     const fetchUsers = async () => {
         try {
             setLoading(true);
@@ -118,15 +123,23 @@ const UserManagement = () => {
                 search: searchTerm,
                 role: selectedRole !== 'all' ? selectedRole : undefined
             });
-            setUsers(Array.isArray(response) ? response : response.data || []);
-            if (response.pagination) {
+
+            // Handle paginated response from search endpoint
+            if (response && response.users && response.pagination) {
+                console.log('Received paginated response:', response);
+                setUsers(response.users);
                 setPagination(prev => {
                     const same =
                         prev.page === response.pagination.page &&
                         prev.limit === response.pagination.limit &&
                         prev.total === response.pagination.total;
-                    return same ? prev : { ...prev, ...response.pagination };
+                    const newPagination = same ? prev : { ...prev, ...response.pagination };
+                    console.log('Updated pagination:', newPagination);
+                    return newPagination;
                 });
+            } else {
+                console.log('Invalid response format:', response);
+                setUsers([]);
             }
         } catch (error) {
             handleError(error, "Failed to fetch users");
@@ -375,6 +388,7 @@ const UserManagement = () => {
     };
 
     const handlePageChange = (_, newPage) => {
+        console.log('Page change requested:', { currentPage: pagination.page, newPage: newPage + 1 });
         setPagination(prev => ({ ...prev, page: newPage + 1 }));
     };
 
@@ -475,7 +489,7 @@ const UserManagement = () => {
             </Paper>
 
             {/* Users Table with Pagination */}
-            <TableContainer component={Paper} sx={{ 
+            <TableContainer component={Paper} sx={{
                 overflowX: 'auto',
                 '& .MuiTable-root': {
                     minWidth: { xs: '600px', sm: 'auto' }
@@ -484,37 +498,37 @@ const UserManagement = () => {
                 <Table>
                     <TableHead>
                         <TableRow key="header">
-                            <TableCell sx={{ 
+                            <TableCell sx={{
                                 minWidth: { xs: '120px', sm: 'auto' },
                                 fontSize: { xs: '0.75rem', sm: '0.875rem' }
                             }}>
                                 User
                             </TableCell>
-                            <TableCell sx={{ 
+                            <TableCell sx={{
                                 minWidth: { xs: '80px', sm: 'auto' },
                                 fontSize: { xs: '0.75rem', sm: '0.875rem' }
                             }}>
                                 Role
                             </TableCell>
-                            <TableCell sx={{ 
+                            <TableCell sx={{
                                 minWidth: { xs: '80px', sm: 'auto' },
                                 fontSize: { xs: '0.75rem', sm: '0.875rem' }
                             }}>
                                 Status
                             </TableCell>
-                            <TableCell sx={{ 
+                            <TableCell sx={{
                                 minWidth: { xs: '100px', sm: 'auto' },
                                 fontSize: { xs: '0.75rem', sm: '0.875rem' }
                             }}>
                                 Created
                             </TableCell>
-                            <TableCell sx={{ 
+                            <TableCell sx={{
                                 minWidth: { xs: '100px', sm: 'auto' },
                                 fontSize: { xs: '0.75rem', sm: '0.875rem' }
                             }}>
                                 Last Updated
                             </TableCell>
-                            <TableCell align="right" sx={{ 
+                            <TableCell align="right" sx={{
                                 minWidth: { xs: '100px', sm: 'auto' },
                                 fontSize: { xs: '0.75rem', sm: '0.875rem' }
                             }}>
@@ -544,14 +558,14 @@ const UserManagement = () => {
                         ) : (
                             users.map((user) => (
                                 <TableRow key={user.id}>
-                                    <TableCell sx={{ 
+                                    <TableCell sx={{
                                         minWidth: { xs: '120px', sm: 'auto' },
                                         fontSize: { xs: '0.75rem', sm: '0.875rem' }
                                     }}>
                                         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                                             <PersonIcon color="action" sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
                                             <Box sx={{ minWidth: 0 }}>
-                                                <Typography variant="body2" sx={{ 
+                                                <Typography variant="body2" sx={{
                                                     fontSize: { xs: '0.75rem', sm: '0.875rem' },
                                                     overflow: 'hidden',
                                                     textOverflow: 'ellipsis',
@@ -559,7 +573,7 @@ const UserManagement = () => {
                                                 }}>
                                                     {user.first_name} {user.last_name}
                                                 </Typography>
-                                                <Typography variant="caption" color="text.secondary" sx={{ 
+                                                <Typography variant="caption" color="text.secondary" sx={{
                                                     fontSize: { xs: '0.7rem', sm: '0.75rem' },
                                                     overflow: 'hidden',
                                                     textOverflow: 'ellipsis',
@@ -570,7 +584,7 @@ const UserManagement = () => {
                                             </Box>
                                         </Box>
                                     </TableCell>
-                                    <TableCell sx={{ 
+                                    <TableCell sx={{
                                         minWidth: { xs: '80px', sm: 'auto' },
                                         fontSize: { xs: '0.75rem', sm: '0.875rem' }
                                     }}>
@@ -578,7 +592,7 @@ const UserManagement = () => {
                                             {getRoleIcon(user.role)}
                                             <Typography
                                                 variant="body2"
-                                                sx={{ 
+                                                sx={{
                                                     textTransform: "capitalize",
                                                     fontSize: { xs: '0.75rem', sm: '0.875rem' }
                                                 }}
@@ -587,19 +601,19 @@ const UserManagement = () => {
                                             </Typography>
                                         </Box>
                                     </TableCell>
-                                    <TableCell sx={{ 
+                                    <TableCell sx={{
                                         minWidth: { xs: '80px', sm: 'auto' },
                                         fontSize: { xs: '0.75rem', sm: '0.875rem' }
                                     }}>
                                         {getStatusChip(user.status)}
                                     </TableCell>
-                                    <TableCell sx={{ 
+                                    <TableCell sx={{
                                         minWidth: { xs: '100px', sm: 'auto' },
                                         fontSize: { xs: '0.75rem', sm: '0.875rem' }
                                     }}>
                                         {new Date(user.created_at).toLocaleDateString()}
                                     </TableCell>
-                                    <TableCell sx={{ 
+                                    <TableCell sx={{
                                         minWidth: { xs: '100px', sm: 'auto' },
                                         fontSize: { xs: '0.75rem', sm: '0.875rem' }
                                     }}>
@@ -628,6 +642,9 @@ const UserManagement = () => {
                     rowsPerPage={pagination.limit}
                     rowsPerPageOptions={[10, 25, 50]}
                     onRowsPerPageChange={handleRowsPerPageChange}
+                    labelDisplayedRows={({ from, to, count }) =>
+                        `${from}-${to} of ${count !== -1 ? count : `more than ${to}`}`
+                    }
                 />
             </TableContainer>
 

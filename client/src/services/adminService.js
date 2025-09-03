@@ -11,25 +11,24 @@ const adminService = {
     // Get all users
     getAllUsers: async (params = {}) => {
         try {
-            let url = '/admin/users';
+            let url = '/admin/users/search'; // Use the search endpoint for proper pagination
             const queryParams = new URLSearchParams();
             if (params.page) queryParams.append('page', params.page);
             if (params.limit) queryParams.append('limit', params.limit);
-            if (params.search) queryParams.append('search', params.search);
+            if (params.search) queryParams.append('searchTerm', params.search);
             if (params.role && params.role !== 'all') queryParams.append('role', params.role);
             if ([...queryParams].length > 0) url += `?${queryParams.toString()}`;
             console.log('Fetching users from', url); // Add logging
             const response = await api.get(url);
             console.log('getAllUsers response:', response); // Add logging
-            if (!Array.isArray(response)) {
-                // If the response is paginated, use response.users
-                if (response && Array.isArray(response.users)) {
-                    return response.users;
-                }
-                console.error('Invalid response format:', response);
-                throw new Error('Invalid response format from server');
+            
+            // The search endpoint always returns paginated response
+            if (response && response.users && response.pagination) {
+                return response;
             }
-            return response;
+            
+            console.error('Invalid response format:', response);
+            throw new Error('Invalid response format from server');
         } catch (error) {
             console.error('Error in getAllUsers:', error);
             throw error;

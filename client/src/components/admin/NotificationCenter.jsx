@@ -115,8 +115,9 @@ const NotificationCenter = () => {
       const response = await adminService.getAllUsers();
       console.log('Force refreshed users:', response);
 
-      if (Array.isArray(response)) {
-        const validUsers = response.filter(user => {
+      // Handle paginated response from search endpoint
+      if (response && response.users && response.pagination) {
+        const validUsers = response.users.filter(user => {
           const isValid = user &&
             user.id &&
             (user.first_name || user.last_name || user.email);
@@ -130,6 +131,9 @@ const NotificationCenter = () => {
 
         setUsers(validUsers);
         saveToLocalStorage('users', true);
+      } else {
+        console.error('Invalid response format:', response);
+        setError('Failed to refresh users');
       }
     } catch (error) {
       console.error('Force refresh failed:', error);
@@ -249,32 +253,32 @@ const NotificationCenter = () => {
       const response = await adminService.getAllUsers();
       console.log('Users fetched in NotificationCenter:', response);
 
-      if (!Array.isArray(response)) {
+      // Handle paginated response from search endpoint
+      if (response && response.users && response.pagination) {
+        const validUsers = response.users.filter(user => {
+          const isValid = user &&
+            user.id &&
+            (user.first_name || user.last_name || user.email);
+
+          if (!isValid) {
+            console.warn('Invalid user data:', user);
+          }
+          return isValid;
+        })
+          .map(user => ({
+            ...user,
+            displayName: user.first_name && user.last_name
+              ? `${user.first_name} ${user.last_name}`
+              : user.email || 'Unnamed User'
+          }));
+
+        console.log('Filtered valid users:', validUsers);
+        setUsers(validUsers);
+      } else {
         console.error('Invalid response format:', response);
         setError('Invalid response format from server');
         setUsers([]);
-        return;
       }
-
-      const validUsers = response.filter(user => {
-        const isValid = user &&
-          user.id &&
-          (user.first_name || user.last_name || user.email);
-
-        if (!isValid) {
-          console.warn('Invalid user data:', user);
-        }
-        return isValid;
-      })
-        .map(user => ({
-          ...user,
-          displayName: user.first_name && user.last_name
-            ? `${user.first_name} ${user.last_name}`
-            : user.email || 'Unnamed User'
-        }));
-
-      console.log('Filtered valid users:', validUsers);
-      setUsers(validUsers);
     } catch (error) {
       console.error('Failed to fetch users:', error);
       setError('Failed to fetch users');
